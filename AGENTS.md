@@ -1,0 +1,186 @@
+
+You are an expert in TypeScript, Angular, and scalable web application development. You write functional, maintainable, performant, and accessible code following Angular and TypeScript best practices.
+
+## TypeScript Best Practices
+
+- Use strict type checking
+- Prefer type inference when the type is obvious
+- Avoid the `any` type; use `unknown` when type is uncertain
+
+## Angular Best Practices
+
+- Always use standalone components over NgModules
+- Must NOT set `standalone: true` inside Angular decorators. It's the default in Angular v20+.
+- Use signals for state management
+- Implement lazy loading for feature routes
+- Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
+- Use `NgOptimizedImage` for all static images.
+  - `NgOptimizedImage` does not work for inline base64 images.
+
+## Accessibility Requirements
+
+- It MUST pass all AXE checks.
+- It MUST follow all WCAG AA minimums, including focus management, color contrast, and ARIA attributes.
+
+### Components
+
+- Keep components small and focused on a single responsibility
+- Use `input()` and `output()` functions instead of decorators
+- Use `computed()` for derived state
+- Set `changeDetection: ChangeDetectionStrategy.OnPush` in `@Component` decorator
+- Prefer inline templates for small components
+- Prefer Reactive forms instead of Template-driven ones
+- Do NOT use `ngClass`, use `class` bindings instead
+- Do NOT use `ngStyle`, use `style` bindings instead
+- When using external templates/styles, use paths relative to the component TS file.
+
+## State Management
+
+- Use signals for local component state
+- Use `computed()` for derived state
+- Keep state transformations pure and predictable
+- Do NOT use `mutate` on signals, use `update` or `set` instead
+
+## Templates
+
+- Keep templates simple and avoid complex logic
+- Use native control flow (`@if`, `@for`, `@switch`) instead of `*ngIf`, `*ngFor`, `*ngSwitch`
+- Use the async pipe to handle observables
+- Do not assume globals like (`new Date()`) are available.
+
+## Forms
+
+- Use Signal Forms (`@angular/forms/signals`): `form()` + `[formField]` + schema validators. Do not import `FormControl`/`FormGroup`/`FormBuilder`.
+- Never use `null`/`undefined` as an initial field value; use `''`, `0`, `[]`.
+- `submit()` callbacks must be `async`. Never put `min`, `max`, `value`, `disabled` or `readonly` on an input that has `[formField]` — the schema drives those.
+- `[formField]` binds native inputs and `ControlValueAccessor` components. It cannot bind Taiga's `tuiInputNumber` (its CVA is typed `number | bigint | null`); use `<input tuiInput type="number">` inside `tui-textfield` for numeric fields.
+- Field errors go in `<tui-error [error]="…" />`. Pass `null`, not `''`, when there is no error, or Taiga renders its own generic message.
+
+## Styling: Tailwind CSS 4 + Taiga UI
+
+- Tailwind runs **without preflight** (see `src/styles.css`); elements keep user-agent defaults — no margin, heading, or list reset. The one exception is a `box-sizing: border-box` rule in `@layer base`: without it every `w-full`/`size-*` combined with `p-*` overflows its container.
+- Single-column `grid` stacks need an explicit `grid-cols-1`. A bare `grid` leaves an `auto` track, whose min size is the widest item's min-content — one wide child (a `min-w-` table) then stretches every sibling past the viewport. `grid-cols-1` compiles to `minmax(0, 1fr)`, which cannot blow out.
+- Utilities belong in templates. Do not use `@apply` in component styles — those keep using `var(--tui-*)` directly.
+- The `@theme inline` block maps only the handful of tokens templates actually use as utilities (`bg-canvas`, `bg-base`, `border-border`, `text-primary/secondary/tertiary`, `font-mono`, `rounded-md/lg`). Mapping the whole `--tui-*` ramp was tried and almost none of it got used — component CSS writes `var(--tui-*)` directly, which is the right call for a status colour or an elevation. Add a mapping back when a template needs one; don't map speculatively. `inline` is required so utilities resolve against the `[tuiTheme='dark']` scope on `<tui-root>`; plain `@theme` would freeze them at light values.
+- Taiga ships its component CSS **unlayered**, so it beats layered Tailwind utilities. To override a property Taiga sets, use the trailing-important modifier (`p-0!`, `hidden!`) or put the rule in component CSS. Prefer putting the utility on a wrapper element you own.
+- Breakpoints are Tailwind defaults and line up with Taiga: `md` (768px) is the `TUI_BREAKPOINT` mobile boundary, `xl` (1280px) is desktopSmall → desktopLarge. The desktop sidebar takes 15.5rem out of the viewport, so content grids step one breakpoint later than the raw width suggests (four stat tiles at `lg`, the task-detail aside at `xl`).
+- Run `pnpm build` after template changes: `pnpm typecheck` does not type-check templates.
+
+### The palette
+
+- `src/styles.css` restates the **whole** `--tui-*` surface, text, status, radius and shadow ramp for both themes. Taiga's own dark theme only redefines part of the set, which is what left elevation and status tokens at light values on dark screens.
+- Both palette blocks repeat their selector as `:root, [tuiTheme='light']` and `[tuiTheme='dark']`. `<tui-root>` carries the theme attribute, and a custom property set on that element beats one set on `:root` whatever the specificity says — a `:root`-only override silently loses.
+- App-level values that have no Taiga equivalent are `--app-*` (`--app-canvas`, `--app-code-bg`, `--app-accent-soft`, `--app-border-strong`, `--app-font-mono`, `--app-glass-*`, `--app-shadow-panel`). Most are read with `var()` from component CSS; only `--app-canvas` and `--app-font-mono` also have a Tailwind mapping. When one stops being referenced, delete it — several outlived the sidebar by two rounds before anyone noticed.
+- Shared helpers worth reaching for before writing another: `app-inset-group` (labelled rounded group, the dashboard's building block), `app-back-link` (the "one level up" link on pushed screens) and `shared/lib/format/bytes.ts` (`toByteSize` for a split value/unit, `formatBytes` for a string, `MEGABYTE` because the API reports memory in mebibytes).
+- Interface type is **Inter**, identifiers and log output are **JetBrains Mono**; both load from `src/index.html` and are wired into `--tui-typography-family-*` so Taiga's own components use them too.
+
+### Restraint
+
+The layout follows the Apple/Meta habit of spending boxes, lines and type sizes as if they cost something. Before adding any of them, check the budget:
+
+- **One frame per group, not one per item.** The dashboard is grouped-inset (`app-inset-group`): a small label row above a rounded, opaque surface whose rows divide with `border-t border-border first:border-t-0` — the iOS Settings shape at every width, with the content column capped and centred instead of stretched. Reach for that pattern whenever peers repeat.
+- **In lists, status is a dot, not the text badge.** The dot colour, the id and the error note under it carry the state together, with an `sr-only` status suffix on the id; the badge stays on the task-detail page.
+- **No decorative glyphs.** Panels have no header icon and stat cells have no icon chip. Status meaning goes on the thing being read (the number, the badge), never on a second element carrying the same fact.
+- **A short type ramp**: 11px micro labels (uppercase), 12px hints, 13px body and table text, 14px panel titles, and one page title per screen. A new size needs a reason.
+- **One bar of chrome on desktop.** Brand, the two section links and the theme toggle live in a single sticky top bar; pages that sit one level down carry a named back link (`‹ Tasks`) rather than the shell carrying a breadcrumb strip for everyone. Two destinations do not earn a permanent rail.
+- **Global chrome carries navigation, not actions.** Creating a task is the Tasks page's primary button and the CTA in its empty state — not a top-bar button, not a tab-bar item. It follows that the tab bar holds only real destinations, so `activeItemIndex` stays a one-way binding from the route.
+
+### Shared shapes
+
+- `app-panel` is the one surface every screen is built from (border, one shadow step, optional titled header plus a `[panelActions]` slot, `[flush]` for tables and consoles). It replaced `tuiCardLarge`, whose padding, gap and radius are unlayered and could only be reshaped with important modifiers at every usage.
+- `app-callout` is the one inline message shape, replacing `tuiNotification`. `app-page-header`, `app-empty-state`, `app-error-state` and `app-task-status-badge` are likewise plain markup for the same reason.
+- `tui-icon` takes its box from `font-size` and ships that rule unlayered, so a layered `text-*` utility never lands. Use the `.icon-xs/.icon-sm/.icon-md/.icon-lg` helpers from `styles.css`.
+- Loading placeholders use the global `.skeleton` class shaped like the content that is about to land, not a spinner.
+- **`tui-textfield` has no appearance of its own.** `TuiAppearance` reads `TUI_APPEARANCE_OPTIONS`, which defaults to an empty string; button, notification and link each call `tuiAppearanceOptionsProvider(...)` but the textfield does not, so every field renders `data-appearance=""` and Taiga's `[data-appearance='textfield']` rules never match. The fields' fill, hairline and focus ring come from the `tui-textfield` / `.glass-field` block in `styles.css`. Do not write textfield CSS against the appearance attribute — it will silently do nothing.
+- The same block skins any element given `.glass-field`, which is how the environment textarea matches the inputs. States are keyed off `:focus-within` / `:focus`, not Taiga's `[data-focus]`, because that flag is set by the plumbing that never runs.
+- Taiga's textfield renders a Clear button by default. Keep it on search inputs; pass `[tuiTextfieldCleaner]="false"` on form fields.
+- **The task page is console-first.** The live log fills the viewport (its bounds arrive as `--console-min`/`--console-max` custom properties from the page; the component's defaults keep it card-sized elsewhere); environment and the container facts sit behind a segmented control. The segmented sections are hidden with a class, never destroyed — the editor holds an unapplied draft and the console holds scroll state — and the Environment label carries a dot while the draft is dirty. Mobile commands live in the app bar (Open + lifecycle toggle as icons, the rest in the same `TaskMenu` the dashboard opens on long press); the dock hides on `/tasks/*`, the iOS hides-bottom-bar-when-pushed behaviour.
+- **No status pills.** The task page states the status in an `sr-only` line only; sighted operators read it off the lifecycle button, since a Stop button can only mean running. The log console has no Live/Offline chip either — a dead stream says so in the console's own empty state. The dashboard row keeps its coloured dot, which is the one place status has to be scannable across many tasks.
+- **Forms are inset grouped lists.** The create form's fields are borderless rows inside an `app-inset-group` — the card is the field's container, `row-divider` separates, the row (not the input) carries `:focus-within` as the visible focus cue, and per-field hints collapse into one footnote under the group. Short values take the iOS inline shape (label left, value right, as the port row does). On mobile the form's one action lives in the app bar as a `GlassIconButton` check (`type="submit"` + a `form` attribute targeting the form's `formId` input — host semantics survive the attribute component), never validity-disabled — tapping it with empty fields surfaces the errors; the labelled bottom button is desktop-only. Colour the back button with the same token the component uses (`[tuiAppBarBack] { color: var(--tui-text-action) }`): with liquid glass on, Taiga gives it an *empty* appearance and its chevron otherwise rides the browser's default link colour.
+- Environment variables are edited as **raw `.env` text** in one textarea, not as key/value rows: the map is replaced whole on apply and operators already keep it as a file. The editor validates per line (missing `=`, invalid name, duplicate key) and emits `environmentChange` only for a clean buffer, so parents must disable their primary action on `errorsChange`. Reading is a separate surface: the task page carries a full-width Raw | List switch above a bare card — no heading, no explainer; the switch is cut from the floating pill's glass so the two controls read as one family, where **List** (`entities/environment/ui/environment-list`) shows the *applied* map as rows — values truncated until the row is tapped open, credentials masked behind an eye (segment-based key match, so `AUTH_API_URL` is never masked while `LICENSE_KEY` is), per-row copy of the real value. The dirty dot rides the Raw segment because that is where the draft lives; switching hides sections, never destroys them. It carries **no syntax hint and no auto-restart toggle**: `.env` needs no explanation to the people who keep one, and applying always recreates — `auto_restart` is a constant in the mapper, not a choice.
+- The log console has **no stderr filter and no follow toggle**. stderr is always shown and marked with a red leading rule; following is on until you scroll away from the end and resumes when you scroll back, so the two buttons only ever restated the default.
+- Data tables need `table-layout: fixed` with explicit widths on the metadata columns. Under `auto`, a cell holding a full registry reference claims the surplus, pushes the action column past the viewport, and `text-overflow` never engages.
+
+## Mobile / iOS behaviour
+
+- `TUI_PLATFORM` is provided as `'ios'` on touch user agents **and** in a window narrower than 48rem at bootstrap (`app.config.ts`), because that is exactly when the shell renders the mobile chrome the skin is for. Taiga reads the platform once per component, so it stays a startup decision: crossing the boundary by resizing needs a reload to re-skin.
+- **The brand source of truth is `assets/icon-only.png`** (2048px, transparent). Everything else is generated, never hand-edited: `node scripts/generate-android-web-icons.mjs` produces the Android launcher set (legacy + round + adaptive foreground), `public/favicon.png`, `public/apple-touch-icon.png`, `public/brand-mark.png` (the transparent mark the desktop header and onboarding fallback render), and the `assets/splash[-dark].png` sources; then `npx capacitor-assets generate --ios --android --iconBackgroundColor '#EEF4FF'` fills the iOS AppIcon (flattened — App Store icons cannot carry alpha) and both platforms' splashes. `#EEF4FF` is the icon/light-splash background; dark splash is `#0B0E14`.
+- Liquid Glass (`tui-app-bar`) needs all three of: `provideTaiga({apis: {liquidGlass: true}})`, `taiga-ui-mobile.less` in `angular.json`, and `TUI_PLATFORM === 'ios'`. Under it the app bar goes transparent and renders a `tui-progressive-blur`, so any app bar must be **sticky** — it needs the page to scroll underneath it to have anything to blur.
+- **The dock is a `GlassSegmented` in `stacked` mode, not Taiga's `tuiTabBar`** (replaced at the operator's request — the segmented reads as the better standard): a fixed, centred pill above the safe-area inset in `app-shell`, four tabs — Home (`/dashboard`), Search (`/search`), Alerts (`/notifications`, a coming-soon page), Settings — icon above a 10px caption, `activeIndex` driven by the route and `activeIndexChange` navigating. Unbuilt destinations point at `pages/coming-soon` and get their icon/copy from route `data`. The scroll-minimise transform and `view-transition-name: app-dock` ride the `nav` wrapper, and the wrapper splits pointer-events so the side bands stay scrollable. Taiga's bottom fade left with the tab bar; the dock floats bare like the task page's section pill.
+- **Glass belongs to floating chrome only** — the pill, the header action discs, the onboarding Continue capsule — never to content groups: a blur with nothing scrolling underneath is just lost contrast, and Safari breaks a `backdrop-filter` nested inside another, so glass elements are always siblings. The material tokens (`--app-chrome-bg`/`--app-chrome-glow`/`--app-chrome-filter`) mirror Taiga's own app-bar values per theme — the filter differs between light (saturate 6 + brightness) and dark (saturate 4 only), which is Taiga's split, not ours.
+- **Every round icon action is a `GlassIconButton`** (`shared/ui/glass-icon-button`, attribute selector `a[appGlassIconButton]`/`button[appGlassIconButton]`): the 44px disc + 24px accent glyph matching what `tui-app-bar` draws around its slots. It is context-aware — inside a `tui-app-bar` slot it sheds its own glass and press transform via `:host-context([tuiAppBarButton])`, because the bar already wraps each slot in its own disc and stacked materials read as a mismatched button. Never hand-build this disc again. `.glass-button`/`--pill` in `styles.css` remains only for the onboarding capsule.
+- **Row actions on touch are a swipe strip of `GlassIconButton` discs, with the long-press menu kept alongside.** An earlier removal of `TuiSwipeActions` blamed a strip too wide to leave the row legible; 5.19's CSS-var sizing fixed that — the list sets `--tui-action-gap: 10` so two 44px discs open a ~122px strip. The row content (with its `longtap` menu) is the swipe content; the discs are `[tuiSwipeAction]` buttons: lifecycle (play/square by `Task.status`) and delete (`tone="negative"`, which still routes through the page's confirm dialog). `autoClose` closes the strip on any outside pointerdown, and Taiga hides the actions entirely on fine pointers, so desktop is untouched. The long-press menu stays because the swipe strip has no room for Open/Copy.
+- `ThemeService` must stay the single source of truth for the resolved theme. `provideTaiga` writes `body[tuiTheme='dark']` from `TUI_DARK_MODE` in an app initializer, so the service drives that signal (`set` / `reset`) and derives `theme()` from it. A second `prefers-color-scheme` listener makes `<body>` and `<tui-root>` disagree the moment an operator picks a theme the OS does not use, and every rule scoped under `[tuiTheme='dark']` — the Liquid Glass palette among them — then picks the wrong variant.
+- **Floating chrome needs a scroll edge.** `.scroll-edge` in `styles.css` is the masked blur that goes behind any sticky `tui-app-bar`, because Taiga's Liquid Glass app bar is transparent with `backdrop-filter: none` and would otherwise let content scroll through the title. Both `.scroll-edge` and `.row-divider` deliberately set no `position`: they are unlayered, so declaring one would beat Tailwind's layered `sticky`/`relative` utilities — the host carries its own.
+- Prefer the mobile primitives over hand-rolled equivalents: `TuiResponsiveDialogService` (sheet on touch, dialog on desktop), `TuiSwipeActions` + `[tuiDropdownContext]` for row actions (see above), `tui-app-bar` + `tuiAppBarBack` for pushed screens.
+- **`app-bottom-sheet` (`shared/ui/bottom-sheet`) is a message surface, never a command list.** The wrapper gives `TuiBottomSheet` what it lacks — `[(open)]`, a `--tui-service-backdrop` scrim, Escape (the Android back's path in), and an iOS drag-to-dismiss (down follows the finger, releases past a third or a flick >0.6 px/ms dismiss; up rubber-bands; `touch-action: none` trades away Taiga's scroll expansion, so keep content within `stops[0]`; drags starting on `button/a/input` are ignored). Its exemplar is the welcome flow's connect-failure notice. The task-detail More menu was built on it once and that was wrong: `TUI_CONFIRM` *already renders as a bottom sheet on mobile* via `TuiResponsiveDialogService`, so an action sheet stacked under a confirm sheet read as two sheets doing one job — task actions are a `[tuiDropdown]` menu instead (`app-task-menu` under the app bar's ellipsis disc; the page sets `menuOpen` false on pick, since `TuiDropdownDriver` self-dismiss only covers context dropdowns), and Delete routes through the confirm dialog, which is the one bottom sheet that moment needs.
+- **Section/mode switchers are `GlassSegmented`** (`shared/ui/glass-segmented`), not `tui-segmented`: the chrome-glass capsule whose thumb is draggable and pours between segments (spring + squash on tap, stretch under the finger, elastic settle) — iOS 26's segmented behaviour, built on the GSAP already in the project. Items come in as `{label, icon?, dot?}` and the model is `activeIndex`. Hard-won mechanics inside it: a `gsap.quickTo` whose tween the settle overwrote is dead for good, so the drag creates a fresh one per gesture; releases snap to the segment under the *finger*, never under the lagging blob; the host is `touch-action: pan-y` so vertical page scroll survives; reduced-motion turns every move into an instant set. Nothing uses `tui-segmented` anymore — Settings' theme choice runs on the same component via the `icon` field. The `stacked` input turns a segment into a tab-bar item (icon over a caption); the thumb mechanics are shared.
+- **The Android hardware back is layered** (`app/android-back-button.ts`, native platform only): open Taiga dialog/sheet → emit on the app's `TUI_DIALOGS_CLOSE` override (both `tui-dialog` and `tui-sheet-dialog` subscribe to it; the override must keep the token's default router-navigation stream). Open dropdown menu → dispatch a synthetic Escape `keydown` on the document: dropdown close subscriptions filter plain keydowns, unlike dialogs whose Escape goes through `CloseWatcher`, which synthetic events cannot trigger — and synthetic pointer events do not close them either. Then history back, then `App.exitApp()`.
+- The log stream **drops replayed lines**. Every reconnect re-requests the same `tail`, so a server that ends the stream after it — which ours does once a container has stopped — used to append the same hundred lines every three seconds. Anything not newer than the newest line held is discarded; lines sharing that timestamp are compared by message so a burst inside one clock tick still lands.
+- **Refresh is the shell's pull gesture, never a button** (the old "no manual refresh" rule was replaced at the operator's request — pull-to-refresh took the slot the removed Refresh button left). The gesture layer is Taiga's own `TuiPullToRefresh` wrapping `<main>` in the shell — it works with window scrolling as-is, because `TUI_SCROLL_REF` defaults to `documentElement` and `tuiScrollFrom` special-cases it (an earlier note here claiming it needs an inner scroll container was wrong). The page contract is still centralised in `shared/lib/pull-to-refresh`: `registerPullRefresh(fn)` is the one line a page adds in its constructor (auto-unregistered on destroy); the service bridges Taiga's two ends — `(pulled)` runs the registrations, `loaded$` feeds `TUI_PULL_TO_REFRESH_LOADED`, **which must be provided or the spinner never stops** (its default is EMPTY). The shell also forces `TUI_PULL_TO_REFRESH_COMPONENT` to `TUI_IOS_LOADER` and passes the iOS `styleHandler`, because the loader is UA-picked and this app wears the iOS skin on every touch device; `styles.css` repositions the loader below the safe-area inset (`!important` — it fights the loader's own `:host` rule). Taiga already refuses to engage while a dialog/sheet/dropdown is open inside the wrapper. Pages that register nothing (Settings) get an immediate `loaded$`, so a pull just springs back. Store loads return `Promise<void>` resolved in `finalize` so the spinner tracks the real fetch.
+- **The app is zoneless** — there is no zone.js polyfill. `NgZone.run`/`runOutsideAngular` are no-ops: never write them. Signal writes are what schedule change detection; plain `addEventListener` is already "outside" everything. Corollary for testing in throttled/occluded tabs: zoneless CD flushes on animation frames, so a frozen-rAF tab runs handlers and `gsap.set` fine while class bindings and `@if` swaps appear stuck — pump a frame (screenshot, focus) before declaring the code broken.
+- **Search is its own destination** (`pages/search`, the dock's second tab), not a field on the dashboard: `TaskFilterBar` + `SearchResults` filter the whole fleet live on the page, with the count in the inset group's trailing label. No overlay, no scrim, no autofocus (iOS search tabs don't pop the keyboard; `/` focuses the field once on the page). The earlier dashboard incarnation — dropdown over an undimmed page — is gone; if search ever grows an overlay again, remember that **any full-screen overlay paint ghosts as a stuck veil on WKWebView**, which is why every dimming attempt was reverted. There is still no status filter; `Task.status` drives the dot and the action set, not a dropdown.
+
+- **The dashboard overview is a trend card + tiles on `@taiga-ui/addon-charts`** (`features/track-stats`), replacing the old three-row overview group. The hero `tui-line-chart` (inside `tui-axes`, dashed horizontals, `[tuiLineChartHint]` hover) plots **running tasks** — the only stat that actually moves; `containerMemoryMb`/`totalMemoryMb`/`maxContainers` are static config and live in the tiles, so never chart them as a trend. The backend has no history endpoint: `StatsHistoryStore` (root-provided) samples `/stats` every 30s from first injection and keeps a one-hour rolling buffer — the chart is session-only by design and says "Collecting activity" until it has two points. Charts are SVG driven by `--tui-chart-categorical-NN` tokens (series 0 already resolves to the app accent); they are content, not chrome — flat surfaces, no glass.
+
+## Data flow & code style
+
+- **No `async`/`await`, no hand-made Promises — the codebase is declarative.** Reads are `rxResource` in stores (`params` off a signal, `stream` returning the API observable; `isLoading` doubles as the pull-to-refresh busy signal; pair with a `linkedSignal` to keep the last good value through a failed reload, reset on a params switch so one task's data never flashes on another's screen). Writes are one-shot Observables that never error to the subscriber — both outcomes are a `TaskCommandResult`-style value the page routes to the toast — subscribed at the page edge. Platform promise APIs (clipboard, `File.text()`) are bridged with `from()`/`defer()`. The only sanctioned promise shims: lazy-route `import().then` and Signal Forms `submit()`'s promise-returning action (keep its body synchronous). Note: a resource's `value()` **throws** in the error state — read through `hasValue()`; `error()` hands back the original `HttpErrorResponse`, so `mapApiError` still applies.
+- **Comments are minimal and intent-only (WHY).** No comments explaining what a framework API does, no "Returns…" boilerplate, inline comments ≤ 1 line, JSDoc only on exported/public APIs. Business constraints, non-obvious edge cases and perf hacks are the only things worth a comment.
+
+## Motion
+
+- GSAP drives entrance motion through one directive, `[appReveal]` (`shared/lib/motion/reveal.directive.ts`). Put it on a container; it fades and lifts the container's element children with a stagger. Do not scatter `gsap.to`/`from` calls through components.
+- Overlay chrome must carry `data-no-reveal`: the tween's first act is `visibility: hidden` (autoAlpha), and until it plays the element is unhittable — a scrim inserted on tap has to catch the very next pointerdown, and in a throttled background tab the tween may not run for seconds. The search scrim is the precedent.
+- It watches the container with a `MutationObserver` instead of animating a snapshot. These containers start out holding a skeleton or a loader, so a one-shot pass at first render animates the placeholder and lets the real content appear flat. Each element is revealed at most once.
+- Every tween is created **inside** a `gsap.matchMedia('(prefers-reduced-motion: no-preference)')` handler, and cleaned up with `media.revert()` on destroy. This is not stylistic: `from({autoAlpha: 0})` hides its targets the moment the tween is created, so a suppressed animation must never create the tween — a zero-duration tween would leave the page blank. The reduced-motion rule in `styles.css` only covers CSS transitions and has no effect on GSAP.
+- Animate transforms and `autoAlpha`, never layout properties.
+- **Route view transitions carry a watchdog** (`app.config.ts`): a transition that never finishes freezes its `::view-transition` overlay over the live page, and `vt-recede`'s last keyframe is the whole screen at `brightness(.85)` — on a device this read as a permanent dim veil over a perfectly sharp page (frames stop mid-transition when the app backgrounds or the WebView pauses rAF). Navigations started while `document.hidden` skip the choreography outright; every other transition is force-skipped at 1s if unfinished — `skipTransition()` is a no-op on a finished one. If a uniformly dimmed, *unblurred* screen ever reappears, suspect a stuck view transition first, not the search overlay.
+
+## Interaction budget
+
+- **Confirm only what cannot be undone.** Delete asks; start, stop and restart do not. They are reversible from the button that triggered them and the toast reports the outcome, so a dialog on each one made every routine lifecycle change cost two clicks and a reading task.
+- **Whole rows are targets.** The list row navigates to the task on click. On desktop it is a `div` wrapping a real anchor on the id, so the keyboard and screen-reader path is unchanged; on mobile the row itself is a `button`, because Taiga's `longtap` polyfill listens passively and cannot cancel the click that a long press produces on release — owning that click is the only way the menu survives it. A row-level handler bails out when the event started on a control *inside* the row (`closest('a, button, input')` that is not `currentTarget`), and when a long press has armed the menu.
+- **Desktop row actions are revealed, not resident.** At rest a row shows its metadata; on `:hover`, `:focus-within` (the keyboard path — tabbing to the id link makes the buttons appear and reachable) and while a command is pending (`row--busy`), the metadata swaps for the action cluster. Mobile rows carry lifecycle and delete as swipe discs, and the full labelled set in the long-press menu, which titles itself with the task id.
+- **Reachable without the pointer.** On the search page, `/` focuses the field (skipped while a field already has focus) and `Escape` clears it. Keep new shortcuts on the component that owns the target, not on a global service.
+
+## Architecture: FSD x Clean Architecture
+
+`src/` is layered `app > pages > widgets > features > entities > shared`. Imports only ever
+point **downward** — never upward, never sideways between slices of the same layer. Aliases
+`@app @pages @widgets @features @entities @shared` mirror the layers, and
+`eslint-plugin-boundaries` enforces the graph (`pnpm lint`).
+
+- **Only through the slice's public entry.** For `features`, `entities` and `widgets` that is
+  `index.ts`. A page slice has exactly one public thing — the routed component — so its
+  `<slice>-page.ts` is the entry and there is no barrel; that also keeps the lazy chunk named
+  after the page. Deep paths are for files inside the same slice.
+- **`entities/*/model` is pure** — no Angular, no `HttpClient`, no DTOs. `entities/*/api` owns the
+  wire types and maps them to the model, so a DTO never reaches a component.
+- **`HttpClient` only inside an `api/` segment.**
+- **`ui/` components are dumb**: `input()`/`output()`, OnPush, no store and no api injection. If a
+  component needs a URL, a breakpoint or a router, the page passes it in. The page is the only
+  container — it provides the stores and wires the outputs.
+- **State lives in signal stores** (`features/*/model/*.store.ts`), provided at the page that uses
+  them. `providedIn: 'root'` is reserved for what is genuinely global: the server address, the
+  theme, and the stateless `*Api` classes.
+- Two dumb components are shared by more than one feature and therefore sit in the entity that owns
+  their vocabulary, not in a feature: `entities/task/ui/{task-actions,task-status-badge}` and
+  `entities/environment/ui/environment-editor`.
+
+`MIGRATION_PLAN.md` at the repo root records the decisions and the old-to-new file map.
+
+## Server address and onboarding
+
+- **There is no dev proxy.** The API origin is operator-entered: `ServerConfigStore` (`shared/config`) owns it in `localStorage`, every `*/api/` class reads it per request, and nothing may hardcode a URL prefix. The backend already sends `Access-Control-Allow-Origin: *` on `/api/v1`, which is what makes the cross-origin calls work.
+- Every content route sits behind `serverConfiguredGuard`; unconfigured devices land on `/welcome`, a lazy route (`app/onboarding.routes.ts`) whose chrome the shell hides entirely (`onboarding()` computed).
+- **The whole onboarding is ONE route.** `WelcomePage` holds all three steps on a horizontal GSAP track; `?step=` is the single source of truth (capsule taps and swipes navigate to it, so hardware/browser back walks steps instead of exiting, and deep links work). Same-path navigations skip the router's view transitions (`app.config.ts` compares `routePath(from/to)`) — the page animates its own slide. The hero (`app-onboarding-hero`, dotlottie canvas) mounts once and shrinks via transform past step 0; the track is sized by the viewport, never by content (a flex-basis loop through `min-width:auto` once inflated it past the screen). The one action button is the `.glass-button--pill` capsule: Continue → Continue → Connect (with loader).
+- The hero animation is **generated, not exported**: `node scripts/generate-welcome-lottie.mjs` writes `public/animations/boreas-welcome.json` — the real logo PNG embedded as a Lottie image layer under hand-authored effect layers (spin, glow, rings, snow). Every cycle length divides the 300-frame timeline, so the loop is seamless by construction; cycle resets hide behind zero opacity.
+- The connect step accepts a server only when `GET /api/v1/health` answers `{"status":"healthy"}` within 4s. A bare 2xx is deliberately not enough: any SPA host serves its index page with a 200 for unknown paths, which would pass a plain static server off as a healthy API.
+- The health-check failure notice is a hand-rolled single-button component (`TUI_CONFIRM` always renders a yes/no pair) hosted in `app-bottom-sheet`; closing it by any path — Try again, scrim, Escape, drag — returns focus to the address field.
+
+## Services
+
+- Design services around a single responsibility
+- Use the `providedIn: 'root'` option for singleton services
+- Use the `inject()` function instead of constructor injection

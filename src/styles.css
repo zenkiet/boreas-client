@@ -1,0 +1,648 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@source not '../.agents';
+
+/* The one preflight piece utilities need: content-box overflows w-full + p-*. */
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    box-sizing: border-box;
+  }
+}
+
+@custom-variant dark (&:where([tuiTheme='dark'], [tuiTheme='dark'] *));
+
+/* inline resolves utilities against dark overrides scoped to tui-root instead of :root. */
+@theme inline {
+  --font-mono: var(--app-font-mono);
+
+  --color-canvas: var(--app-canvas);
+  --color-base: var(--tui-background-base);
+  --color-border: var(--tui-border-normal);
+
+  --color-primary: var(--tui-text-primary);
+  --color-secondary: var(--tui-text-secondary);
+  --color-tertiary: var(--tui-text-tertiary);
+
+  --radius-md: var(--tui-radius-m);
+  --radius-lg: var(--tui-radius-l);
+}
+
+:root,
+[tuiTheme='light'],
+[tuiTheme='dark'] {
+  --tui-typography-family-text:
+    -apple-system, system-ui, Inter, ui-sans-serif, 'Segoe UI', sans-serif;
+  --tui-typography-family-display:
+    -apple-system, system-ui, Inter, ui-sans-serif, 'Segoe UI', sans-serif;
+  --app-font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --tui-typography-heading-h1: 700 2rem / 1.15 var(--tui-typography-family-display);
+  --tui-typography-heading-h2: 700 1.625rem / 1.2 var(--tui-typography-family-display);
+  --tui-typography-heading-h3: 700 1.375rem / 1.25 var(--tui-typography-family-display);
+  --tui-typography-heading-h4: 600 1.1875rem / 1.3 var(--tui-typography-family-display);
+  --tui-typography-heading-h5: 600 1.0625rem / 1.35 var(--tui-typography-family-display);
+  --tui-typography-heading-h6: 600 0.9375rem / 1.4 var(--tui-typography-family-display);
+
+  --tui-radius-xs: 0.3125rem;
+  --tui-radius-s: 0.5rem;
+  --tui-radius-m: 0.625rem;
+  --tui-radius-l: 1rem;
+
+  --tui-duration: 0.22s;
+
+  /* Fields use less saturation than floating chrome to preserve contrast. */
+  --app-glass-filter: blur(0.5rem) saturate(1.8);
+
+  /* Scroll edges blur harder so text cannot remain legible beneath chrome. */
+  --app-edge-filter: blur(1.25rem) saturate(1.6);
+}
+
+:root,
+[tuiTheme='light'] {
+  --tui-background-base: #ffffff;
+  --tui-background-base-alt: #f4f6fa;
+  --tui-background-elevation-1: #ffffff;
+  --tui-background-elevation-2: #ffffff;
+  --tui-background-elevation-3: #ffffff;
+
+  --tui-background-neutral-1: rgba(15, 23, 42, 0.045);
+  --tui-background-neutral-1-hover: rgba(15, 23, 42, 0.075);
+  --tui-background-neutral-1-pressed: rgba(15, 23, 42, 0.11);
+  --tui-background-neutral-2: rgba(15, 23, 42, 0.09);
+  --tui-background-neutral-2-hover: rgba(15, 23, 42, 0.12);
+  --tui-background-neutral-2-pressed: rgba(15, 23, 42, 0.16);
+
+  --tui-background-accent-1: #4f46e5;
+  --tui-background-accent-1-hover: #5b52ec;
+  --tui-background-accent-1-pressed: #4338ca;
+  --tui-background-accent-2: #0d9488;
+  --tui-background-accent-2-hover: #14a89a;
+  --tui-background-accent-2-pressed: #0b7a70;
+  --tui-background-accent-opposite: #0f172a;
+  --tui-background-accent-opposite-hover: #1e293b;
+  --tui-background-accent-opposite-pressed: #334155;
+
+  --tui-text-primary: #0f172a;
+  --tui-text-secondary: #475569;
+  --tui-text-tertiary: #64748b;
+  --tui-text-primary-on-accent-1: #ffffff;
+  --tui-text-primary-on-accent-2: #ffffff;
+  --tui-text-action: #4338ca;
+  --tui-text-action-hover: #4f46e5;
+  --tui-text-positive: #047857;
+  --tui-text-positive-hover: #059669;
+  --tui-text-negative: #be123c;
+  --tui-text-negative-hover: #e11d48;
+
+  --tui-border-normal: rgba(15, 23, 42, 0.085);
+  --tui-border-hover: rgba(15, 23, 42, 0.18);
+  --tui-border-focus: #4f46e5;
+
+  --tui-status-positive: #047857;
+  --tui-status-positive-pale: rgba(4, 120, 87, 0.1);
+  --tui-status-positive-pale-hover: rgba(4, 120, 87, 0.16);
+  --tui-status-negative: #be123c;
+  --tui-status-negative-pale: rgba(190, 18, 60, 0.09);
+  --tui-status-negative-pale-hover: rgba(190, 18, 60, 0.15);
+  --tui-status-warning: #b45309;
+  --tui-status-warning-pale: rgba(180, 83, 9, 0.1);
+  --tui-status-warning-pale-hover: rgba(180, 83, 9, 0.16);
+  --tui-status-info: #1d4ed8;
+  --tui-status-info-pale: rgba(29, 78, 216, 0.09);
+  --tui-status-info-pale-hover: rgba(29, 78, 216, 0.15);
+  --tui-status-neutral: #64748b;
+
+  --tui-service-selection-background: rgba(79, 70, 229, 0.16);
+  --tui-service-autofill-background: #fdf6d8;
+  --tui-service-backdrop: rgba(15, 23, 42, 0.45);
+
+  --tui-shadow-small: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --tui-shadow-small-hover: 0 2px 4px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.08);
+  --tui-shadow-medium: 0 4px 10px rgba(15, 23, 42, 0.06), 0 12px 28px rgba(15, 23, 42, 0.07);
+  --tui-shadow-medium-hover: 0 6px 14px rgba(15, 23, 42, 0.08), 0 18px 40px rgba(15, 23, 42, 0.1);
+  --tui-shadow-popup: 0 12px 24px rgba(15, 23, 42, 0.1), 0 32px 64px rgba(15, 23, 42, 0.16);
+
+  --app-canvas: #f4f6fa;
+  --app-code-bg: #f6f7fb;
+  --app-border-strong: rgba(15, 23, 42, 0.14);
+  --app-accent-soft: rgba(79, 70, 229, 0.08);
+  --app-accent-text: #4338ca;
+  --app-shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --app-scrollbar-thumb: rgba(15, 23, 42, 0.18);
+  --app-scrollbar-thumb-hover: rgba(15, 23, 42, 0.3);
+
+  --app-glass-fill: rgba(15, 23, 42, 0.035);
+  --app-glass-fill-hover: rgba(15, 23, 42, 0.055);
+  --app-glass-bevel: rgba(255, 255, 255, 0.9);
+  --app-glass-glow: rgba(255, 255, 255, 0.5);
+
+  --app-chrome-bg: rgba(255, 255, 255, 0.7);
+  --app-chrome-glow: rgba(255, 255, 255, 1);
+  --app-chrome-filter: blur(0.25rem) saturate(6) brightness(1.05);
+  --app-chrome-bevel: linear-gradient(
+    319deg,
+    #fff 4%,
+    #fff 19%,
+    rgba(255, 255, 255, 0.12) 40%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0) 48%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0.02) 55%,
+    rgba(255, 255, 255, 0.12) 60%,
+    #fff 80%,
+    #fff 96%
+  );
+
+  --app-segment-thumb: rgba(255, 255, 255, 0.92);
+  --app-segment-thumb-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Restate the full dark ramp because Taiga overrides only part of it. */
+[tuiTheme='dark'] {
+  --tui-background-base: #1c1c1e;
+  --tui-background-base-alt: #000000;
+  --tui-background-elevation-1: #1c1c1e;
+  --tui-background-elevation-2: #2c2c2e;
+  --tui-background-elevation-3: #3a3a3c;
+
+  --tui-background-neutral-1: rgba(120, 120, 128, 0.18);
+  --tui-background-neutral-1-hover: rgba(120, 120, 128, 0.24);
+  --tui-background-neutral-1-pressed: rgba(120, 120, 128, 0.32);
+  --tui-background-neutral-2: rgba(120, 120, 128, 0.32);
+  --tui-background-neutral-2-hover: rgba(120, 120, 128, 0.36);
+  --tui-background-neutral-2-pressed: rgba(120, 120, 128, 0.44);
+
+  --tui-background-accent-1: #6366f1;
+  --tui-background-accent-1-hover: #7c7ff5;
+  --tui-background-accent-1-pressed: #4f46e5;
+  --tui-background-accent-2: #14b8a6;
+  --tui-background-accent-2-hover: #2dd4bf;
+  --tui-background-accent-2-pressed: #0d9488;
+  --tui-background-accent-opposite: #ffffff;
+  --tui-background-accent-opposite-hover: #eef1f7;
+  --tui-background-accent-opposite-pressed: #dce1ea;
+
+  --tui-text-primary: #ffffff;
+  /* Lifted from iOS's 1/0.6/0.3 label ramp: Apple's tertiary is 2.4:1, this holds AA. */
+  --tui-text-secondary: rgba(235, 235, 245, 0.75);
+  --tui-text-tertiary: rgba(235, 235, 245, 0.55);
+  --tui-text-primary-on-accent-1: #ffffff;
+  --tui-text-primary-on-accent-2: #04211f;
+  --tui-text-action: #a5b4fc;
+  --tui-text-action-hover: #c7d2fe;
+  --tui-text-positive: #4ade9a;
+  --tui-text-positive-hover: #6ee7b7;
+  --tui-text-negative: #fb7185;
+  --tui-text-negative-hover: #fda4af;
+
+  --tui-border-normal: rgba(84, 84, 88, 0.65);
+  --tui-border-hover: rgba(120, 120, 128, 0.7);
+  --tui-border-focus: #818cf8;
+
+  --tui-status-positive: #34d399;
+  --tui-status-positive-pale: rgba(52, 211, 153, 0.14);
+  --tui-status-positive-pale-hover: rgba(52, 211, 153, 0.22);
+  --tui-status-negative: #fb7185;
+  --tui-status-negative-pale: rgba(251, 113, 133, 0.14);
+  --tui-status-negative-pale-hover: rgba(251, 113, 133, 0.22);
+  --tui-status-warning: #fbbf24;
+  --tui-status-warning-pale: rgba(251, 191, 36, 0.14);
+  --tui-status-warning-pale-hover: rgba(251, 191, 36, 0.22);
+  --tui-status-info: #60a5fa;
+  --tui-status-info-pale: rgba(96, 165, 250, 0.14);
+  --tui-status-info-pale-hover: rgba(96, 165, 250, 0.22);
+  --tui-status-neutral: #98989f;
+
+  --tui-service-selection-background: rgba(129, 140, 248, 0.28);
+  --tui-service-autofill-background: #3d3722;
+  --tui-service-backdrop: rgba(0, 0, 0, 0.72);
+
+  --tui-shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --tui-shadow-small-hover: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 24px rgba(0, 0, 0, 0.4);
+  --tui-shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --tui-shadow-medium-hover: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --tui-shadow-popup: 0 24px 56px rgba(0, 0, 0, 0.62);
+
+  --app-canvas: #000000;
+  --app-code-bg: #101012;
+  --app-border-strong: rgba(120, 120, 128, 0.55);
+  --app-accent-soft: rgba(99, 102, 241, 0.16);
+  --app-accent-text: #c7d2fe;
+  --app-shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --app-scrollbar-thumb: rgba(120, 120, 128, 0.4);
+  --app-scrollbar-thumb-hover: rgba(120, 120, 128, 0.6);
+
+  --app-glass-fill: rgba(255, 255, 255, 0.055);
+  --app-glass-fill-hover: rgba(255, 255, 255, 0.09);
+  --app-glass-bevel: rgba(255, 255, 255, 0.1);
+  --app-glass-glow: rgba(255, 255, 255, 0.045);
+
+  --app-chrome-bg: rgba(88, 88, 88, 0.31);
+  --app-chrome-glow: rgba(31, 31, 31, 0.8);
+  --app-chrome-filter: blur(0.25rem) saturate(4);
+  --app-chrome-bevel: linear-gradient(
+    319deg,
+    rgba(153, 153, 153, 0.2),
+    rgba(153, 153, 153, 0.12) 19%,
+    rgba(153, 153, 153, 0.04) 40%,
+    rgba(153, 153, 153, 0.02) 45%,
+    rgba(153, 153, 153, 0) 48%,
+    rgba(153, 153, 153, 0) 52%,
+    rgba(153, 153, 153, 0.02) 55%,
+    rgba(153, 153, 153, 0.04) 60%,
+    rgba(153, 153, 153, 0.12) 80%,
+    rgba(153, 153, 153, 0.2) 96%
+  );
+
+  --app-segment-thumb: rgba(255, 255, 255, 0.16);
+  --app-segment-thumb-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Unlayered so these rules outrank Taiga's unlayered output. */
+:root {
+  font-family: var(--tui-typography-family-text);
+  color: var(--tui-text-primary);
+  background: var(--app-canvas);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Open 4/6/9 and straighten l for identifiers at small UI sizes. */
+  font-feature-settings:
+    'cv02' 1,
+    'cv03' 1,
+    'cv04' 1,
+    'cv11' 1;
+}
+
+body {
+  min-inline-size: 20rem;
+  min-block-size: 100dvh;
+  margin: 0;
+  background: var(--app-canvas);
+}
+
+/* Counters, ports and byte sizes must not jitter as they update. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* tui-icon sizes from font-size, unlayered — a layered text-* utility never lands. */
+.icon-sm {
+  font-size: 1rem;
+}
+
+.icon-lg {
+  font-size: 1.375rem;
+}
+
+/* Glass belongs to floating chrome only; a blur over nothing is lost contrast. */
+.glass-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-chrome-bg);
+  -webkit-backdrop-filter: var(--app-chrome-filter);
+  backdrop-filter: var(--app-chrome-filter);
+  box-shadow:
+    0 0.5rem 2rem rgba(0, 0, 0, 0.09),
+    inset 0 0 0.75rem var(--app-chrome-glow);
+  color: var(--tui-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--tui-duration);
+}
+
+.glass-button:active {
+  transform: scale(0.94);
+}
+
+.glass-button--pill {
+  inline-size: 100%;
+  block-size: 2.75rem;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-button {
+    background: var(--tui-background-elevation-3);
+  }
+}
+
+.font-mono,
+code,
+kbd,
+samp {
+  font-feature-settings: normal;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--tui-radius-xs);
+  background: var(--tui-background-neutral-1);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--tui-background-neutral-1-hover),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.6s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
+}
+
+::selection {
+  background: var(--tui-service-selection-background);
+}
+
+:focus-visible {
+  outline: 0.125rem solid var(--tui-border-focus);
+  outline-offset: 0.125rem;
+}
+
+/* Chrome's default light scrollbar cuts through the dark canvas and log panel. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-scrollbar-thumb);
+  border-radius: 0.25rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover);
+}
+
+/* Box shadow preserves Taiga states because textfield pseudo-elements are reserved for icons. */
+tui-textfield,
+.glass-field {
+  background-color: var(--app-glass-fill);
+  -webkit-backdrop-filter: var(--app-glass-filter);
+  backdrop-filter: var(--app-glass-filter);
+  box-shadow:
+    inset 0 0 0 1px var(--tui-border-normal),
+    inset 0 1px 0 var(--app-glass-bevel),
+    inset 0 0 0.75rem var(--app-glass-glow);
+  transition:
+    background-color var(--tui-duration),
+    box-shadow var(--tui-duration);
+}
+
+@media (hover: hover) {
+  tui-textfield:hover:not(._disabled),
+  .glass-field:hover {
+    background-color: var(--app-glass-fill-hover);
+  }
+}
+
+/* Taiga's data-focus is never set because textfields lack appearance plumbing. */
+tui-textfield:focus-within,
+.glass-field:focus {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 2px var(--tui-background-accent-1);
+  outline: none;
+}
+
+tui-textfield._disabled {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--tui-border-normal);
+}
+
+tui-textfield input,
+tui-textfield textarea,
+tui-textfield select {
+  background: transparent;
+  color: var(--tui-text-primary);
+}
+
+tui-textfield input::placeholder,
+tui-textfield textarea::placeholder {
+  color: var(--tui-text-tertiary);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  tui-textfield,
+  .glass-field {
+    background-color: var(--tui-background-neutral-1);
+  }
+}
+
+tui-segmented::before {
+  box-shadow: var(--tui-shadow-small);
+}
+
+tui-segmented > .tui-segmented_active {
+  font-weight: 600;
+}
+
+[tuiButton],
+[tuiIconButton] {
+  border-radius: 999px;
+}
+
+tui-textfield:has(input[type='search']) {
+  border-radius: 999px;
+}
+
+/* Portal surfaces must be corrected globally because they render under tui-root. */
+tui-dropdown,
+tui-dialog {
+  border-color: var(--tui-border-normal);
+}
+
+/* data-tui-version wins the specificity tie without important. */
+[tuiToast][data-tui-version] {
+  border-radius: 999px;
+  background: var(--app-chrome-bg);
+  -webkit-backdrop-filter: blur(0.25rem) saturate(6) brightness(1.05);
+  backdrop-filter: blur(0.25rem) saturate(6) brightness(1.05);
+  box-shadow:
+    0 0.5rem 2rem rgba(0, 0, 0, 0.18),
+    inset 0 0 0.75rem var(--app-chrome-glow);
+  min-block-size: 3rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+[tuiToast][data-tui-version]::before {
+  content: '';
+  min-inline-size: 0.4375rem;
+  inline-size: 0.4375rem;
+  block-size: 0.4375rem;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--tui-status-neutral);
+}
+
+/* Appearance is set on the tui-toast host, two levels above the rendered toast. */
+tui-toast[data-appearance='positive'] [tuiToast]::before {
+  background: var(--tui-status-positive);
+}
+
+tui-toast[data-appearance='negative'] [tuiToast]::before {
+  background: var(--tui-status-negative);
+}
+
+tui-toast[data-appearance='warning'] [tuiToast]::before {
+  background: var(--tui-status-warning);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [tuiToast][data-tui-version] {
+    background: var(--tui-background-elevation-3);
+  }
+}
+
+/* Under liquid glass the back chevron falls through to the UA link colour. */
+[tuiAppBarBack] {
+  color: var(--tui-text-action);
+}
+
+tui-pull-to-refresh {
+  position: relative;
+  display: block;
+}
+
+/* Keep the tick loader below the notch; important outranks its :host rule. */
+tui-pull-to-refresh > tui-mobile-ios-loader {
+  inset-block-start: max(env(safe-area-inset-top), 0.5rem) !important;
+}
+
+/* Do not set host position here; unlayered CSS would override Tailwind positioning utilities. */
+.row-divider::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 1rem 0;
+  block-size: 1px;
+  background: var(--tui-border-normal);
+  pointer-events: none;
+}
+
+.row-divider:first-child::before {
+  content: none;
+}
+
+/* A pseudo avoids Safari's nested backdrop-filter bug; host position stays utility-owned. */
+.scroll-edge::before {
+  content: '';
+  position: absolute;
+  /* The -1px overlap hides a seam at fractional device-pixel ratios. */
+  inset: -1px 0 -1.25rem;
+  z-index: -1;
+  background: color-mix(in srgb, var(--app-canvas) 72%, transparent);
+  -webkit-backdrop-filter: var(--app-edge-filter);
+  backdrop-filter: var(--app-edge-filter);
+  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent);
+  mask-image: linear-gradient(to bottom, #000 68%, transparent);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 47.9375rem) {
+  html[data-nav='push']::view-transition-old(root) {
+    animation: 320ms cubic-bezier(0.3, 0.8, 0.3, 1) both vt-recede;
+  }
+
+  html[data-nav='push']::view-transition-new(root) {
+    animation: 320ms cubic-bezier(0.3, 0.8, 0.3, 1) both vt-enter;
+  }
+
+  html[data-nav='pop']::view-transition-old(root) {
+    /* Keep the departing screen above the incoming screen so the pop direction reads correctly. */
+    z-index: 1;
+    animation: 300ms cubic-bezier(0.3, 0.8, 0.3, 1) both vt-leave;
+  }
+
+  html[data-nav='pop']::view-transition-new(root) {
+    animation: 300ms cubic-bezier(0.3, 0.8, 0.3, 1) both vt-return;
+  }
+}
+
+@keyframes vt-enter {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes vt-recede {
+  to {
+    transform: translateX(-24%);
+    filter: brightness(0.85);
+  }
+}
+
+@keyframes vt-leave {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes vt-return {
+  from {
+    transform: translateX(-24%);
+    filter: brightness(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

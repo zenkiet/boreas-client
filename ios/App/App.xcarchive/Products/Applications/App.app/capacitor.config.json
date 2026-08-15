@@ -1,0 +1,6 @@
+{
+  "appId": "dev.zenkiet.boreas",
+  "appName": "mobile",
+  "webDir": "dist/boreas-client/browser",
+  "packageClassList": ["AppPlugin", "HapticsPlugin"]
+}

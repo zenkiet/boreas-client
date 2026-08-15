@@ -1,0 +1,32 @@
+commit-msg:
+  commands:
+    conventional-commit:
+      run: sh scripts/validate-commit-msg.sh "{1}"
+
+pre-commit:
+  piped: true
+  jobs:
+    - name: lint
+      glob:
+        - '*.{ts,js,html}'
+        - '**/*.{ts,js,html}'
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+
+    - name: format
+      glob:
+        - '*.{ts,js,mjs,cjs,css,scss,html,json,yml,yaml}'
+        - '**/*.{ts,js,mjs,cjs,css,scss,html,json,yml,yaml}'
+      run: pnpm exec prettier --cache --write {staged_files}
+      stage_fixed: true
+
+    - name: type-check
+      glob:
+        - '*.ts'
+        - '**/*.ts'
+      run: pnpm typecheck
+
+pre-push:
+  commands:
+    verify:
+      run: pnpm verify
