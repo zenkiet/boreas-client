@@ -1,0 +1,56 @@
+# Dependencies and generated output
+/node_modules
+/dist
+/.angular
+/coverage
+/tmp
+/out-tsc
+/bazel-out
+
+# Native applications and design sources are not part of the web build
+/android
+/ios
+/assets
+/mockups
+
+# Local tooling and repository metadata
+/.git
+/.gitignore
+/.github
+/.agents
+/.claude
+/.factory
+/.playwright-mcp
+/.vscode
+/.zed
+/.mcp.json
+/skills-lock.json
+/lefthook.yml
+/eslint.config.js
+/capacitor.config.ts
+/scripts
+
+# Documentation and local test artifacts
+/AGENTS.md
+/LICENSE
+/README.md
+/search-*
+/settings-*
+/welcome-*
+/src/**/*.spec.ts
+/src/**/*.test.ts
+
+# Logs, operating-system files, and local secrets
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+**/.DS_Store
+**/Thumbs.db
+.env
+.env.*
+!.env.example
+*.crt
+*.key
+*.pem
