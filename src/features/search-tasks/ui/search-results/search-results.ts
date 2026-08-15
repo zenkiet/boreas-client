@@ -1,0 +1,119 @@
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { TuiIcon } from '@taiga-ui/core';
+
+import { Task } from '@entities/task';
+
+@Component({
+  selector: 'app-search-results',
+  imports: [TuiIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    @for (task of tasks(); track task.id) {
+      <button type="button" class="result" (click)="taskOpened.emit(task)">
+        <span class="result__dot" [attr.data-status]="task.status" aria-hidden="true"></span>
+        <span class="min-w-0 flex-1">
+          <span class="result__id">
+            {{ task.id }}
+            <span class="sr-only">, {{ task.status }}</span>
+          </span>
+          <span class="result__sub">{{ task.image }}</span>
+        </span>
+        <tui-icon class="result__chevron" icon="@tui.chevron-right" aria-hidden="true" />
+      </button>
+    } @empty {
+      <p class="result__empty">
+        {{ query() ? 'No task ID or image matches "' + query() + '".' : 'No tasks yet.' }}
+      </p>
+    }
+  `,
+  styles: `
+    /* Tailwind has no preflight, so reset the button's user-agent styles here. */
+    .result {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      inline-size: 100%;
+      margin: 0;
+      border: 0;
+      padding: 0.6875rem 1rem;
+      min-block-size: 3.25rem;
+      background: none;
+      font: inherit;
+      color: inherit;
+      text-align: start;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background-color var(--tui-duration);
+    }
+
+    .result:hover,
+    .result:focus-visible {
+      background: var(--tui-background-neutral-1);
+    }
+
+    .result + .result {
+      border-block-start: 1px solid var(--tui-border-normal);
+    }
+
+    .result__dot {
+      inline-size: 0.4375rem;
+      block-size: 0.4375rem;
+      flex: none;
+      border-radius: 999px;
+      background: var(--tui-status-neutral);
+    }
+
+    .result__dot[data-status='running'] {
+      background: var(--tui-status-positive);
+    }
+
+    .result__dot[data-status='error'] {
+      background: var(--tui-status-negative);
+    }
+
+    .result__dot[data-status='creating'],
+    .result__dot[data-status='starting'] {
+      background: var(--tui-status-warning);
+    }
+
+    .result__id {
+      display: block;
+      overflow: hidden;
+      font-family: var(--app-font-mono);
+      font-size: 1.0625rem;
+      font-weight: 600;
+      color: var(--tui-text-primary);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result__sub {
+      display: block;
+      overflow: hidden;
+      font-family: var(--app-font-mono);
+      font-size: 0.8125rem;
+      color: var(--tui-text-tertiary);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result__chevron {
+      flex: none;
+      font-size: 0.9375rem;
+      color: var(--tui-text-tertiary);
+    }
+
+    .result__empty {
+      margin: 0;
+      padding: 2rem 1rem;
+      font-size: 0.9375rem;
+      color: var(--tui-text-tertiary);
+      text-align: center;
+    }
+  `,
+})
+export class SearchResults {
+  readonly tasks = input.required<readonly Task[]>();
+  readonly query = input('');
+  readonly taskOpened = output<Task>();
+}

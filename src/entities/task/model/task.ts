@@ -1,0 +1,33 @@
+export const TASK_STATUSES = [
+  'creating',
+  'starting',
+  'running',
+  'stopped',
+  'error',
+  'unknown',
+] as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export interface Task {
+  readonly id: string;
+  readonly image: string;
+  readonly status: TaskStatus;
+  readonly port: number;
+  readonly containerId?: string;
+  readonly containerIp?: string;
+  readonly createdAt: Date;
+  readonly lastAccessed?: Date;
+  readonly updatedAt: Date;
+  readonly labels: Readonly<Record<string, string>>;
+  readonly env: Readonly<Record<string, string>>;
+  readonly cpuNano?: number;
+  readonly memoryBytes?: number;
+  readonly error?: string;
+  readonly pendingRecreate: boolean;
+}
+
+/** A task mid-transition rejects further commands until it settles. */
+export function isTransitioningTask(task: Task): boolean {
+  return task.status === 'creating' || task.status === 'starting';
+}
