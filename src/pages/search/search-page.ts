@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ListProjectsStore } from '@features/list-projects';
@@ -13,9 +13,8 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
   selector: 'app-search-page',
   imports: [ErrorState, InsetGroup, Reveal, SearchResults, SkeletonRows, TaskFilterBar],
   providers: [ListProjectsStore, SearchTasksStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-[40rem] grid-cols-1 gap-4">
+    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-4">
       <header>
         <h1 class="page-title">Search</h1>
       </header>

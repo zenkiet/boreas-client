@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 export type SkeletonRowVariant = 'task' | 'project' | 'member';
@@ -19,7 +19,6 @@ const WIDTHS: readonly (readonly [number, number])[] = [
 @Component({
   selector: 'app-skeleton-rows',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="sr-only" role="status">{{ label() }}</span>
 

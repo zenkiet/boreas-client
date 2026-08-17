@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { FormField, form, max, min, pattern, required, submit } from '@angular/forms/signals';
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
@@ -30,14 +30,8 @@ interface TaskDraft {
     TuiIcon,
     TuiLoader,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <form
-      class="grid grid-cols-1 gap-3.5"
-      novalidate
-      [id]="formId()"
-      (submit)="onSubmit($event)"
-    >
+    <form class="grid grid-cols-1 gap-3.5" novalidate [id]="formId()" (submit)="onSubmit($event)">
       @if (error(); as message) {
         <app-callout tone="negative" role="alert">{{ message }}</app-callout>
       }
@@ -104,8 +98,8 @@ interface TaskDraft {
           }
         </app-inset-group>
         <p class="form__footnote">
-          The name becomes part of the proxy URL and stays unique within the project. The image
-          is any reference Docker can pull; the port is what the process listens on inside the
+          The name becomes part of the proxy URL and stays unique within the project. The image is
+          any reference Docker can pull; the port is what the process listens on inside the
           container.
         </p>
       </div>

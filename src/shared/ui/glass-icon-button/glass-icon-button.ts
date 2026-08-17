@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 @Component({
   // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'a[appGlassIconButton], button[appGlassIconButton]',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[attr.data-tone]': 'tone()' },
   template: `<tui-icon [icon]="icon()" />`,
   styles: `

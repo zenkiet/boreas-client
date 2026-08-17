@@ -1,12 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiButton, TuiDropdown, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiAppBar } from '@taiga-ui/layout';
 import { TuiToastService } from '@taiga-ui/kit';
+import { TuiAppBar } from '@taiga-ui/layout';
 import { filter, map, switchMap, take } from 'rxjs';
 
 import { EnvironmentEditor, EnvironmentList } from '@entities/environment';
-import { Task, TaskActionRequest, TaskMenu, TaskStateAction, isTransitioningTask } from '@entities/task';
+import {
+  Task,
+  TaskActionRequest,
+  TaskMenu,
+  TaskStateAction,
+  isTransitioningTask,
+} from '@entities/task';
 import { ControlTaskStore } from '@features/control-task';
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
 import { ViewTaskStore } from '@features/view-task';
@@ -50,67 +56,21 @@ type View = (typeof VIEWS)[number];
     TuiLoader,
   ],
   providers: [ViewTaskStore, ControlTaskStore, LogStreamStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- iOS push: the name is already in the URL, so chrome renders before any data. -->
-    <div appReveal class="mx-auto grid w-full max-w-[48rem] grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
-        <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-        <div
-          class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-        >
-          <tui-app-bar tuiAppBarSize>
-            <a
-              tuiSlot="start"
-              tuiAppBarBack
-              [routerLink]="projectLink()"
-              aria-label="Back to project"
-            ></a>
-            <span class="detail__bar-title">
-              <span
-                class="detail__dot"
-                [class.skeleton]="!detail.task()"
-                [attr.data-status]="detail.task()?.status"
-                aria-hidden="true"
-              ></span>
-              {{ name() }}
-            </span>
-            @if (detail.task(); as task) {
-              <!-- A single ng-container root lets this @if project into tuiSlot="end". -->
-              <ng-container tuiSlot="end">
-                <!-- Use a menu here; bottom sheets are reserved for message surfaces. -->
-                <button
-                  appGlassIconButton
-                  icon="@tui.ellipsis"
-                  type="button"
-                  aria-label="More actions"
-                  [tuiDropdown]="menu"
-                  [(tuiDropdownOpen)]="menuOpen"
-                ></button>
-                <ng-template #menu>
-                  <app-task-menu
-                    [task]="task"
-                    [accessUrl]="detail.proxyUrl()"
-                    [pending]="isPending(task)"
-                    (actionRequested)="onMenuAction($event)"
-                  />
-                </ng-template>
-              </ng-container>
-            } @else {
-              <button
-                tuiSlot="end"
-                appGlassIconButton
-                icon="@tui.ellipsis"
-                type="button"
-                aria-label="More actions"
-                [disabled]="true"
-              ></button>
-            }
-          </tui-app-bar>
-        </div>
-
-        <header class="hidden md:block">
-          <app-back-link [link]="projectPath()" [label]="project()" />
-          <h1 class="detail__title mt-1.5">
+    <div appReveal class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
+      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
+      <div
+        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
+      >
+        <tui-app-bar tuiAppBarSize>
+          <a
+            tuiSlot="start"
+            tuiAppBarBack
+            [routerLink]="projectLink()"
+            aria-label="Back to project"
+          ></a>
+          <span class="detail__bar-title">
             <span
               class="detail__dot"
               [class.skeleton]="!detail.task()"
@@ -118,20 +78,65 @@ type View = (typeof VIEWS)[number];
               aria-hidden="true"
             ></span>
             {{ name() }}
-          </h1>
+          </span>
           @if (detail.task(); as task) {
-            <p class="detail__subtitle">{{ task.image }} · port {{ task.port }}</p>
-            @if (task.description) {
-              <p class="detail__description">{{ task.description }}</p>
-            }
+            <!-- A single ng-container root lets this @if project into tuiSlot="end". -->
+            <ng-container tuiSlot="end">
+              <!-- Use a menu here; bottom sheets are reserved for message surfaces. -->
+              <button
+                appGlassIconButton
+                icon="@tui.ellipsis"
+                type="button"
+                aria-label="More actions"
+                [tuiDropdown]="menu"
+                [(tuiDropdownOpen)]="menuOpen"
+              ></button>
+              <ng-template #menu>
+                <app-task-menu
+                  [task]="task"
+                  [accessUrl]="detail.proxyUrl()"
+                  [pending]="isPending(task)"
+                  (actionRequested)="onMenuAction($event)"
+                />
+              </ng-template>
+            </ng-container>
           } @else {
-            <p class="detail__subtitle skeleton-defer" aria-hidden="true">
-              <span class="skeleton skeleton--sub inline-block w-44 max-w-full"></span>
-            </p>
+            <button
+              tuiSlot="end"
+              appGlassIconButton
+              icon="@tui.ellipsis"
+              type="button"
+              aria-label="More actions"
+              [disabled]="true"
+            ></button>
           }
-        </header>
+        </tui-app-bar>
+      </div>
 
+      <header class="hidden md:block">
+        <app-back-link [link]="projectPath()" [label]="project()" />
+        <h1 class="detail__title mt-1.5">
+          <span
+            class="detail__dot"
+            [class.skeleton]="!detail.task()"
+            [attr.data-status]="detail.task()?.status"
+            aria-hidden="true"
+          ></span>
+          {{ name() }}
+        </h1>
         @if (detail.task(); as task) {
+          <p class="detail__subtitle">{{ task.image }} · port {{ task.port }}</p>
+          @if (task.description) {
+            <p class="detail__description">{{ task.description }}</p>
+          }
+        } @else {
+          <p class="detail__subtitle skeleton-defer" aria-hidden="true">
+            <span class="skeleton skeleton--sub inline-block w-44 max-w-full"></span>
+          </p>
+        }
+      </header>
+
+      @if (detail.task(); as task) {
         <!-- Screen readers cannot infer status from the action set. -->
         <p class="sr-only">Status: {{ task.status }}</p>
 
@@ -204,31 +209,31 @@ type View = (typeof VIEWS)[number];
             Environment changes are waiting for a container recreate.
           </app-callout>
         }
-        }
+      }
 
-        <div class="hidden md:block">
-          <app-glass-segmented
-            [items]="viewItems()"
-            [activeIndex]="viewIndex()"
-            (activeIndexChange)="setView($event)"
-          />
-        </div>
+      <div class="hidden md:block">
+        <app-glass-segmented
+          [items]="viewItems()"
+          [activeIndex]="viewIndex()"
+          (activeIndexChange)="setView($event)"
+        />
+      </div>
 
-        <div class="detail__nav md:hidden">
-          <app-glass-segmented
-            [items]="viewItems()"
-            [activeIndex]="viewIndex()"
-            (activeIndexChange)="setView($event)"
-          />
-        </div>
+      <div class="detail__nav md:hidden">
+        <app-glass-segmented
+          [items]="viewItems()"
+          [activeIndex]="viewIndex()"
+          (activeIndexChange)="setView($event)"
+        />
+      </div>
 
-        @if (detail.error() && !detail.hasLoaded()) {
-          <app-error-state
-            title="Unable to load task"
-            [message]="detail.error()!"
-            (retry)="reload()"
-          />
-        } @else {
+      @if (detail.error() && !detail.hasLoaded()) {
+        <app-error-state
+          title="Unable to load task"
+          [message]="detail.error()!"
+          (retry)="reload()"
+        />
+      } @else {
         <!-- Preserve console scroll/buffer and environment drafts while switching views. -->
         <div class="detail__console" [class.hidden]="view() !== 'logs'">
           <app-log-console
@@ -241,57 +246,57 @@ type View = (typeof VIEWS)[number];
         </div>
 
         @if (detail.task(); as task) {
-        <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'environment'">
-          <app-glass-segmented
-            [items]="envItems()"
-            [activeIndex]="envModeIndex()"
-            (activeIndexChange)="setEnvMode($event)"
-          />
-
-          <div class="detail__card" [class.hidden]="envMode() !== 'list'">
-            <app-environment-list
-              [environment]="detail.environment()"
-              (copyFailed)="reportValueCopyFailure()"
-            />
-          </div>
-
-          <div class="detail__card grid grid-cols-1 gap-4" [class.hidden]="envMode() !== 'raw'">
-            <app-environment-editor
-              [environment]="detail.environment()"
-              [resetKey]="environmentResetKey()"
-              (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
-              (errorsChange)="environmentErrors.set($event)"
+          <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'environment'">
+            <app-glass-segmented
+              [items]="envItems()"
+              [activeIndex]="envModeIndex()"
+              (activeIndexChange)="setEnvMode($event)"
             />
 
-            <div class="flex justify-end border-t border-border pt-4">
-              <button
-                tuiButton
-                type="button"
-                size="m"
-                appearance="primary"
-                [disabled]="
-                  !environmentDirty() ||
-                  detail.savingEnvironment() ||
-                  environmentErrors().length > 0
-                "
-                (click)="applyEnvironment()"
-              >
-                @if (detail.savingEnvironment()) {
-                  <tui-loader size="s" [inheritColor]="true" />
-                }
-                Apply environment
-              </button>
+            <div class="detail__card" [class.hidden]="envMode() !== 'list'">
+              <app-environment-list
+                [environment]="detail.environment()"
+                (copyFailed)="reportValueCopyFailure()"
+              />
+            </div>
+
+            <div class="detail__card grid grid-cols-1 gap-4" [class.hidden]="envMode() !== 'raw'">
+              <app-environment-editor
+                [environment]="detail.environment()"
+                [resetKey]="environmentResetKey()"
+                (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
+                (errorsChange)="environmentErrors.set($event)"
+              />
+
+              <div class="flex justify-end border-t border-border pt-4">
+                <button
+                  tuiButton
+                  type="button"
+                  size="m"
+                  appearance="primary"
+                  [disabled]="
+                    !environmentDirty() ||
+                    detail.savingEnvironment() ||
+                    environmentErrors().length > 0
+                  "
+                  (click)="applyEnvironment()"
+                >
+                  @if (detail.savingEnvironment()) {
+                    <tui-loader size="s" [inheritColor]="true" />
+                  }
+                  Apply environment
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div [class.hidden]="view() !== 'info'">
-          <app-task-overview
-            [task]="task"
-            [proxyUrl]="detail.proxyUrl()"
-            (copyFailed)="reportCopyFailure()"
-          />
-        </div>
+          <div [class.hidden]="view() !== 'info'">
+            <app-task-overview
+              [task]="task"
+              [proxyUrl]="detail.proxyUrl()"
+              (copyFailed)="reportCopyFailure()"
+            />
+          </div>
         } @else {
           <div [class.hidden]="view() === 'logs'">
             <app-inset-group>
@@ -299,8 +304,8 @@ type View = (typeof VIEWS)[number];
             </app-inset-group>
           </div>
         }
-        }
-      </div>
+      }
+    </div>
   `,
   styles: `
     .detail__bar-title {
@@ -412,7 +417,6 @@ type View = (typeof VIEWS)[number];
       box-shadow: var(--app-shadow-panel);
       padding: 0.875rem 1rem;
     }
-
   `,
 })
 export class TaskDetailPage {

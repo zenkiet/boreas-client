@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
@@ -22,7 +21,6 @@ export interface GlassSegmentedItem {
 @Component({
   selector: 'app-glass-segmented',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     role: 'tablist',
     '[class.stacked]': 'stacked()',

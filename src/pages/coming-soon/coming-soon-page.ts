@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Data } from '@angular/router';
 import { TuiIcon } from '@taiga-ui/core';
@@ -8,7 +8,6 @@ import { Reveal } from '@shared/lib/motion/reveal.directive';
 @Component({
   selector: 'app-coming-soon-page',
   imports: [Reveal, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div appReveal class="page">
       <div class="orb" aria-hidden="true">

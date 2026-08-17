@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 export type CalloutTone = 'info' | 'positive' | 'warning' | 'negative';
@@ -13,7 +13,6 @@ const TONE_ICON: Record<CalloutTone, string> = {
 @Component({
   selector: 'app-callout',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   /* Block keeps a host role="alert" from collapsing to an inline box in grid or flex layouts. */
   host: { class: 'block' },
   template: `

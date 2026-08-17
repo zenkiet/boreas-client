@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 
@@ -6,7 +6,6 @@ import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 @Component({
   selector: 'app-connect-failed-dialog',
   imports: [TuiButton],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="m-0 text-[0.9375rem] leading-relaxed text-secondary">
       No Boreas API answered at this address. Check it and try again.

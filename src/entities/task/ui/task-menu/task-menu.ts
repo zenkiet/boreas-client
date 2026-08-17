@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { TuiDataList, TuiDropdownDriver, TuiOptGroup, TuiOption } from '@taiga-ui/core';
 
 import { Task, isTransitioningTask } from '../../model/task';
@@ -7,7 +7,6 @@ import { TaskAction, TaskActionRequest } from '../task-actions/task-actions';
 @Component({
   selector: 'app-task-menu',
   imports: [TuiDataList, TuiOptGroup, TuiOption],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <tui-data-list [attr.aria-label]="'Actions for ' + task().name">
       <tui-opt-group [label]="task().name">
@@ -91,9 +90,7 @@ export class TaskMenu {
   readonly pending = input.required<boolean>();
   readonly actionRequested = output<TaskActionRequest>();
 
-  protected readonly disabled = computed(
-    () => isTransitioningTask(this.task()) || this.pending(),
-  );
+  protected readonly disabled = computed(() => isTransitioningTask(this.task()) || this.pending());
 
   protected emit(action: TaskAction): void {
     this.actionRequested.emit({ action, task: this.task() });

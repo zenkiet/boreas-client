@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 import { Project } from '@entities/project';
@@ -9,7 +9,6 @@ const MAX_DOTS = 6;
 @Component({
   selector: 'app-project-list',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (summary of summaries(); track summary.project.id) {
       <button
@@ -19,7 +18,9 @@ const MAX_DOTS = 6;
       >
         <span class="min-w-0 flex-1">
           <span class="row__name">{{ summary.project.name }}</span>
-          <span class="row__sub tabular">/{{ summary.project.slug }} · {{ taskLabel(summary) }}</span>
+          <span class="row__sub tabular"
+            >/{{ summary.project.slug }} · {{ taskLabel(summary) }}</span
+          >
         </span>
 
         <span class="row__dots" aria-hidden="true">

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { TuiButton, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { EMPTY, defer, from } from 'rxjs';
 
@@ -17,7 +17,6 @@ const COPIED_RESET_MS = 1600;
 @Component({
   selector: 'app-task-overview',
   imports: [Panel, TuiButton, TuiHint, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-panel heading="Overview">
       <div class="overview__url">

@@ -1,21 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiAppBar } from '@taiga-ui/layout';
 
+import { CreateTaskInput } from '@entities/task';
+import { CreateTaskStore, TaskForm } from '@features/create-task';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { BackLink } from '@shared/ui/back-link/back-link';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { PageHeader } from '@shared/ui/page-header/page-header';
-import { CreateTaskInput } from '@entities/task';
-import { CreateTaskStore, TaskForm } from '@features/create-task';
 
 @Component({
   selector: 'app-task-create-page',
   imports: [BackLink, GlassIconButton, PageHeader, Reveal, RouterLink, TaskForm, TuiAppBar],
   providers: [CreateTaskStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid max-w-[56rem] grid-cols-1 gap-3.5 md:gap-4">
+    <div appReveal class="mx-auto grid max-w-4xl grid-cols-1 gap-3.5 md:gap-4">
       <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
       <div
         class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"

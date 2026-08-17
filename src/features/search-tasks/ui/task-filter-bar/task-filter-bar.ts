@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, ElementRef, model, viewChild } from '@angular/core';
+import { Component, ElementRef, model, viewChild } from '@angular/core';
 import { FormField, form } from '@angular/forms/signals';
 import { TuiButton, TuiIcon, TuiTextfield } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-task-filter-bar',
   imports: [FormField, TuiButton, TuiIcon, TuiTextfield],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'block',
     '(document:keydown)': 'onDocumentKeydown($event)',

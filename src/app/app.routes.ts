@@ -13,7 +13,7 @@ export const routes: Routes = [
   },
   {
     path: 'welcome',
-    loadChildren: () => import('./onboarding.routes').then((m) => m.onboardingRoutes),
+    loadChildren: () => import('./routes/onboarding.routes').then((m) => m.onboardingRoutes),
   },
   {
     path: 'login',
@@ -23,42 +23,8 @@ export const routes: Routes = [
   },
   {
     path: 'projects',
-    title: 'Projects | Boreas',
     canActivate: guards,
-    loadComponent: () =>
-      import('@pages/projects/projects-page').then(({ ProjectsPage }) => ProjectsPage),
-  },
-  {
-    path: 'projects/new',
-    title: 'New project | Boreas',
-    canActivate: guards,
-    loadComponent: () =>
-      import('@pages/project-create/project-create-page').then(
-        ({ ProjectCreatePage }) => ProjectCreatePage,
-      ),
-  },
-  {
-    path: 'projects/:slug',
-    title: 'Project | Boreas',
-    canActivate: guards,
-    loadComponent: () =>
-      import('@pages/project-detail/project-detail-page').then(
-        ({ ProjectDetailPage }) => ProjectDetailPage,
-      ),
-  },
-  {
-    path: 'projects/:slug/tasks/new',
-    title: 'Create task | Boreas',
-    canActivate: guards,
-    loadComponent: () =>
-      import('@pages/task-create/task-create-page').then(({ TaskCreatePage }) => TaskCreatePage),
-  },
-  {
-    path: 'projects/:slug/tasks/:name',
-    title: 'Task | Boreas',
-    canActivate: guards,
-    loadComponent: () =>
-      import('@pages/task-detail/task-detail-page').then(({ TaskDetailPage }) => TaskDetailPage),
+    loadChildren: () => import('./routes/projects.routes').then((m) => m.projectsRoutes),
   },
   {
     path: 'search',
@@ -79,23 +45,8 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
-    title: 'Settings | Boreas',
     canActivate: guards,
-    loadComponent: () =>
-      import('@pages/settings/settings-page').then(({ SettingsPage }) => SettingsPage),
-  },
-  {
-    path: 'settings/users',
-    title: 'Users | Boreas',
-    canActivate: guards,
-    loadComponent: () => import('@pages/users/users-page').then(({ UsersPage }) => UsersPage),
-  },
-  {
-    path: 'settings/registries',
-    title: 'Registry credentials | Boreas',
-    canActivate: guards,
-    loadComponent: () =>
-      import('@pages/registries/registries-page').then(({ RegistriesPage }) => RegistriesPage),
+    loadChildren: () => import('./routes/settings.routes').then((m) => m.settingsRoutes),
   },
   /* Pre-projects bookmarks land on the new home. */
   {

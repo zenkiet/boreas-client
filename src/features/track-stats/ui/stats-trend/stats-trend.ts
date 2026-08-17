@@ -1,10 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import {
-  TUI_ALWAYS_DASHED,
-  TuiAxes,
-  TuiLineChart,
-  TuiLineChartHint,
-} from '@taiga-ui/addon-charts';
+import { Component, computed, input } from '@angular/core';
+import { TUI_ALWAYS_DASHED, TuiAxes, TuiLineChart, TuiLineChartHint } from '@taiga-ui/addon-charts';
 import { TuiPoint } from '@taiga-ui/core';
 
 import { SystemStats } from '@entities/system-stats';
@@ -13,7 +8,6 @@ import { StatsSample } from '../../model/stats-history.store';
 @Component({
   selector: 'app-stats-trend',
   imports: [TuiAxes, TuiLineChart, TuiLineChartHint],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="trend__head">
       <span class="trend__label">Running tasks {{ spanLabel() }}</span>
@@ -134,7 +128,8 @@ export class StatsTrend {
       return [];
     }
     const mid = points[Math.floor(points.length / 2)];
-    const anchors = points.length >= 3 ? [points[0], mid, points.at(-1)!] : [points[0], points.at(-1)!];
+    const anchors =
+      points.length >= 3 ? [points[0], mid, points.at(-1)!] : [points[0], points.at(-1)!];
     return anchors.map(([x]) => this.timeOf(x));
   });
 

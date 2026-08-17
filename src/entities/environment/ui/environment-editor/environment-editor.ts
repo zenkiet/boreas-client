@@ -1,22 +1,13 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { Component, computed, effect, input, output, signal } from '@angular/core';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
 import { from } from 'rxjs';
 
-import { ParsedEnvironment, parseEnvText, toEnvText } from '../../model/env-file';
 import { Callout } from '@shared/ui/callout/callout';
+import { ParsedEnvironment, parseEnvText, toEnvText } from '../../model/env-file';
 
 @Component({
   selector: 'app-environment-editor',
   imports: [Callout, TuiButton, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="grid grid-cols-1 gap-2.5" aria-label="Environment variables editor">
       <div class="flex flex-wrap items-center justify-end gap-2">

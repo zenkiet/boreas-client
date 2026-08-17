@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { TuiLoader } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-loading-state',
   imports: [TuiLoader],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="state" role="status" aria-live="polite">
       <tui-loader size="m" />

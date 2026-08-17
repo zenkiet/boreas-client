@@ -1,6 +1,5 @@
 import { SlicePipe } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
   Component,
   ElementRef,
   afterRenderEffect,
@@ -22,7 +21,6 @@ const FOLLOW_THRESHOLD = 24;
 @Component({
   selector: 'app-log-console',
   imports: [Panel, SlicePipe, TuiButton, TuiIcon, TuiLoader, TuiTextfield],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-panel heading="Live logs" [flush]="true">
       <!-- A plain download href cannot carry the bearer token, so the page fetches. -->
@@ -40,7 +38,11 @@ const FOLLOW_THRESHOLD = 24;
       </button>
 
       <div class="logs__toolbar">
-        <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search" class="min-w-0 flex-1 md:max-w-[20rem]">
+        <tui-textfield
+          tuiTextfieldSize="s"
+          iconStart="@tui.search"
+          class="min-w-0 flex-1 md:max-w-[20rem]"
+        >
           <input
             tuiInput
             type="search"

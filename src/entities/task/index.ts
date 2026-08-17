@@ -8,7 +8,6 @@ export { isTransitioningTask } from './model/task';
 export type { Task } from './model/task';
 export { describeCompletedAction } from './model/task-state-action';
 export type { TaskStateAction } from './model/task-state-action';
-export { TaskActionDock } from './ui/task-action-dock/task-action-dock';
 export { TaskActions } from './ui/task-actions/task-actions';
 export type { TaskAction, TaskActionRequest } from './ui/task-actions/task-actions';
 export { TaskMenu } from './ui/task-menu/task-menu';

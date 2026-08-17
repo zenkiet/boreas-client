@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TuiSwipeActions, TuiSwipeActionsAutoClose } from '@taiga-ui/addon-mobile';
 import { TuiDropdown, TuiDropdownContext, TuiIcon } from '@taiga-ui/core';
@@ -21,7 +21,6 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
     TuiSwipeActions,
     TuiSwipeActionsAutoClose,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (mobile()) {
       <ul class="m-0 list-none p-0" aria-label="Boreas tasks">

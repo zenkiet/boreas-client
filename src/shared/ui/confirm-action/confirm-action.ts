@@ -1,7 +1,7 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
-import { Observable, defaultIfEmpty } from 'rxjs';
+import { defaultIfEmpty, Observable } from 'rxjs';
 
 export interface ConfirmActionRequest {
   readonly title: string;
@@ -10,7 +10,7 @@ export interface ConfirmActionRequest {
   readonly destructive?: boolean;
 }
 
-@Injectable({providedIn: 'root'})
+@Service()
 export class ConfirmActionService {
   private readonly dialogs = inject(TuiResponsiveDialogService);
 
@@ -24,7 +24,7 @@ export class ConfirmActionService {
     };
 
     return this.dialogs
-      .open<boolean>(TUI_CONFIRM, {label: request.title, data, size: 's', bar: true})
+      .open<boolean>(TUI_CONFIRM, { label: request.title, data, size: 's', bar: true })
       .pipe(defaultIfEmpty(false));
   }
 }

@@ -1,13 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
 import { EMPTY, defer, from } from 'rxjs';
 
@@ -40,7 +32,6 @@ const MASK = '••••••••';
 @Component({
   selector: 'app-environment-list',
   imports: [TuiButton, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (row of rows(); track row.key) {
       <div class="env-row">

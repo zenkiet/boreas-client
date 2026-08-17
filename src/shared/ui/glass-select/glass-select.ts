@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { TuiDataList, TuiDropdown, TuiIcon } from '@taiga-ui/core';
 
 export interface GlassSelectOption {
@@ -13,7 +13,6 @@ export interface GlassSelectOption {
 @Component({
   selector: 'app-glass-select',
   imports: [TuiDataList, TuiDropdown, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button
       type="button"

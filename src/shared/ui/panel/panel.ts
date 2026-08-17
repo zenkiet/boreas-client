@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 /* IDs must stay unique because several panels can be visible and dialogs can stack. */
 let instances = 0;
 
 @Component({
   selector: 'app-panel',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="panel" [attr.aria-labelledby]="heading() ? titleId : null">
       @if (heading()) {
