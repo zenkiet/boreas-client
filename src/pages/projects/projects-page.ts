@@ -31,7 +31,6 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     TuiButton,
     TuiIcon,
   ],
-  providers: [ListProjectsStore],
   template: `
     <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-4">
       <header class="flex items-center justify-between gap-3">
@@ -191,11 +190,12 @@ export class ProjectsPage {
   });
 
   constructor() {
+    this.overview.ensureFresh();
     registerPullRefresh({ busy: this.overview.loading, trigger: () => this.overview.load() });
   }
 
   protected openProject(project: Project): void {
-    /* The detail page seeds its title from this, the iOS push-with-known-data move. */
+    /* The detail page seeds its title from this so the push shows a real name at once. */
     void this.router.navigate(['/projects', project.slug], {
       state: { projectName: project.name },
     });

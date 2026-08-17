@@ -4,6 +4,7 @@ import { TuiAppBar } from '@taiga-ui/layout';
 
 import { CreateTaskInput } from '@entities/task';
 import { CreateTaskStore, TaskForm } from '@features/create-task';
+import { ListProjectsStore } from '@features/list-projects';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { BackLink } from '@shared/ui/back-link/back-link';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
@@ -61,6 +62,7 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
 })
 export class TaskCreatePage {
   protected readonly create = inject(CreateTaskStore);
+  private readonly fleet = inject(ListProjectsStore);
   private readonly router = inject(Router);
 
   readonly slug = input('');
@@ -70,7 +72,10 @@ export class TaskCreatePage {
 
   protected createTask(input: CreateTaskInput): void {
     this.create.create(this.slug(), input).subscribe((task) => {
-      if (task) void this.router.navigate(['/projects', this.slug(), 'tasks', task.name]);
+      if (!task) return;
+
+      this.fleet.invalidate();
+      void this.router.navigate(['/projects', this.slug(), 'tasks', task.name]);
     });
   }
 }

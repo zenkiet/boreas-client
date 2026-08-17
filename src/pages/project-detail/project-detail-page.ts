@@ -9,6 +9,7 @@ import { filter, switchMap, take } from 'rxjs';
 import { Member, Project } from '@entities/project';
 import { Task, TaskActionRequest } from '@entities/task';
 import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
+import { ListProjectsStore } from '@features/list-projects';
 import { TaskList } from '@features/list-tasks';
 import { ManageProjectStore, MemberList, ProjectCommandResult } from '@features/manage-project';
 import { ViewProjectStore } from '@features/view-project';
@@ -348,6 +349,7 @@ export class ProjectDetailPage {
   private readonly toasts = inject(TuiToastService);
   private readonly router = inject(Router);
   private readonly breakpoint = inject(TUI_BREAKPOINT);
+  private readonly fleet = inject(ListProjectsStore);
 
   readonly slug = input('');
 
@@ -427,7 +429,6 @@ export class ProjectDetailPage {
       if (slug) this.detail.refresh(slug);
     });
 
-    /* Seed the rename draft whenever a fresh project lands. */
     effect(() => {
       const project = this.detail.project();
       if (project) this.draftName.set(project.name);
@@ -529,13 +530,21 @@ export class ProjectDetailPage {
       )
       .subscribe((result) => {
         this.notify(result.message, result.success);
-        if (result.success) void this.router.navigate(['/projects']);
+        if (result.success) {
+          this.fleet.invalidate();
+          void this.router.navigate(['/projects']);
+        }
       });
   }
 
+  /* Every command here — lifecycle, delete, rename, members — changes what Home shows. */
   private completeCommand(result: TaskCommandResult | ProjectCommandResult): void {
     this.notify(result.message, result.success);
-    if (result.success) this.reload();
+
+    if (result.success) {
+      this.fleet.invalidate();
+      this.reload();
+    }
   }
 
   private notify(message: string, success: boolean): void {

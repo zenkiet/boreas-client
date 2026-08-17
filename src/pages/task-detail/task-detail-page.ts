@@ -14,6 +14,7 @@ import {
   isTransitioningTask,
 } from '@entities/task';
 import { ControlTaskStore } from '@features/control-task';
+import { ListProjectsStore } from '@features/list-projects';
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
 import { ViewTaskStore } from '@features/view-task';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -425,6 +426,7 @@ export class TaskDetailPage {
   private readonly confirmations = inject(ConfirmActionService);
   private readonly toasts = inject(TuiToastService);
   private readonly router = inject(Router);
+  private readonly fleet = inject(ListProjectsStore);
   protected readonly logs = inject(LogStreamStore);
 
   readonly slug = input('');
@@ -526,7 +528,12 @@ export class TaskDetailPage {
     if (!task) return;
     this.commands.changeState(this.slug(), task, action).subscribe((result) => {
       this.notify(result.message, result.success);
-      if (result.success) this.reload();
+
+      if (result.success) {
+        /* Home reads task status as dots, so its cached fleet is now out of date. */
+        this.fleet.invalidate();
+        this.reload();
+      }
     });
   }
 
@@ -547,7 +554,11 @@ export class TaskDetailPage {
       )
       .subscribe((result) => {
         this.notify(result.message, result.success);
-        if (result.success) void this.router.navigate(['/projects', this.slug()]);
+
+        if (result.success) {
+          this.fleet.invalidate();
+          void this.router.navigate(['/projects', this.slug()]);
+        }
       });
   }
 

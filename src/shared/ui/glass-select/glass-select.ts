@@ -6,10 +6,7 @@ export interface GlassSelectOption {
   readonly label: string;
 }
 
-/**
- * iOS-style inline picker on Taiga's dropdown machinery: a quiet value-plus-chevrons
- * trigger opening a floating menu with a leading checkmark on the current option.
- */
+/** iOS-style picker on Taiga's dropdown: value-plus-chevrons trigger, checkmark on the current option. */
 @Component({
   selector: 'app-glass-select',
   imports: [TuiDataList, TuiDropdown, TuiIcon],
