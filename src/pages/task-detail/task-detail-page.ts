@@ -189,6 +189,10 @@ type View = (typeof VIEWS)[number];
             <tui-icon class="icon-sm" icon="@tui.rotate-cw" />
             Restart
           </button>
+          <a tuiButton size="s" appearance="secondary" [routerLink]="editLink()">
+            <tui-icon class="icon-sm" icon="@tui.pencil" />
+            Edit
+          </a>
           <button
             tuiButton
             type="button"
@@ -207,7 +211,18 @@ type View = (typeof VIEWS)[number];
         }
         @if (task.pendingRecreate) {
           <app-callout tone="warning" role="status">
-            Environment changes are waiting for a container recreate.
+            <span>Changes are waiting for a container recreate. They apply on the next start or restart.</span>
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="secondary"
+              class="mt-2 block"
+              [disabled]="actionDisabled(task)"
+              (click)="changeState('restart')"
+            >
+              Restart now
+            </button>
           </app-callout>
         }
       }
@@ -433,6 +448,13 @@ export class TaskDetailPage {
   readonly name = input('');
 
   protected readonly project = computed(() => this.slug());
+  protected readonly editLink = computed(() => [
+    '/projects',
+    this.slug(),
+    'tasks',
+    this.name(),
+    'edit',
+  ]);
   protected readonly projectLink = computed(() => ['/projects', this.slug()]);
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
@@ -516,6 +538,11 @@ export class TaskDetailPage {
 
     if (action === 'delete') {
       this.deleteTask(task.name);
+      return;
+    }
+
+    if (action === 'edit') {
+      void this.router.navigate(this.editLink());
       return;
     }
 

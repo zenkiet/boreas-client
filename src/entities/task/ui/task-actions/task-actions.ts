@@ -3,7 +3,7 @@ import { TuiButton, TuiHint, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
 import { Task, isTransitioningTask } from '../../model/task';
 
-export type TaskAction = 'start' | 'stop' | 'restart' | 'delete';
+export type TaskAction = 'start' | 'stop' | 'restart' | 'edit' | 'delete';
 
 export interface TaskActionRequest {
   readonly action: TaskAction;

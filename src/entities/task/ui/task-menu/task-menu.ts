@@ -50,6 +50,11 @@ import { TaskAction, TaskActionRequest } from '../task-actions/task-actions';
         >
           Restart
         </button>
+
+        <!-- Editing is always allowed; only the recreate it may trigger waits for a settle. -->
+        <button tuiOption type="button" iconEnd="@tui.pencil" (click)="emit('edit')">
+          Edit task
+        </button>
       </tui-opt-group>
 
       <!-- Its own group, so the separator does the work a colour alone cannot. -->
