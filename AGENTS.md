@@ -163,7 +163,17 @@ point **downward** — never upward, never sideways between slices of the same l
   container — it provides the stores and wires the outputs.
 - **State lives in signal stores** (`features/*/model/*.store.ts`), provided at the page that uses
   them. `providedIn: 'root'` is reserved for what is genuinely global: the server address, the
-  theme, and the stateless `*Api` classes.
+  theme, the session, and the stateless `*Api` classes.
+- **A page-provided store dies with its page, so its `rxResource` refetches on every visit** — that
+  is the intended default and the reason detail pages always re-read their task. The one exception is
+  `ListProjectsStore`: the fleet overview is read by both Home and Search and costs `2 + N` requests
+  (one task list per project), so it is root-provided and cached. Its shape is the template for any
+  future cross-route cache: `params` keyed on the auth token plus a `linkedSignal` keyed the same way
+  (a signed-out or switched session must never keep the previous fleet), `ensureFresh()` called from
+  each page's constructor to serve the cache and refetch only past a 30s staleness window, `load()`
+  for the explicit pull-to-refresh, and `invalidate()` — which pages call after any command that
+  changes what Home shows (project create/delete, task create/delete/lifecycle), since features may
+  not import each other and the page is the only place that knows both.
 - Two dumb components are shared by more than one feature and therefore sit in the entity that owns
   their vocabulary, not in a feature: `entities/task/ui/{task-actions,task-status-badge}` and
   `entities/environment/ui/environment-editor`.

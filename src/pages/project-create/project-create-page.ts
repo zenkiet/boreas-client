@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { TuiAppBar } from '@taiga-ui/layout';
 
 import { CreateProjectInput } from '@entities/project';
+import { ListProjectsStore } from '@features/list-projects';
 import { ManageProjectStore, ProjectForm } from '@features/manage-project';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { BackLink } from '@shared/ui/back-link/back-link';
@@ -57,11 +58,17 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
 })
 export class ProjectCreatePage {
   protected readonly manage = inject(ManageProjectStore);
+  private readonly fleet = inject(ListProjectsStore);
   private readonly router = inject(Router);
 
   protected createProject(input: CreateProjectInput): void {
     this.manage.create(input).subscribe((project) => {
-      if (project) void this.router.navigate(['/projects', project.slug]);
+      if (!project) return;
+
+      this.fleet.invalidate();
+      void this.router.navigate(['/projects', project.slug], {
+        state: { projectName: project.name },
+      });
     });
   }
 }

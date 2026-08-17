@@ -12,10 +12,7 @@ const WIDTHS: readonly (readonly [number, number])[] = [
   [42, 62],
 ];
 
-/**
- * Redacted list rows mirroring the real row shapes, so content lands without
- * layout shift. Static glyphs the client already knows (chevrons) stay real.
- */
+/** Redacted rows matching the real row metrics, so content lands without layout shift. */
 @Component({
   selector: 'app-skeleton-rows',
   imports: [TuiIcon],

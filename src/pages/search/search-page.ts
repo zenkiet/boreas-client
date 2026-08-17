@@ -12,7 +12,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 @Component({
   selector: 'app-search-page',
   imports: [ErrorState, InsetGroup, Reveal, SearchResults, SkeletonRows, TaskFilterBar],
-  providers: [ListProjectsStore, SearchTasksStore],
+  providers: [SearchTasksStore],
   template: `
     <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-4">
       <header>
@@ -55,7 +55,6 @@ export class SearchPage {
   protected readonly search = inject(SearchTasksStore);
   private readonly router = inject(Router);
 
-  /* Flatten the per-project fan-out into one searchable fleet. */
   private readonly fleet = computed<readonly FleetTask[]>(() =>
     this.overview
       .summaries()
@@ -69,6 +68,7 @@ export class SearchPage {
   });
 
   constructor() {
+    this.overview.ensureFresh();
     registerPullRefresh({ busy: this.overview.loading, trigger: () => this.overview.load() });
   }
 

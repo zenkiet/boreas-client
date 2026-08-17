@@ -18,12 +18,7 @@ export class TaskLogApi {
     return `${root}/api/v1/projects/${encodeURIComponent(project)}/tasks/${encodeURIComponent(name)}/logs`;
   }
 
-  /**
-   * Cumulative SSE body text, re-emitted as it grows.
-   *
-   * EventSource cannot send the Authorization header, so the stream rides
-   * HttpClient's progressive text download and the auth interceptor.
-   */
+  /** Cumulative SSE body; EventSource cannot send the auth header, so this rides progressive download. */
   stream(project: string, name: string, tail = 100): Observable<string> {
     return this.http
       .get(`${this.base(project, name)}/stream?tail=${tail}`, {
