@@ -13,4 +13,10 @@ export const tasksRoutes: Routes = [
     loadComponent: () =>
       import('@pages/task-detail/task-detail-page').then(({ TaskDetailPage }) => TaskDetailPage),
   },
+  {
+    path: ':name/edit',
+    title: 'Edit task | Boreas',
+    loadComponent: () =>
+      import('@pages/task-edit/task-edit-page').then(({ TaskEditPage }) => TaskEditPage),
+  },
 ];

@@ -32,6 +32,21 @@ token-guarded and nests tasks under projects.
 | — | `features/auth` (SessionStore, LoginStore), `shared/api/auth-token.store`, `auth.interceptor`, `authenticated.guard` |
 | — | `pages/login`, `pages/project-create`, `pages/users`, `pages/registries` |
 
+## API v1.1 (2026-08-18): PATCH /tasks/{name}
+
+- The `/env` endpoints are gone: env reads from `task.env`, env writes and the
+  edit-task feature both ride `PATCH /tasks/{name}` (`UpdateTaskInput`). The task
+  page saves one request (no separate env fetch).
+- Edit task = Direction A: `features/edit-task` + `pages/task-edit` at
+  `/projects/:slug/tasks/:name/edit`, entered from the task menu (`edit` action)
+  and the desktop action row. The form diffs against the task and sends only
+  changed fields; `auto_restart` is a visible "Restart to apply" toggle
+  (default on) and is only sent with container-affecting changes. Name is
+  immutable (proxy URL identity).
+- The `pending_recreate` callout carries a "Restart now" action.
+- Env apply keeps `auto_restart: true` (unchanged behaviour; the toggle lives
+  only on the edit form).
+
 ## Known follow-ups
 
 - Members add for non-admin owners requires a raw user id (the API's
@@ -40,3 +55,5 @@ token-guarded and nests tasks under projects.
   If the backend ever accepts `?token=` or a cookie, `EventSource` could return.
 - Project role badges on the home list would cost one members call per project;
   skipped deliberately.
+- Labels are editable via the API but exposed in neither Create nor Edit,
+  deliberately, until something needs them.

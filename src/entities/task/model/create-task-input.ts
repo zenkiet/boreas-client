@@ -6,11 +6,12 @@ export interface CreateTaskInput {
   readonly environment?: Readonly<Record<string, string>>;
 }
 
-export interface UpdateEnvironmentInput {
-  readonly environment: Readonly<Record<string, string>>;
-}
-
-export interface EnvironmentUpdateResult {
-  readonly message: string;
-  readonly status: string;
+/** Only present fields are sent; image, port, labels or env changes recreate the container. */
+export interface UpdateTaskInput {
+  readonly description?: string;
+  readonly image?: string;
+  readonly port?: number;
+  readonly labels?: Readonly<Record<string, string>>;
+  readonly environment?: Readonly<Record<string, string>>;
+  readonly autoRestart?: boolean;
 }

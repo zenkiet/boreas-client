@@ -19,7 +19,7 @@ export interface TaskDto {
   created_at: string;
   updated_at: string;
   labels?: Record<string, string>;
-  env?: Record<string, string>;
+  env?: Record<string, string> | null;
   error?: string;
   pending_recreate?: boolean;
 }
@@ -42,21 +42,13 @@ export interface DeleteTaskResponseDto {
   message: string;
 }
 
-export interface TaskEnvironmentResponseDto {
-  env: Record<string, string> | null;
-  total: number;
-}
-
-export interface UpdateTaskEnvironmentRequestDto {
-  env: Record<string, string>;
+export interface UpdateTaskRequestDto {
+  description?: string;
+  image?: string;
+  port?: number;
+  labels?: Record<string, string>;
+  env?: Record<string, string>;
   auto_restart?: boolean;
-}
-
-export interface UpdateTaskEnvironmentResponseDto {
-  message: string;
-  variables: number;
-  auto_restart: boolean;
-  status: TaskStatusDto;
 }
 
 export interface CreateTaskRequestDto {

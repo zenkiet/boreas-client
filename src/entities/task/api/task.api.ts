@@ -3,27 +3,16 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
-import {
-  CreateTaskInput,
-  EnvironmentUpdateResult,
-  UpdateEnvironmentInput,
-} from '../model/create-task-input';
+import { CreateTaskInput, UpdateTaskInput } from '../model/create-task-input';
 import { Task } from '../model/task';
 import { TaskStateAction } from '../model/task-state-action';
 import {
   DeleteTaskResponseDto,
-  TaskEnvironmentResponseDto,
   TaskListResponseDto,
   TaskResponseDto,
   TaskStateResponseDto,
-  UpdateTaskEnvironmentResponseDto,
 } from './task.dto';
-import {
-  toCreateTaskRequestDto,
-  toEnvironmentUpdateResult,
-  toTask,
-  toUpdateEnvironmentRequestDto,
-} from './task.mapper';
+import { toCreateTaskRequestDto, toTask, toUpdateTaskRequestDto } from './task.mapper';
 
 @Injectable({ providedIn: 'root' })
 export class TaskApi {
@@ -69,26 +58,11 @@ export class TaskApi {
       .pipe(map((response) => response.message));
   }
 
-  getEnvironment(
-    project: string,
-    name: string,
-  ): Observable<Readonly<Record<string, string>>> {
+  /** Environment updates ride this too; the dedicated /env endpoints are gone. */
+  update(project: string, name: string, input: UpdateTaskInput): Observable<Task> {
     return this.http
-      .get<TaskEnvironmentResponseDto>(`${this.taskUrl(project, name)}/env`)
-      .pipe(map((response) => ({ ...(response.env ?? {}) })));
-  }
-
-  updateEnvironment(
-    project: string,
-    name: string,
-    input: UpdateEnvironmentInput,
-  ): Observable<EnvironmentUpdateResult> {
-    return this.http
-      .put<UpdateTaskEnvironmentResponseDto>(
-        `${this.taskUrl(project, name)}/env`,
-        toUpdateEnvironmentRequestDto(input),
-      )
-      .pipe(map(toEnvironmentUpdateResult));
+      .patch<TaskResponseDto>(this.taskUrl(project, name), toUpdateTaskRequestDto(input))
+      .pipe(map((response) => toTask(response.task)));
   }
 
   /** The per-task proxy route lives on the server root, not under /api. */

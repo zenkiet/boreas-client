@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Observable, catchError, finalize, forkJoin, map, of } from 'rxjs';
+import { Observable, catchError, finalize, map, of } from 'rxjs';
 
 import { Task, TaskApi } from '@entities/task';
 import { mapApiError } from '@shared/api/api-error';
@@ -8,11 +8,6 @@ import { mapApiError } from '@shared/api/api-error';
 interface TaskRef {
   readonly project: string;
   readonly name: string;
-}
-
-interface TaskSnapshot {
-  readonly task: Task;
-  readonly environment: Readonly<Record<string, string>>;
 }
 
 @Injectable()
@@ -24,17 +19,13 @@ export class ViewTaskStore {
 
   private readonly snapshot = rxResource({
     params: () => this.ref(),
-    stream: ({ params }) =>
-      forkJoin({
-        task: this.api.get(params.project, params.name),
-        environment: this.api.getEnvironment(params.project, params.name),
-      }),
+    stream: ({ params }) => this.api.get(params.project, params.name),
   });
 
   /* Keep stale data after reload failures, but never across task refs. */
   private readonly current = linkedSignal<
-    { readonly key: string; readonly value: TaskSnapshot | undefined },
-    TaskSnapshot | undefined
+    { readonly key: string; readonly value: Task | undefined },
+    Task | undefined
   >({
     source: () => ({
       key: this.key(),
@@ -45,8 +36,8 @@ export class ViewTaskStore {
   });
 
   readonly project = computed(() => this.ref()?.project ?? '');
-  readonly task = computed(() => this.current()?.task);
-  readonly environment = computed(() => this.current()?.environment ?? {});
+  readonly task = this.current.asReadonly();
+  readonly environment = computed(() => this.current()?.env ?? {});
   readonly loading = this.snapshot.isLoading;
   readonly savingEnvironment = this.savingEnvironmentState.asReadonly();
   readonly hasLoaded = computed(() => this.current() !== undefined);
@@ -70,6 +61,7 @@ export class ViewTaskStore {
     this.ref.set({ project, name });
   }
 
+  /* Applying always recreates; the deferred-apply option stays out of the env surface. */
   updateEnvironment(environment: Record<string, string>): Observable<string> {
     const ref = this.ref();
 
@@ -80,11 +72,11 @@ export class ViewTaskStore {
     this.savingEnvironmentState.set(true);
     this.saveError.set(undefined);
 
-    return this.api.updateEnvironment(ref.project, ref.name, { environment }).pipe(
-      map((result) => {
-        this.snapshot.update((value) => (value ? { ...value, environment: { ...environment } } : value));
-        this.snapshot.reload();
-        return `${result.message} (${result.status}).`;
+    return this.api.update(ref.project, ref.name, { environment, autoRestart: true }).pipe(
+      map((task) => {
+        /* PATCH returns the fresh task, so no follow-up fetch is needed. */
+        this.snapshot.update(() => task);
+        return `Environment updated (${task.status}).`;
       }),
       catchError((error: unknown) => {
         const message = mapApiError(error).message;

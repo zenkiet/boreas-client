@@ -452,6 +452,11 @@ export class ProjectDetailPage {
   protected handleTaskAction({ action, task }: TaskActionRequest): void {
     const slug = this.detail.slug();
 
+    if (action === 'edit') {
+      void this.router.navigate(['/projects', slug, 'tasks', task.name, 'edit']);
+      return;
+    }
+
     if (action === 'delete') {
       this.confirmations
         .confirm({

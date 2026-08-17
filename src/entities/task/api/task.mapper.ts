@@ -1,11 +1,6 @@
-import { CreateTaskInput, EnvironmentUpdateResult, UpdateEnvironmentInput } from '../model/create-task-input';
+import { CreateTaskInput, UpdateTaskInput } from '../model/create-task-input';
 import { Task } from '../model/task';
-import {
-  CreateTaskRequestDto,
-  TaskDto,
-  UpdateTaskEnvironmentRequestDto,
-  UpdateTaskEnvironmentResponseDto,
-} from './task.dto';
+import { CreateTaskRequestDto, TaskDto, UpdateTaskRequestDto } from './task.dto';
 
 export function toTask(dto: TaskDto): Task {
   return {
@@ -40,17 +35,14 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
   };
 }
 
-/* Environment updates always recreate; keep the wire field for API compatibility. */
-const AUTO_RESTART = true;
-
-export function toUpdateEnvironmentRequestDto(
-  input: UpdateEnvironmentInput,
-): UpdateTaskEnvironmentRequestDto {
-  return { env: { ...input.environment }, auto_restart: AUTO_RESTART };
-}
-
-export function toEnvironmentUpdateResult(
-  dto: UpdateTaskEnvironmentResponseDto,
-): EnvironmentUpdateResult {
-  return { message: dto.message, status: dto.status };
+/* Undefined fields are dropped by JSON serialization, preserving PATCH semantics. */
+export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskRequestDto {
+  return {
+    description: input.description,
+    image: input.image,
+    port: input.port,
+    labels: input.labels ? { ...input.labels } : undefined,
+    env: input.environment ? { ...input.environment } : undefined,
+    auto_restart: input.autoRestart,
+  };
 }
