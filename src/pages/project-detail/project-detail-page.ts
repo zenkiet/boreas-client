@@ -1,17 +1,9 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-} from '@angular/core';
 import { DOCUMENT, DatePipe } from '@angular/common';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
-import { TuiAppBar } from '@taiga-ui/layout';
 import { TuiToastService } from '@taiga-ui/kit';
+import { TuiAppBar } from '@taiga-ui/layout';
 import { filter, switchMap, take } from 'rxjs';
 
 import { Member, Project } from '@entities/project';
@@ -23,7 +15,6 @@ import { ViewProjectStore } from '@features/view-project';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
-import { TUI_BREAKPOINT } from '@taiga-ui/core';
 import { BackLink } from '@shared/ui/back-link/back-link';
 import { Callout } from '@shared/ui/callout/callout';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
@@ -34,6 +25,7 @@ import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/g
 import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
+import { TUI_BREAKPOINT } from '@taiga-ui/core';
 
 const VIEWS = ['tasks', 'members', 'about'] as const;
 
@@ -61,73 +53,72 @@ type View = (typeof VIEWS)[number];
     TuiIcon,
   ],
   providers: [ViewProjectStore, ControlTaskStore, ManageProjectStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- iOS push: chrome and the seeded title render before any data lands. -->
-    <div appReveal class="mx-auto grid w-full max-w-[40rem] grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
-        <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-        <div
-          class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-        >
-          <tui-app-bar tuiAppBarSize>
-            <a tuiSlot="start" tuiAppBarBack routerLink="/projects" aria-label="Back to projects"></a>
-            <span class="detail__bar-title font-mono">{{ slug() }}</span>
-            <a
-              tuiSlot="end"
-              appGlassIconButton
-              icon="@tui.plus"
-              [routerLink]="['/projects', slug(), 'tasks', 'new']"
-              aria-label="New task"
-            ></a>
-          </tui-app-bar>
+    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
+      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
+      <div
+        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
+      >
+        <tui-app-bar tuiAppBarSize>
+          <a tuiSlot="start" tuiAppBarBack routerLink="/projects" aria-label="Back to projects"></a>
+          <span class="detail__bar-title font-mono">{{ slug() }}</span>
+          <a
+            tuiSlot="end"
+            appGlassIconButton
+            icon="@tui.plus"
+            [routerLink]="['/projects', slug(), 'tasks', 'new']"
+            aria-label="New task"
+          ></a>
+        </tui-app-bar>
+      </div>
+
+      <header class="hidden md:block">
+        <app-back-link link="/projects" label="Projects" />
+        <div class="mt-1.5 flex items-center justify-between gap-3">
+          <h1 class="detail__title">{{ displayName() }}</h1>
+          <a
+            tuiButton
+            size="s"
+            appearance="primary"
+            [routerLink]="['/projects', slug(), 'tasks', 'new']"
+          >
+            <tui-icon class="icon-sm" icon="@tui.plus" />
+            New task
+          </a>
         </div>
+        <p class="detail__subtitle font-mono">/{{ slug() }}</p>
+      </header>
 
-        <header class="hidden md:block">
-          <app-back-link link="/projects" label="Projects" />
-          <div class="mt-1.5 flex items-center justify-between gap-3">
-            <h1 class="detail__title">{{ displayName() }}</h1>
-            <a
-              tuiButton
-              size="s"
-              appearance="primary"
-              [routerLink]="['/projects', slug(), 'tasks', 'new']"
-            >
-              <tui-icon class="icon-sm" icon="@tui.plus" />
-              New task
-            </a>
-          </div>
-          <p class="detail__subtitle font-mono">/{{ slug() }}</p>
-        </header>
+      <h1 class="detail__title md:hidden">{{ displayName() }}</h1>
 
-        <h1 class="detail__title md:hidden">{{ displayName() }}</h1>
+      @if (detail.error() && detail.hasLoaded()) {
+        <app-callout tone="negative" role="alert">
+          {{ detail.error() }} Existing data is still shown.
+        </app-callout>
+      }
 
-        @if (detail.error() && detail.hasLoaded()) {
-          <app-callout tone="negative" role="alert">
-            {{ detail.error() }} Existing data is still shown.
-          </app-callout>
-        }
+      <app-glass-segmented
+        [items]="viewItems()"
+        [activeIndex]="viewIndex()"
+        (activeIndexChange)="setView($event)"
+      />
 
-        <app-glass-segmented
-          [items]="viewItems()"
-          [activeIndex]="viewIndex()"
-          (activeIndexChange)="setView($event)"
+      @if (detail.error() && !detail.hasLoaded()) {
+        <app-error-state
+          title="Unable to load project"
+          [message]="detail.error()!"
+          (retry)="reload()"
         />
-
-        @if (detail.error() && !detail.hasLoaded()) {
-          <app-error-state
-            title="Unable to load project"
-            [message]="detail.error()!"
-            (retry)="reload()"
+      } @else if (!detail.hasLoaded()) {
+        <!-- The redacted group follows the selected segment so switching stays honest. -->
+        <app-inset-group [label]="skeletonLabel()">
+          <app-skeleton-rows
+            [variant]="view() === 'members' ? 'member' : 'task'"
+            label="Loading project"
           />
-        } @else if (!detail.hasLoaded()) {
-          <!-- The redacted group follows the selected segment so switching stays honest. -->
-          <app-inset-group [label]="skeletonLabel()">
-            <app-skeleton-rows
-              [variant]="view() === 'members' ? 'member' : 'task'"
-              label="Loading project"
-            />
-          </app-inset-group>
-        } @else {
+        </app-inset-group>
+      } @else {
         <!-- Sections hide, never unmount: the member form and scroll state survive switching. -->
         <div [class.hidden]="view() !== 'tasks'">
           <app-inset-group label="Tasks" [trailing]="taskSummary()">
@@ -178,77 +169,77 @@ type View = (typeof VIEWS)[number];
         </div>
 
         @if (detail.project(); as project) {
-        <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'about'">
-          <app-inset-group label="About">
-            <div class="about__row row-divider relative">
-              <label class="about__label" for="project-name">Display name</label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="project-name"
-                  class="about__input"
-                  autocomplete="off"
-                  [value]="draftName()"
-                  (input)="typeName($event)"
-                />
-                @if (draftName() !== project.name) {
-                  <button
-                    tuiButton
-                    type="button"
-                    size="s"
-                    appearance="secondary"
+          <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'about'">
+            <app-inset-group label="About">
+              <div class="about__row row-divider relative">
+                <label class="about__label" for="project-name">Display name</label>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="project-name"
+                    class="about__input"
+                    autocomplete="off"
+                    [value]="draftName()"
+                    (input)="typeName($event)"
+                  />
+                  @if (draftName() !== project.name) {
+                    <button
+                      tuiButton
+                      type="button"
+                      size="s"
+                      appearance="secondary"
+                      [disabled]="manage.busy()"
+                      (click)="saveName(project)"
+                    >
+                      Save
+                    </button>
+                  }
+                </div>
+              </div>
+
+              @if (credentialOptions(); as options) {
+                <div class="about__row about__row--inline row-divider relative">
+                  <span class="about__label about__label--inline">Registry credential</span>
+                  <app-glass-select
+                    ariaLabel="Registry credential"
+                    placeholder="None"
+                    [options]="options"
+                    [value]="project.registryCredentialId ?? ''"
                     [disabled]="manage.busy()"
-                    (click)="saveName(project)"
-                  >
-                    Save
-                  </button>
-                }
-              </div>
-            </div>
+                    (valueChange)="changeCredential(project, $event)"
+                  />
+                </div>
+              }
 
-            @if (credentialOptions(); as options) {
               <div class="about__row about__row--inline row-divider relative">
-                <span class="about__label about__label--inline">Registry credential</span>
-                <app-glass-select
-                  ariaLabel="Registry credential"
-                  placeholder="None"
-                  [options]="options"
-                  [value]="project.registryCredentialId ?? ''"
-                  [disabled]="manage.busy()"
-                  (valueChange)="changeCredential(project, $event)"
-                />
+                <span class="about__label about__label--inline">Proxy prefix</span>
+                <span class="about__value font-mono">{{ proxyPrefix() }}</span>
               </div>
-            }
 
-            <div class="about__row about__row--inline row-divider relative">
-              <span class="about__label about__label--inline">Proxy prefix</span>
-              <span class="about__value font-mono">{{ proxyPrefix() }}</span>
-            </div>
+              <div class="about__row about__row--inline row-divider relative">
+                <span class="about__label about__label--inline">Created</span>
+                <span class="about__value tabular">{{ project.createdAt | date: 'MMM d, y' }}</span>
+              </div>
+            </app-inset-group>
 
-            <div class="about__row about__row--inline row-divider relative">
-              <span class="about__label about__label--inline">Created</span>
-              <span class="about__value tabular">{{ project.createdAt | date: 'MMM d, y' }}</span>
-            </div>
-          </app-inset-group>
-
-          <app-inset-group label="Danger zone">
-            <button
-              tuiButton
-              type="button"
-              size="m"
-              appearance="flat-destructive"
-              class="about__delete"
-              [disabled]="manage.busy()"
-              (click)="deleteProject(project)"
-            >
-              <tui-icon class="icon-sm" icon="@tui.trash-2" />
-              Delete project
-            </button>
-            <p class="about__hint">A project that still owns tasks cannot be deleted.</p>
-          </app-inset-group>
-        </div>
+            <app-inset-group label="Danger zone">
+              <button
+                tuiButton
+                type="button"
+                size="m"
+                appearance="flat-destructive"
+                class="about__delete"
+                [disabled]="manage.busy()"
+                (click)="deleteProject(project)"
+              >
+                <tui-icon class="icon-sm" icon="@tui.trash-2" />
+                Delete project
+              </button>
+              <p class="about__hint">A project that still owns tasks cannot be deleted.</p>
+            </app-inset-group>
+          </div>
         }
-        }
-      </div>
+      }
+    </div>
   `,
   styles: `
     .detail__bar-title {
@@ -477,7 +468,9 @@ export class ProjectDetailPage {
       return;
     }
 
-    this.commands.changeState(slug, task, action).subscribe((result) => this.completeCommand(result));
+    this.commands
+      .changeState(slug, task, action)
+      .subscribe((result) => this.completeCommand(result));
   }
 
   protected typeName(event: Event): void {
@@ -488,9 +481,7 @@ export class ProjectDetailPage {
     const name = this.draftName().trim();
     if (!name || name === project.name) return;
 
-    this.manage
-      .update(project.slug, { name })
-      .subscribe((result) => this.completeCommand(result));
+    this.manage.update(project.slug, { name }).subscribe((result) => this.completeCommand(result));
   }
 
   protected changeCredential(project: Project, value: string): void {

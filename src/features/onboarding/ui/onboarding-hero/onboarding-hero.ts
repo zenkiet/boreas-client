@@ -1,6 +1,5 @@
 import { DOCUMENT } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
@@ -12,7 +11,6 @@ import { DotLottie } from '@lottiefiles/dotlottie-web';
 
 @Component({
   selector: 'app-onboarding-hero',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="hero" aria-hidden="true">
       <span class="hero__fallback">

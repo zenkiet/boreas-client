@@ -1,8 +1,7 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 @Component({
   selector: 'app-page-header',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-8">
       <hgroup class="flex min-w-0 flex-col gap-1.5">

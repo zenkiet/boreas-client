@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, minLength, pattern, required, submit } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { TuiButton, TuiDataList, TuiDropdown, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
@@ -52,9 +52,8 @@ interface UserDraft {
     TuiLoader,
   ],
   providers: [ManageUsersStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-[40rem] grid-cols-1 gap-3.5 md:gap-4">
+    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-3.5 md:gap-4">
       <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
       <div
         class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
@@ -82,59 +81,71 @@ interface UserDraft {
           </app-inset-group>
         } @else {
           <app-inset-group label="Users" [trailing]="summary()">
-          @for (user of users.users(); track user.id) {
-            <div class="row row-divider relative" [class.row--disabled]="user.disabled">
-              <span class="row__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
-              <span class="min-w-0 flex-1">
-                <span class="row__name">
-                  {{ user.username }}
-                  @if (user.disabled) {
-                    <span class="row__muted">· disabled</span>
-                  }
+            @for (user of users.users(); track user.id) {
+              <div class="row row-divider relative" [class.row--disabled]="user.disabled">
+                <span class="row__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="row__name">
+                    {{ user.username }}
+                    @if (user.disabled) {
+                      <span class="row__muted">· disabled</span>
+                    }
+                  </span>
+                  <span class="row__sub"
+                    >{{ user.email }} · joined {{ user.createdAt | date: 'MMM y' }}</span
+                  >
                 </span>
-                <span class="row__sub">{{ user.email }} · joined {{ user.createdAt | date: 'MMM y' }}</span>
-              </span>
-              <span class="row__role" [attr.data-role]="user.role">{{ user.role }}</span>
+                <span class="row__role" [attr.data-role]="user.role">{{ user.role }}</span>
 
-              @if (user.id !== session.user()?.id) {
-                <button
-                  tuiIconButton
-                  type="button"
-                  size="s"
-                  appearance="flat-grayscale"
-                  [attr.aria-label]="'Actions for ' + user.username"
-                  [tuiDropdown]="menu"
-                >
-                  <tui-icon class="icon-sm" icon="@tui.ellipsis" />
-                </button>
-                <ng-template #menu>
-                  <tui-data-list class="menu">
-                    <tui-opt-group>
-                      <button tuiOption type="button" [disabled]="users.busy()" (click)="toggleRole(user)">
-                        {{ user.role === 'admin' ? 'Make user' : 'Make admin' }}
-                      </button>
-                      <button tuiOption type="button" [disabled]="users.busy()" (click)="toggleDisabled(user)">
-                        {{ user.disabled ? 'Enable account' : 'Disable account' }}
-                      </button>
-                    </tui-opt-group>
-                    <tui-opt-group>
-                      <button
-                        tuiOption
-                        type="button"
-                        class="menu__destructive"
-                        [disabled]="users.busy()"
-                        (click)="deleteUser(user)"
-                      >
-                        Delete
-                      </button>
-                    </tui-opt-group>
-                  </tui-data-list>
-                </ng-template>
-              } @else {
-                <span class="row__muted">you</span>
-              }
-            </div>
-          }
+                @if (user.id !== session.user()?.id) {
+                  <button
+                    tuiIconButton
+                    type="button"
+                    size="s"
+                    appearance="flat-grayscale"
+                    [attr.aria-label]="'Actions for ' + user.username"
+                    [tuiDropdown]="menu"
+                  >
+                    <tui-icon class="icon-sm" icon="@tui.ellipsis" />
+                  </button>
+                  <ng-template #menu>
+                    <tui-data-list class="menu">
+                      <tui-opt-group>
+                        <button
+                          tuiOption
+                          type="button"
+                          [disabled]="users.busy()"
+                          (click)="toggleRole(user)"
+                        >
+                          {{ user.role === 'admin' ? 'Make user' : 'Make admin' }}
+                        </button>
+                        <button
+                          tuiOption
+                          type="button"
+                          [disabled]="users.busy()"
+                          (click)="toggleDisabled(user)"
+                        >
+                          {{ user.disabled ? 'Enable account' : 'Disable account' }}
+                        </button>
+                      </tui-opt-group>
+                      <tui-opt-group>
+                        <button
+                          tuiOption
+                          type="button"
+                          class="menu__destructive"
+                          [disabled]="users.busy()"
+                          (click)="deleteUser(user)"
+                        >
+                          Delete
+                        </button>
+                      </tui-opt-group>
+                    </tui-data-list>
+                  </ng-template>
+                } @else {
+                  <span class="row__muted">you</span>
+                }
+              </div>
+            }
           </app-inset-group>
         }
 
@@ -204,7 +215,13 @@ interface UserDraft {
               </div>
 
               <div class="row-divider relative flex justify-end p-3">
-                <button tuiButton type="submit" size="s" appearance="primary" [disabled]="users.busy()">
+                <button
+                  tuiButton
+                  type="submit"
+                  size="s"
+                  appearance="primary"
+                  [disabled]="users.busy()"
+                >
                   @if (users.busy()) {
                     <tui-loader size="s" [inheritColor]="true" />
                   }
@@ -446,7 +463,9 @@ export class UsersPage {
       'They are signed out everywhere and cannot sign in until re-enabled.',
       'Disable account',
     )
-      .pipe(switchMap(() => this.users.update(user, { disabled: true }, `${user.username} disabled.`)))
+      .pipe(
+        switchMap(() => this.users.update(user, { disabled: true }, `${user.username} disabled.`)),
+      )
       .subscribe((result) => this.complete(result));
   }
 
@@ -461,7 +480,12 @@ export class UsersPage {
       .subscribe((result) => this.complete(result));
   }
 
-  private confirmSensitive(title: string, message: string, confirmLabel: string, destructive = false) {
+  private confirmSensitive(
+    title: string,
+    message: string,
+    confirmLabel: string,
+    destructive = false,
+  ) {
     return this.confirmations
       .confirm({ title, message, confirmLabel, destructive })
       .pipe(filter(Boolean));

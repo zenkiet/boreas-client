@@ -1,16 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
 
 import { SessionStore } from '@features/auth';
-import { PageHeader } from '@shared/ui/page-header/page-header';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
-import { Panel } from '@shared/ui/panel/panel';
 import { ServerConfigStore } from '@shared/config/server-config.store';
+import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
+import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
+import { PageHeader } from '@shared/ui/page-header/page-header';
+import { Panel } from '@shared/ui/panel/panel';
 
-const THEME_MODES: readonly { readonly mode: ThemeMode; readonly label: string; readonly icon: string }[] = [
+const THEME_MODES: readonly {
+  readonly mode: ThemeMode;
+  readonly label: string;
+  readonly icon: string;
+}[] = [
   { mode: 'system', label: 'System', icon: '@tui.monitor' },
   { mode: 'light', label: 'Light', icon: '@tui.sun' },
   { mode: 'dark', label: 'Dark', icon: '@tui.moon' },
@@ -26,9 +30,8 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
 @Component({
   selector: 'app-settings-page',
   imports: [GlassSegmented, PageHeader, Panel, Reveal, RouterLink, TuiButton, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid max-w-[44rem] grid-cols-1 gap-3.5 md:gap-4">
+    <div appReveal class="mx-auto grid max-w-176 grid-cols-1 gap-3.5 md:gap-4">
       <app-page-header title="Settings" />
 
       @if (session.user(); as user) {
@@ -60,12 +63,20 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
           <a class="admin-row row-divider relative" routerLink="/settings/users">
             <tui-icon class="icon-sm admin-row__icon" icon="@tui.users" aria-hidden="true" />
             <span class="flex-1">Users</span>
-            <tui-icon class="icon-sm admin-row__chevron" icon="@tui.chevron-right" aria-hidden="true" />
+            <tui-icon
+              class="icon-sm admin-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
           </a>
           <a class="admin-row row-divider relative" routerLink="/settings/registries">
             <tui-icon class="icon-sm admin-row__icon" icon="@tui.key-round" aria-hidden="true" />
             <span class="flex-1">Registry credentials</span>
-            <tui-icon class="icon-sm admin-row__chevron" icon="@tui.chevron-right" aria-hidden="true" />
+            <tui-icon
+              class="icon-sm admin-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
           </a>
         </app-panel>
       }

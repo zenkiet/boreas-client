@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
@@ -62,7 +61,6 @@ const FEATURES = [
     TuiTextfield,
   ],
   providers: [ConnectServerStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flow">
       <div #hero class="flow__hero">

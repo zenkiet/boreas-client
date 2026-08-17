@@ -11,7 +11,6 @@ import { Capacitor } from '@capacitor/core';
 import { TUI_DIALOGS_CLOSE } from '@taiga-ui/core';
 import { Subject, filter, merge } from 'rxjs';
 
-// Taiga exposes dialog and sheet dismissal only through TUI_DIALOGS_CLOSE.
 const backRequested$ = new Subject<void>();
 
 export function provideAndroidBackButton(): EnvironmentProviders {
@@ -20,7 +19,6 @@ export function provideAndroidBackButton(): EnvironmentProviders {
       provide: TUI_DIALOGS_CLOSE,
       useFactory: () =>
         merge(
-          // Preserve Taiga's default navigation dismissal when overriding the token.
           inject(Router).events.pipe(filter((event) => event instanceof ActivationStart)),
           backRequested$,
         ),
@@ -39,7 +37,6 @@ export function provideAndroidBackButton(): EnvironmentProviders {
           return;
         }
 
-        // These overlays accept synthetic Escape events, unlike CloseWatcher-based dialogs.
         if (document.querySelector('tui-dropdown, tui-bottom-sheet')) {
           document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
           return;

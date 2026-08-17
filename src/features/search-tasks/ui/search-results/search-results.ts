@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 import { FleetTask } from '../../model/search-tasks.store';
@@ -6,7 +6,6 @@ import { FleetTask } from '../../model/search-tasks.store';
 @Component({
   selector: 'app-search-results',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (entry of entries(); track entry.task.id) {
       <button type="button" class="result" (click)="taskOpened.emit(entry)">

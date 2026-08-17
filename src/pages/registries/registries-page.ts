@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, required, submit } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
@@ -47,9 +47,8 @@ interface CredentialDraft {
     TuiLoader,
   ],
   providers: [ManageCredentialsStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-[40rem] grid-cols-1 gap-3.5 md:gap-4">
+    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-3.5 md:gap-4">
       <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
       <div
         class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
@@ -77,36 +76,36 @@ interface CredentialDraft {
           </app-inset-group>
         } @else {
           <app-inset-group label="Credentials" [trailing]="summary()">
-          @for (credential of credentials.credentials(); track credential.id) {
-            <div class="row row-divider relative">
-              <tui-icon class="row__icon icon-sm" icon="@tui.key-round" aria-hidden="true" />
-              <span class="min-w-0 flex-1">
-                <span class="row__name">{{ credential.name }}</span>
-                <span class="row__sub">
-                  {{ credential.registry === 'ghcr' ? 'ghcr.io' : 'Docker Hub' }} ·
-                  {{ credential.username }} · added {{ credential.createdAt | date: 'MMM d, y' }}
+            @for (credential of credentials.credentials(); track credential.id) {
+              <div class="row row-divider relative">
+                <tui-icon class="row__icon icon-sm" icon="@tui.key-round" aria-hidden="true" />
+                <span class="min-w-0 flex-1">
+                  <span class="row__name">{{ credential.name }}</span>
+                  <span class="row__sub">
+                    {{ credential.registry === 'ghcr' ? 'ghcr.io' : 'Docker Hub' }} ·
+                    {{ credential.username }} · added {{ credential.createdAt | date: 'MMM d, y' }}
+                  </span>
                 </span>
-              </span>
-              <button
-                tuiIconButton
-                type="button"
-                size="s"
-                appearance="flat-grayscale"
-                [disabled]="credentials.busy()"
-                [attr.aria-label]="'Delete ' + credential.name"
-                (click)="deleteCredential(credential)"
-              >
-                <tui-icon class="icon-sm" icon="@tui.trash-2" />
-              </button>
-            </div>
-          } @empty {
-            <app-empty-state
-              icon="@tui.key-round"
-              title="No credentials yet"
-              description="Add a registry credential so projects can pull private images."
-              [bordered]="false"
-            />
-          }
+                <button
+                  tuiIconButton
+                  type="button"
+                  size="s"
+                  appearance="flat-grayscale"
+                  [disabled]="credentials.busy()"
+                  [attr.aria-label]="'Delete ' + credential.name"
+                  (click)="deleteCredential(credential)"
+                >
+                  <tui-icon class="icon-sm" icon="@tui.trash-2" />
+                </button>
+              </div>
+            } @empty {
+              <app-empty-state
+                icon="@tui.key-round"
+                title="No credentials yet"
+                description="Add a registry credential so projects can pull private images."
+                [bordered]="false"
+              />
+            }
           </app-inset-group>
         }
 

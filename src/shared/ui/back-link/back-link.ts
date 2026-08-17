@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TuiIcon } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-back-link',
   imports: [RouterLink, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a class="back" [routerLink]="link()">
       <tui-icon class="icon-sm" icon="@tui.chevron-left" />

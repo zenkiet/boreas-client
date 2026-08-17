@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
 
 import { AddMemberInput, Member, ProjectRole } from '@entities/project';
@@ -9,7 +9,6 @@ import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-se
 @Component({
   selector: 'app-member-list',
   imports: [DatePipe, GlassSelect, TuiButton, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (member of members(); track member.userId) {
       <div class="row row-divider relative">

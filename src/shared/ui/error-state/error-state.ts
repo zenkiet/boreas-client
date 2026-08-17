@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-error-state',
   imports: [TuiButton, TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="state" role="alert">
       <span class="state__icon" aria-hidden="true">

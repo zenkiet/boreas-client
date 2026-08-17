@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { TuiButton, TuiHint, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
 import { Task, isTransitioningTask } from '../../model/task';
@@ -13,7 +13,6 @@ export interface TaskActionRequest {
 @Component({
   selector: 'app-task-actions',
   imports: [TuiButton, TuiHint, TuiIcon, TuiLoader],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
       class="flex items-center justify-end gap-0.5"
@@ -101,9 +100,7 @@ export class TaskActions {
   readonly pending = input.required<boolean>();
   readonly actionRequested = output<TaskActionRequest>();
 
-  protected readonly disabled = computed(
-    () => isTransitioningTask(this.task()) || this.pending(),
-  );
+  protected readonly disabled = computed(() => isTransitioningTask(this.task()) || this.pending());
 
   protected readonly disabledReason = computed(() => {
     if (isTransitioningTask(this.task())) {

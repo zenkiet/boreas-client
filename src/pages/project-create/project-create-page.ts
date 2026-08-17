@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiAppBar } from '@taiga-ui/layout';
 
@@ -13,9 +13,8 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
   selector: 'app-project-create-page',
   imports: [BackLink, GlassIconButton, PageHeader, ProjectForm, Reveal, RouterLink, TuiAppBar],
   providers: [ManageProjectStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid max-w-[40rem] grid-cols-1 gap-3.5 md:gap-4">
+    <div appReveal class="mx-auto grid max-w-160 grid-cols-1 gap-3.5 md:gap-4">
       <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
       <div
         class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"

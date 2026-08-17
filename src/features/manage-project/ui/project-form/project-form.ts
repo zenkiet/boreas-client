@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { FormField, form, pattern, required, submit } from '@angular/forms/signals';
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
@@ -20,7 +20,6 @@ interface ProjectDraft {
 @Component({
   selector: 'app-project-form',
   imports: [Callout, FormField, GlassSelect, InsetGroup, TuiButton, TuiError, TuiIcon, TuiLoader],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form class="grid grid-cols-1 gap-3.5" novalidate [id]="formId()" (submit)="onSubmit($event)">
       @if (error(); as message) {

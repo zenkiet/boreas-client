@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 
 import { SystemStats } from '@entities/system-stats';
 import { MEGABYTE, formatBytes } from '@shared/lib/format/bytes';
 
 @Component({
   selector: 'app-stat-tiles',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tile">
       <span class="tile__label">Projects</span>
@@ -66,8 +65,6 @@ export class StatTiles {
   readonly stats = input.required<SystemStats>();
 
   protected readonly hostMemory = computed(() =>
-    this.stats().totalMemoryMb > 0
-      ? formatBytes(this.stats().totalMemoryMb * MEGABYTE)
-      : 'Unknown',
+    this.stats().totalMemoryMb > 0 ? formatBytes(this.stats().totalMemoryMb * MEGABYTE) : 'Unknown',
   );
 }

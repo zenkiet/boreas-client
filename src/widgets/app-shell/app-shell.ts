@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import {
@@ -36,7 +36,6 @@ const THEME_ICON: Record<ThemeMode, string> = {
 @Component({
   selector: 'app-shell',
   imports: [GlassSegmented, RouterLink, RouterOutlet, TuiButton, TuiIcon, TuiPullToRefresh],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {
       provide: TUI_PULL_TO_REFRESH_LOADED,
@@ -53,7 +52,14 @@ const THEME_ICON: Record<ThemeMode, string> = {
       <header class="shell__bar">
         <div class="shell__bar-inner">
           <a routerLink="/projects" class="shell__brand" aria-label="Boreas projects">
-            <img class="shell__mark" src="/brand-mark.png" width="28" height="28" alt="" aria-hidden="true" />
+            <img
+              class="shell__mark"
+              src="/brand-mark.png"
+              width="28"
+              height="28"
+              alt=""
+              aria-hidden="true"
+            />
             Boreas
           </a>
 
@@ -242,9 +248,7 @@ export class AppShell {
   }));
 
   protected readonly activeTab = computed(() => {
-    const index = this.navItems.findIndex(
-      (item, i) => i > 0 && this.url().startsWith(item.link),
-    );
+    const index = this.navItems.findIndex((item, i) => i > 0 && this.url().startsWith(item.link));
     return index === -1 ? 0 : index;
   });
 

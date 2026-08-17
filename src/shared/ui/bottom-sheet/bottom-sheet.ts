@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
@@ -18,7 +17,6 @@ const RUBBER_BAND_MAX = 24;
 @Component({
   selector: 'app-bottom-sheet',
   imports: [TuiBottomSheet],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   /* A reveal transform would trap the fixed layer inside the host's zero-height box. */
   host: { '(document:keydown.escape)': 'close()', 'data-no-reveal': '' },
   template: `

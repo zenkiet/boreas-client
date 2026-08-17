@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-empty-state',
   imports: [TuiIcon],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="state" [class.state--bare]="!bordered()">
       <span class="state__icon" aria-hidden="true">

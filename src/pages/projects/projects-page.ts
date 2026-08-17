@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TUI_BREAKPOINT, TuiButton, TuiIcon } from '@taiga-ui/core';
 
@@ -32,9 +32,8 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     TuiIcon,
   ],
   providers: [ListProjectsStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-[40rem] grid-cols-1 gap-4">
+    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-4">
       <header class="flex items-center justify-between gap-3">
         <h1 class="page-title">Projects</h1>
         @if (mobile()) {

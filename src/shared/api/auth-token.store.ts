@@ -1,10 +1,10 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { computed, inject, Service, signal } from '@angular/core';
 
 const STORAGE_KEY = 'boreas-token';
 
 /** Owns only the bearer token; the session user lives in features/auth. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class AuthTokenStore {
   private readonly document = inject(DOCUMENT);
   private readonly tokenState = signal(this.read());

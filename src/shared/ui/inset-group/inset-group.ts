@@ -1,8 +1,7 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 @Component({
   selector: 'app-inset-group',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (label()) {
       <div class="head">

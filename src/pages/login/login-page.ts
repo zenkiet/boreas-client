@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, required, submit } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { TuiButton, TuiError, TuiLoader, TuiTextfield } from '@taiga-ui/core';
@@ -18,11 +18,17 @@ interface LoginDraft {
   selector: 'app-login-page',
   imports: [Callout, FormField, Reveal, RouterLink, TuiButton, TuiError, TuiLoader, TuiTextfield],
   providers: [LoginStore],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main appReveal class="login">
       <div class="login__card">
-        <img class="login__mark" src="/brand-mark.png" width="72" height="72" alt="" aria-hidden="true" />
+        <img
+          class="login__mark"
+          src="/brand-mark.png"
+          width="72"
+          height="72"
+          alt=""
+          aria-hidden="true"
+        />
 
         <div class="login__head">
           <h1 class="login__title">Sign in to Boreas</h1>
@@ -86,7 +92,8 @@ interface LoginDraft {
       display: grid;
       place-items: center;
       min-block-size: 100dvh;
-      padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+      padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem
+        max(1.5rem, env(safe-area-inset-bottom));
     }
 
     .login__card {
@@ -157,9 +164,7 @@ export class LoginPage {
     required(path.password, { message: 'Password is required.' });
   });
 
-  protected readonly serverHost = computed(() =>
-    this.config.baseUrl().replace(/^https?:\/\//, ''),
-  );
+  protected readonly serverHost = computed(() => this.config.baseUrl().replace(/^https?:\/\//, ''));
 
   constructor() {
     /* A live token means this visit is a back-navigation, not a sign-in. */
