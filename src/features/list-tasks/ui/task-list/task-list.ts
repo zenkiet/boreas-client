@@ -40,7 +40,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                 <span class="dot" [attr.data-status]="task.status" aria-hidden="true"></span>
                 <span class="min-w-0 flex-1">
                   <span class="row__id">
-                    {{ task.id }}
+                    {{ task.name }}
                     <span class="sr-only">, {{ task.status }}</span>
                   </span>
                   <span class="row__sub tabular">
@@ -58,8 +58,8 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                 <ng-template #menu>
                   <app-task-menu
                     [task]="task"
-                    [accessUrl]="accessUrlFor()(task.id)"
-                    [pending]="pendingTaskIds().has(task.id)"
+                    [accessUrl]="accessUrlFor()(task.name)"
+                    [pending]="pendingTaskIds().has(task.name)"
                     (actionRequested)="actionRequested.emit($event)"
                   />
                 </ng-template>
@@ -71,7 +71,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                 type="button"
                 [icon]="task.status === 'running' ? '@tui.square' : '@tui.play'"
                 [attr.aria-label]="task.status === 'running' ? 'Stop' : 'Start'"
-                [disabled]="pendingTaskIds().has(task.id)"
+                [disabled]="pendingTaskIds().has(task.name)"
                 (click)="requestLifecycle(task)"
               ></button>
               <button
@@ -81,7 +81,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                 tone="negative"
                 type="button"
                 aria-label="Delete"
-                [disabled]="pendingTaskIds().has(task.id)"
+                [disabled]="pendingTaskIds().has(task.name)"
                 (click)="actionRequested.emit({ action: 'delete', task })"
               ></button>
             </tui-swipe-actions>
@@ -94,14 +94,14 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
           <div
             role="listitem"
             class="row row--pointer row-divider relative"
-            [class.row--busy]="pendingTaskIds().has(task.id)"
+            [class.row--busy]="pendingTaskIds().has(task.name)"
             (click)="openTask($event, task)"
             (keydown.enter)="openTask($event, task)"
           >
             <span class="dot" [attr.data-status]="task.status" aria-hidden="true"></span>
             <span class="min-w-0 flex-1">
-              <a class="row__id row__id--link" [routerLink]="['/tasks', task.id]">
-                {{ task.id }}
+              <a class="row__id row__id--link" [routerLink]="routeFor()(task)">
+                {{ task.name }}
                 <span class="sr-only">, {{ task.status }}</span>
               </a>
               <span class="row__sub" [attr.title]="task.image">{{ task.image }}</span>
@@ -115,13 +115,13 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
 
             <span class="row__meta tabular">
               Port {{ task.port }} · {{ environmentCount(task) }} vars ·
-              {{ task.lastAccessed ? (task.lastAccessed | date: 'MMM d') : 'never used' }}
+              {{ task.updatedAt | date: 'MMM d' }}
             </span>
             <span class="row__actions">
               <app-task-actions
                 [task]="task"
-                [accessUrl]="accessUrlFor()(task.id)"
-                [pending]="pendingTaskIds().has(task.id)"
+                [accessUrl]="accessUrlFor()(task.name)"
+                [pending]="pendingTaskIds().has(task.name)"
                 (actionRequested)="actionRequested.emit($event)"
               />
             </span>
@@ -272,9 +272,11 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
 })
 export class TaskList {
   readonly tasks = input.required<readonly Task[]>();
+  /** Pending commands are keyed by task name within the page's project. */
   readonly pendingTaskIds = input.required<ReadonlySet<string>>();
   readonly mobile = input.required<boolean>();
-  readonly accessUrlFor = input.required<(taskId: string) => string>();
+  readonly accessUrlFor = input.required<(name: string) => string>();
+  readonly routeFor = input.required<(task: Task) => readonly string[]>();
   readonly actionRequested = output<TaskActionRequest>();
   readonly taskOpened = output<Task>();
 

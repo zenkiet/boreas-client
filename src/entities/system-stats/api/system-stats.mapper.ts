@@ -6,8 +6,7 @@ export function toSystemStats(dto: SystemStatsDto): SystemStats {
     totalTasks: dto.total_tasks,
     runningTasks: dto.running_tasks,
     stoppedTasks: dto.stopped_tasks,
-    maxContainers: dto.max_containers,
-    containerMemoryMb: dto.container_memory_mb,
+    totalProjects: dto.total_projects,
     totalMemoryMb: dto.total_memory_mb,
   };
 }

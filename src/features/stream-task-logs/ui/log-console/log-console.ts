@@ -6,10 +6,11 @@ import {
   afterRenderEffect,
   computed,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
-import { TuiButton, TuiIcon, TuiTextfield } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiLoader, TuiTextfield } from '@taiga-ui/core';
 
 import { LogEntry } from '@entities/task-log';
 import { Panel } from '@shared/ui/panel/panel';
@@ -20,14 +21,23 @@ const FOLLOW_THRESHOLD = 24;
 
 @Component({
   selector: 'app-log-console',
-  imports: [Panel, SlicePipe, TuiButton, TuiIcon, TuiTextfield],
+  imports: [Panel, SlicePipe, TuiButton, TuiIcon, TuiLoader, TuiTextfield],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-panel heading="Live logs" [flush]="true">
-      <a panelActions tuiButton size="s" appearance="secondary" download [href]="downloadUrl()">
+      <!-- A plain download href cannot carry the bearer token, so the page fetches. -->
+      <button
+        panelActions
+        tuiButton
+        type="button"
+        size="s"
+        appearance="secondary"
+        [disabled]="downloading()"
+        (click)="downloadRequested.emit()"
+      >
         <tui-icon class="icon-sm" icon="@tui.download" />
         Download
-      </a>
+      </button>
 
       <div class="logs__toolbar">
         <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search" class="min-w-0 flex-1 md:max-w-[20rem]">
@@ -56,15 +66,23 @@ const FOLLOW_THRESHOLD = 24;
         (scroll)="onScroll($event)"
       >
         @if (visibleEntries().length === 0) {
-          <p class="logs__empty">
-            {{
-              connected()
-                ? query()
-                  ? 'No line matches the filter.'
-                  : 'Waiting for log output.'
-                : 'Logs are unavailable while the stream is disconnected.'
-            }}
-          </p>
+          @if (connecting()) {
+            <!-- A stream is an indeterminate wait, the one place a spinner belongs. -->
+            <p class="logs__empty logs__empty--connecting" role="status">
+              <tui-loader size="s" />
+              Connecting to the log stream…
+            </p>
+          } @else {
+            <p class="logs__empty">
+              {{
+                connected()
+                  ? query()
+                    ? 'No line matches the filter.'
+                    : 'Waiting for log output.'
+                  : 'Logs are unavailable while the stream is disconnected.'
+              }}
+            </p>
+          }
         } @else {
           @for (entry of visibleEntries(); track $index) {
             <p class="logs__line" [attr.data-stream]="entry.stream">
@@ -154,6 +172,13 @@ const FOLLOW_THRESHOLD = 24;
       text-align: center;
     }
 
+    .logs__empty--connecting {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
     @media (max-width: 47.99rem) {
       .logs__line {
         grid-template-columns: auto minmax(0, 1fr);
@@ -171,7 +196,9 @@ export class LogConsole {
 
   readonly entries = input.required<readonly LogEntry[]>();
   readonly connected = input.required<boolean>();
-  readonly downloadUrl = input.required<string>();
+  readonly connecting = input(false);
+  readonly downloading = input(false);
+  readonly downloadRequested = output<void>();
 
   protected readonly filterId = `${this.uid}-filter`;
   protected readonly query = signal('');

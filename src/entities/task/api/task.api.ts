@@ -31,64 +31,68 @@ export class TaskApi {
   private readonly config = inject(ServerConfigStore);
 
   /* Read per call so requests follow server changes without a reload. */
-  private get root(): string {
-    return `${this.config.baseUrl()}/api/v1/tasks`;
+  private root(project: string): string {
+    return `${this.config.baseUrl()}/api/v1/projects/${encodeURIComponent(project)}/tasks`;
   }
 
-  private taskUrl(taskId: string): string {
-    return `${this.root}/${encodeURIComponent(taskId)}`;
+  private taskUrl(project: string, name: string): string {
+    return `${this.root(project)}/${encodeURIComponent(name)}`;
   }
 
-  list(): Observable<readonly Task[]> {
+  list(project: string): Observable<readonly Task[]> {
     return this.http
-      .get<TaskListResponseDto>(this.root)
-      .pipe(map((response) => response.tasks.map(toTask)));
+      .get<TaskListResponseDto>(this.root(project))
+      .pipe(map((response) => (response.tasks ?? []).map(toTask)));
   }
 
-  get(taskId: string): Observable<Task> {
+  get(project: string, name: string): Observable<Task> {
     return this.http
-      .get<TaskResponseDto>(this.taskUrl(taskId))
+      .get<TaskResponseDto>(this.taskUrl(project, name))
       .pipe(map((response) => toTask(response.task)));
   }
 
-  create(input: CreateTaskInput): Observable<Task> {
+  create(project: string, input: CreateTaskInput): Observable<Task> {
     return this.http
-      .post<TaskResponseDto>(this.root, toCreateTaskRequestDto(input))
+      .post<TaskResponseDto>(this.root(project), toCreateTaskRequestDto(input))
       .pipe(map((response) => toTask(response.task)));
   }
 
-  changeState(taskId: string, action: TaskStateAction): Observable<Task> {
+  changeState(project: string, name: string, action: TaskStateAction): Observable<Task> {
     return this.http
-      .put<TaskStateResponseDto>(`${this.taskUrl(taskId)}/state`, { action })
+      .put<TaskStateResponseDto>(`${this.taskUrl(project, name)}/state`, { action })
       .pipe(map((response) => toTask(response.task)));
   }
 
-  delete(taskId: string): Observable<string> {
+  delete(project: string, name: string): Observable<string> {
     return this.http
-      .delete<DeleteTaskResponseDto>(this.taskUrl(taskId))
+      .delete<DeleteTaskResponseDto>(this.taskUrl(project, name))
       .pipe(map((response) => response.message));
   }
 
-  getEnvironment(taskId: string): Observable<Readonly<Record<string, string>>> {
+  getEnvironment(
+    project: string,
+    name: string,
+  ): Observable<Readonly<Record<string, string>>> {
     return this.http
-      .get<TaskEnvironmentResponseDto>(`${this.taskUrl(taskId)}/env`)
-      .pipe(map((response) => ({ ...response.env })));
+      .get<TaskEnvironmentResponseDto>(`${this.taskUrl(project, name)}/env`)
+      .pipe(map((response) => ({ ...(response.env ?? {}) })));
   }
 
   updateEnvironment(
-    taskId: string,
+    project: string,
+    name: string,
     input: UpdateEnvironmentInput,
   ): Observable<EnvironmentUpdateResult> {
     return this.http
       .put<UpdateTaskEnvironmentResponseDto>(
-        `${this.taskUrl(taskId)}/env`,
+        `${this.taskUrl(project, name)}/env`,
         toUpdateEnvironmentRequestDto(input),
       )
       .pipe(map(toEnvironmentUpdateResult));
   }
 
   /** The per-task proxy route lives on the server root, not under /api. */
-  accessUrl(taskId: string): string {
-    return `${this.config.baseUrl()}/${encodeURIComponent(taskId)}/`;
+  accessUrl(project: string, name: string): string {
+    return `${this.config.baseUrl()}/${encodeURIComponent(project)}/${encodeURIComponent(name)}/`;
   }
 }

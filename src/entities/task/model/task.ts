@@ -9,20 +9,21 @@ export const TASK_STATUSES = [
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
+/** Identified by name within its project; the id is only a stable tracking key. */
 export interface Task {
   readonly id: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly description?: string;
   readonly image: string;
   readonly status: TaskStatus;
   readonly port: number;
   readonly containerId?: string;
   readonly containerIp?: string;
   readonly createdAt: Date;
-  readonly lastAccessed?: Date;
   readonly updatedAt: Date;
   readonly labels: Readonly<Record<string, string>>;
   readonly env: Readonly<Record<string, string>>;
-  readonly cpuNano?: number;
-  readonly memoryBytes?: number;
   readonly error?: string;
   readonly pendingRecreate: boolean;
 }

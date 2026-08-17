@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiAppBar } from '@taiga-ui/layout';
 
@@ -21,7 +21,12 @@ import { CreateTaskStore, TaskForm } from '@features/create-task';
         class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
       >
         <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack routerLink="/dashboard" aria-label="Back to tasks"></a>
+          <a
+            tuiSlot="start"
+            tuiAppBarBack
+            [routerLink]="projectLink()"
+            aria-label="Back to project"
+          ></a>
           New task
           <!-- Keep validation-enabled: submitting empty fields must reveal their errors. -->
           <button
@@ -37,7 +42,7 @@ import { CreateTaskStore, TaskForm } from '@features/create-task';
       </div>
 
       <div class="hidden md:block">
-        <app-back-link link="/dashboard" label="Tasks" />
+        <app-back-link [link]="projectPath()" [label]="slug()" />
         <div class="mt-1.5">
           <app-page-header
             title="New task environment"
@@ -59,9 +64,14 @@ export class TaskCreatePage {
   protected readonly create = inject(CreateTaskStore);
   private readonly router = inject(Router);
 
+  readonly slug = input('');
+
+  protected readonly projectLink = computed(() => ['/projects', this.slug()]);
+  protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
+
   protected createTask(input: CreateTaskInput): void {
-    this.create.create(input).subscribe((task) => {
-      if (task) void this.router.navigate(['/tasks', task.id]);
+    this.create.create(this.slug(), input).subscribe((task) => {
+      if (task) void this.router.navigate(['/projects', this.slug(), 'tasks', task.name]);
     });
   }
 }

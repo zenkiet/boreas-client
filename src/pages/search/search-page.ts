@@ -1,18 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
-import { Task } from '@entities/task';
-import { ListTasksStore } from '@features/list-tasks';
-import { SearchResults, SearchTasksStore, TaskFilterBar } from '@features/search-tasks';
+import { ListProjectsStore } from '@features/list-projects';
+import { FleetTask, SearchResults, SearchTasksStore, TaskFilterBar } from '@features/search-tasks';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 @Component({
   selector: 'app-search-page',
-  imports: [ErrorState, InsetGroup, Reveal, SearchResults, TaskFilterBar],
-  providers: [ListTasksStore, SearchTasksStore],
+  imports: [ErrorState, InsetGroup, Reveal, SearchResults, SkeletonRows, TaskFilterBar],
+  providers: [ListProjectsStore, SearchTasksStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div appReveal class="mx-auto grid w-full max-w-[40rem] grid-cols-1 gap-4">
@@ -22,18 +22,17 @@ import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
       <app-task-filter-bar [(query)]="search.query" />
 
-      @if (tasks.loading() && !tasks.hasLoaded()) {
-        <div class="skeleton" aria-hidden="true">
-          @for (row of [0, 1, 2]; track row) {
-            <div class="skeleton__row"></div>
-          }
-        </div>
-      } @else if (tasks.error() && !tasks.hasLoaded()) {
-        <app-error-state [message]="tasks.error()!" (retry)="tasks.load()" />
+      @if (overview.loading() && !overview.hasLoaded()) {
+        <!-- The field above stays typeable; only the result rows are redacted. -->
+        <app-inset-group label="Results">
+          <app-skeleton-rows variant="task" label="Loading tasks" />
+        </app-inset-group>
+      } @else if (overview.error() && !overview.hasLoaded()) {
+        <app-error-state [message]="overview.error()!" (retry)="overview.load()" />
       } @else {
         <app-inset-group label="Results" [trailing]="summary()">
           <app-search-results
-            [tasks]="filtered()"
+            [entries]="filtered()"
             [query]="search.query()"
             (taskOpened)="openTask($event)"
           />
@@ -50,42 +49,31 @@ import { InsetGroup } from '@shared/ui/inset-group/inset-group';
       letter-spacing: -0.022em;
       color: var(--tui-text-primary);
     }
-
-    .skeleton {
-      display: grid;
-      gap: 0.5rem;
-    }
-
-    .skeleton__row {
-      block-size: 3.25rem;
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-neutral-1);
-      animation: skeleton-pulse 1.4s ease-in-out infinite;
-    }
-
-    @keyframes skeleton-pulse {
-      50% {
-        opacity: 0.55;
-      }
-    }
   `,
 })
 export class SearchPage {
-  protected readonly tasks = inject(ListTasksStore);
+  protected readonly overview = inject(ListProjectsStore);
   protected readonly search = inject(SearchTasksStore);
   private readonly router = inject(Router);
 
-  protected readonly filtered = computed(() => this.search.filter(this.tasks.tasks()));
+  /* Flatten the per-project fan-out into one searchable fleet. */
+  private readonly fleet = computed<readonly FleetTask[]>(() =>
+    this.overview
+      .summaries()
+      .flatMap((summary) => summary.tasks.map((task) => ({ project: summary.project, task }))),
+  );
+
+  protected readonly filtered = computed(() => this.search.filter(this.fleet()));
   protected readonly summary = computed(() => {
     const count = this.filtered().length;
     return `${count} ${count === 1 ? 'task' : 'tasks'}`;
   });
 
   constructor() {
-    registerPullRefresh({ busy: this.tasks.loading, trigger: () => this.tasks.load() });
+    registerPullRefresh({ busy: this.overview.loading, trigger: () => this.overview.load() });
   }
 
-  protected openTask(task: Task): void {
-    void this.router.navigate(['/tasks', task.id]);
+  protected openTask(entry: FleetTask): void {
+    void this.router.navigate(['/projects', entry.project.slug, 'tasks', entry.task.name]);
   }
 }

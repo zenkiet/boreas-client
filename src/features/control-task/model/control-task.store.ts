@@ -9,6 +9,7 @@ export interface TaskCommandResult {
   readonly message: string;
 }
 
+/** Commands for one project's tasks; pending state is keyed by task name. */
 @Injectable()
 export class ControlTaskStore {
   private readonly api = inject(TaskApi);
@@ -16,53 +17,54 @@ export class ControlTaskStore {
 
   readonly pendingTaskIds = this.pendingTaskIdsState.asReadonly();
 
-  isPending(taskId: string): boolean {
-    return this.pendingTaskIdsState().has(taskId);
+  isPending(name: string): boolean {
+    return this.pendingTaskIdsState().has(name);
   }
 
-  /* Stable identity avoids rebinding this function in OnPush row components. */
-  readonly accessUrl = (taskId: string): string => this.api.accessUrl(taskId);
+  accessUrl(project: string, name: string): string {
+    return this.api.accessUrl(project, name);
+  }
 
-  changeState(task: Task, action: TaskStateAction): Observable<TaskCommandResult> {
+  changeState(project: string, task: Task, action: TaskStateAction): Observable<TaskCommandResult> {
     return this.execute(
-      task.id,
-      this.api.changeState(task.id, action),
-      `Task ${task.id} ${describeCompletedAction(action)}.`,
+      task.name,
+      this.api.changeState(project, task.name, action),
+      `Task ${task.name} ${describeCompletedAction(action)}.`,
     );
   }
 
-  delete(task: Task): Observable<TaskCommandResult> {
-    return this.execute(task.id, this.api.delete(task.id), `Task ${task.id} deleted.`);
+  delete(project: string, task: Task): Observable<TaskCommandResult> {
+    return this.execute(task.name, this.api.delete(project, task.name), `Task ${task.name} deleted.`);
   }
 
   /* Both outcomes become values so command subscribers only route toast results. */
   private execute(
-    taskId: string,
+    name: string,
     command: Observable<unknown>,
     successMessage: string,
   ): Observable<TaskCommandResult> {
     return defer(() => {
-      if (this.isPending(taskId)) {
-        return of({ success: false, message: `An action is already running for task ${taskId}.` });
+      if (this.isPending(name)) {
+        return of({ success: false, message: `An action is already running for task ${name}.` });
       }
 
-      this.setPending(taskId, true);
+      this.setPending(name, true);
 
       return command.pipe(
         map(() => ({ success: true, message: successMessage })),
         catchError((error: unknown) => of({ success: false, message: mapApiError(error).message })),
-        finalize(() => this.setPending(taskId, false)),
+        finalize(() => this.setPending(name, false)),
       );
     });
   }
 
-  private setPending(taskId: string, pending: boolean): void {
+  private setPending(name: string, pending: boolean): void {
     const next = new Set(this.pendingTaskIdsState());
 
     if (pending) {
-      next.add(taskId);
+      next.add(name);
     } else {
-      next.delete(taskId);
+      next.delete(name);
     }
 
     this.pendingTaskIdsState.set(next);

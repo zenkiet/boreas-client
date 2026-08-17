@@ -4,7 +4,6 @@ import { TuiButton, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { EMPTY, defer, from } from 'rxjs';
 
 import { Task } from '@entities/task';
-import { formatBytes } from '@shared/lib/format/bytes';
 import { Panel } from '@shared/ui/panel/panel';
 
 interface DetailRow {
@@ -117,19 +116,16 @@ export class TaskOverview {
     const task = this.task();
 
     return [
+      { label: 'Image', value: task.image, mono: true },
+      { label: 'Internal port', value: String(task.port) },
       { label: 'Container IP', value: task.containerIp || 'Unavailable', mono: true },
       {
         label: 'Container ID',
         value: task.containerId ? task.containerId.slice(0, 12) : 'Unavailable',
         mono: true,
       },
-      { label: 'CPU limit', value: formatCpu(task.cpuNano) },
-      { label: 'Memory limit', value: formatBytes(task.memoryBytes) },
       { label: 'Variables', value: String(Object.keys(task.env).length) },
-      {
-        label: 'Last accessed',
-        value: task.lastAccessed ? formatDate(task.lastAccessed) : 'Never',
-      },
+      { label: 'Description', value: task.description || '—' },
       { label: 'Created', value: formatDate(task.createdAt) },
       { label: 'Updated', value: formatDate(task.updatedAt) },
     ];
@@ -146,14 +142,6 @@ export class TaskOverview {
       error: () => this.copyFailed.emit(),
     });
   }
-}
-
-function formatCpu(cpuNano: number | undefined): string {
-  if (!cpuNano) return 'Unlimited';
-  const cores = cpuNano / 1_000_000_000;
-  return `${new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(cores)} ${
-    cores === 1 ? 'core' : 'cores'
-  }`;
 }
 
 function formatDate(value: Date | string): string {
