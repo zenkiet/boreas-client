@@ -7,14 +7,15 @@ import { CreateTaskInput } from '@entities/task';
 import { Callout } from '@shared/ui/callout/callout';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
-const TASK_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
+const TASK_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
 
 let instances = 0;
 
 interface TaskDraft {
-  id: string;
+  name: string;
   image: string;
   port: number;
+  description: string;
 }
 
 @Component({
@@ -44,17 +45,17 @@ interface TaskDraft {
       <div>
         <app-inset-group label="Container">
           <div class="frow row-divider relative">
-            <label class="frow__label" [for]="ids.id">Task ID</label>
+            <label class="frow__label" [for]="ids.name">Task name</label>
             <input
               class="frow__input"
               autocomplete="off"
               autocapitalize="off"
               spellcheck="false"
               placeholder="api-preview"
-              [id]="ids.id"
-              [formField]="draft.id"
+              [id]="ids.name"
+              [formField]="draft.name"
             />
-            @if (idError(); as message) {
+            @if (nameError(); as message) {
               <tui-error [error]="message" />
             }
           </div>
@@ -75,6 +76,17 @@ interface TaskDraft {
             }
           </div>
 
+          <div class="frow row-divider relative">
+            <label class="frow__label" [for]="ids.description">Description</label>
+            <input
+              class="frow__input frow__input--text"
+              autocomplete="off"
+              placeholder="Optional"
+              [id]="ids.description"
+              [formField]="draft.description"
+            />
+          </div>
+
           <div class="frow frow--inline row-divider relative">
             <label class="frow__inline-label" [for]="ids.port">Internal port</label>
             <input
@@ -92,8 +104,8 @@ interface TaskDraft {
           }
         </app-inset-group>
         <p class="form__footnote">
-          The ID becomes part of the proxy URL and has to stay unique. The image is any
-          reference Docker can pull; the port is what the process listens on inside the
+          The name becomes part of the proxy URL and stays unique within the project. The image
+          is any reference Docker can pull; the port is what the process listens on inside the
           container.
         </p>
       </div>
@@ -172,6 +184,11 @@ interface TaskDraft {
       color: var(--tui-text-primary);
     }
 
+    /* Prose, not an identifier. */
+    .frow__input--text {
+      font-family: var(--tui-typography-family-text);
+    }
+
     .frow__input:focus {
       outline: none;
     }
@@ -224,11 +241,11 @@ export class TaskForm {
   readonly formId = input(this.uid);
   readonly submitted = output<CreateTaskInput>();
 
-  private readonly model = signal<TaskDraft>({ id: '', image: '', port: 80 });
+  private readonly model = signal<TaskDraft>({ name: '', image: '', port: 80, description: '' });
 
   protected readonly draft = form(this.model, (path) => {
-    required(path.id, { message: 'Task ID is required.' });
-    pattern(path.id, TASK_ID_PATTERN, {
+    required(path.name, { message: 'Task name is required.' });
+    pattern(path.name, TASK_NAME_PATTERN, {
       message: 'Use 1–63 letters, numbers, dots, underscores or hyphens.',
     });
     required(path.image, { message: 'Docker image is required.' });
@@ -240,12 +257,13 @@ export class TaskForm {
   protected readonly environmentErrors = signal<readonly string[]>([]);
 
   protected readonly ids = {
-    id: `${this.uid}-id`,
+    name: `${this.uid}-name`,
     image: `${this.uid}-image`,
+    description: `${this.uid}-description`,
     port: `${this.uid}-port`,
   };
 
-  protected readonly idError = computed(() => this.firstError(this.draft.id()));
+  protected readonly nameError = computed(() => this.firstError(this.draft.name()));
   protected readonly imageError = computed(() => this.firstError(this.draft.image()));
   protected readonly portError = computed(() => this.firstError(this.draft.port()));
 
@@ -262,9 +280,10 @@ export class TaskForm {
       const draft = this.model();
       const environment = this.environment();
       this.submitted.emit({
-        id: draft.id.trim(),
+        name: draft.name.trim(),
         image: draft.image.trim(),
         port: draft.port,
+        description: draft.description.trim() || undefined,
         environment,
       });
     });

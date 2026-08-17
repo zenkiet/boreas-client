@@ -568,7 +568,8 @@ export class WelcomePage {
       .pipe(
         switchMap((connected) => {
           if (connected) {
-            void this.router.navigate(['/dashboard']);
+            /* The API is token-guarded; sign-in is the step after a reachable server. */
+            void this.router.navigate(['/login']);
             return EMPTY;
           }
 

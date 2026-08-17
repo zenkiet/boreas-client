@@ -1,7 +1,8 @@
 export interface CreateTaskInput {
-  readonly id: string;
+  readonly name: string;
   readonly image: string;
   readonly port: number;
+  readonly description?: string;
   readonly environment?: Readonly<Record<string, string>>;
 }
 

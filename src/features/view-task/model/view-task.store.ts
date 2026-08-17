@@ -5,6 +5,11 @@ import { Observable, catchError, finalize, forkJoin, map, of } from 'rxjs';
 import { Task, TaskApi } from '@entities/task';
 import { mapApiError } from '@shared/api/api-error';
 
+interface TaskRef {
+  readonly project: string;
+  readonly name: string;
+}
+
 interface TaskSnapshot {
   readonly task: Task;
   readonly environment: Readonly<Record<string, string>>;
@@ -13,32 +18,33 @@ interface TaskSnapshot {
 @Injectable()
 export class ViewTaskStore {
   private readonly api = inject(TaskApi);
-  private readonly taskId = signal('');
+  private readonly ref = signal<TaskRef | undefined>(undefined);
   private readonly savingEnvironmentState = signal(false);
   private readonly saveError = signal<string | undefined>(undefined);
 
   private readonly snapshot = rxResource({
-    params: () => this.taskId() || undefined,
+    params: () => this.ref(),
     stream: ({ params }) =>
       forkJoin({
-        task: this.api.get(params),
-        environment: this.api.getEnvironment(params),
+        task: this.api.get(params.project, params.name),
+        environment: this.api.getEnvironment(params.project, params.name),
       }),
   });
 
-  /* Keep stale data after reload failures, but never across task IDs. */
+  /* Keep stale data after reload failures, but never across task refs. */
   private readonly current = linkedSignal<
-    { readonly id: string; readonly value: TaskSnapshot | undefined },
+    { readonly key: string; readonly value: TaskSnapshot | undefined },
     TaskSnapshot | undefined
   >({
     source: () => ({
-      id: this.taskId(),
+      key: this.key(),
       value: this.snapshot.hasValue() ? this.snapshot.value() : undefined,
     }),
     computation: (source, previous) =>
-      source.value ?? (previous && previous.source.id === source.id ? previous.value : undefined),
+      source.value ?? (previous && previous.source.key === source.key ? previous.value : undefined),
   });
 
+  readonly project = computed(() => this.ref()?.project ?? '');
   readonly task = computed(() => this.current()?.task);
   readonly environment = computed(() => this.current()?.environment ?? {});
   readonly loading = this.snapshot.isLoading;
@@ -51,27 +57,30 @@ export class ViewTaskStore {
   });
 
   readonly proxyUrl = computed(() => {
-    const task = this.task();
-    return task ? this.api.accessUrl(task.id) : '';
+    const ref = this.ref();
+    return ref ? this.api.accessUrl(ref.project, ref.name) : '';
   });
 
-  refresh(taskId: string): void {
-    if (taskId === this.taskId()) {
+  refresh(project: string, name: string): void {
+    const ref = this.ref();
+    if (ref && ref.project === project && ref.name === name) {
       this.snapshot.reload();
       return;
     }
-    this.taskId.set(taskId);
+    this.ref.set({ project, name });
   }
 
   updateEnvironment(environment: Record<string, string>): Observable<string> {
-    if (!this.taskId() || this.savingEnvironmentState()) {
+    const ref = this.ref();
+
+    if (!ref || this.savingEnvironmentState()) {
       return of('An environment update is already running.');
     }
 
     this.savingEnvironmentState.set(true);
     this.saveError.set(undefined);
 
-    return this.api.updateEnvironment(this.taskId(), { environment }).pipe(
+    return this.api.updateEnvironment(ref.project, ref.name, { environment }).pipe(
       map((result) => {
         this.snapshot.update((value) => (value ? { ...value, environment: { ...environment } } : value));
         this.snapshot.reload();
@@ -84,5 +93,10 @@ export class ViewTaskStore {
       }),
       finalize(() => this.savingEnvironmentState.set(false)),
     );
+  }
+
+  private key(): string {
+    const ref = this.ref();
+    return ref ? `${ref.project}/${ref.name}` : '';
   }
 }

@@ -19,9 +19,7 @@ import { StatsSample } from '../../model/stats-history.store';
       <span class="trend__label">Running tasks {{ spanLabel() }}</span>
       <span class="trend__value tabular">
         {{ stats().runningTasks }}
-        @if (stats().maxContainers > 0) {
-          <span class="trend__note">of {{ stats().maxContainers }}</span>
-        }
+        <span class="trend__note">of {{ stats().totalTasks }} tasks</span>
       </span>
     </header>
 

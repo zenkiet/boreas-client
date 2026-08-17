@@ -18,7 +18,8 @@ import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
-import { LoadingState } from '@shared/ui/loading-state/loading-state';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 import { TaskOverview } from '@widgets/task-overview';
 
 const VIEWS = ['logs', 'environment', 'info'] as const;
@@ -35,10 +36,11 @@ type View = (typeof VIEWS)[number];
     ErrorState,
     GlassIconButton,
     GlassSegmented,
-    LoadingState,
+    InsetGroup,
     LogConsole,
     Reveal,
     RouterLink,
+    SkeletonRows,
     TaskMenu,
     TaskOverview,
     TuiAppBar,
@@ -50,52 +52,86 @@ type View = (typeof VIEWS)[number];
   providers: [ViewTaskStore, ControlTaskStore, LogStreamStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (detail.loading() && !detail.hasLoaded()) {
-      <app-loading-state label="Loading task" />
-    } @else if (detail.error() && !detail.hasLoaded()) {
-      <app-error-state title="Unable to load task" [message]="detail.error()!" (retry)="reload()" />
-    } @else if (detail.task(); as task) {
-      <div appReveal class="mx-auto grid w-full max-w-[48rem] grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
+    <!-- iOS push: the name is already in the URL, so chrome renders before any data. -->
+    <div appReveal class="mx-auto grid w-full max-w-[48rem] grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
         <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
         <div
           class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
         >
           <tui-app-bar tuiAppBarSize>
-            <a tuiSlot="start" tuiAppBarBack routerLink="/dashboard" aria-label="Back to tasks"></a>
+            <a
+              tuiSlot="start"
+              tuiAppBarBack
+              [routerLink]="projectLink()"
+              aria-label="Back to project"
+            ></a>
             <span class="detail__bar-title">
-              <span class="detail__dot" [attr.data-status]="task.status" aria-hidden="true"></span>
-              {{ task.id }}
+              <span
+                class="detail__dot"
+                [class.skeleton]="!detail.task()"
+                [attr.data-status]="detail.task()?.status"
+                aria-hidden="true"
+              ></span>
+              {{ name() }}
             </span>
-            <!-- Use a menu here; bottom sheets are reserved for message surfaces. -->
-            <button
-              tuiSlot="end"
-              appGlassIconButton
-              icon="@tui.ellipsis"
-              type="button"
-              aria-label="More actions"
-              [tuiDropdown]="menu"
-              [(tuiDropdownOpen)]="menuOpen"
-            ></button>
-            <ng-template #menu>
-              <app-task-menu
-                [task]="task"
-                [accessUrl]="detail.proxyUrl()"
-                [pending]="isPending(task)"
-                (actionRequested)="onMenuAction($event)"
-              />
-            </ng-template>
+            @if (detail.task(); as task) {
+              <!-- A single ng-container root lets this @if project into tuiSlot="end". -->
+              <ng-container tuiSlot="end">
+                <!-- Use a menu here; bottom sheets are reserved for message surfaces. -->
+                <button
+                  appGlassIconButton
+                  icon="@tui.ellipsis"
+                  type="button"
+                  aria-label="More actions"
+                  [tuiDropdown]="menu"
+                  [(tuiDropdownOpen)]="menuOpen"
+                ></button>
+                <ng-template #menu>
+                  <app-task-menu
+                    [task]="task"
+                    [accessUrl]="detail.proxyUrl()"
+                    [pending]="isPending(task)"
+                    (actionRequested)="onMenuAction($event)"
+                  />
+                </ng-template>
+              </ng-container>
+            } @else {
+              <button
+                tuiSlot="end"
+                appGlassIconButton
+                icon="@tui.ellipsis"
+                type="button"
+                aria-label="More actions"
+                [disabled]="true"
+              ></button>
+            }
           </tui-app-bar>
         </div>
 
         <header class="hidden md:block">
-          <app-back-link link="/dashboard" label="Tasks" />
+          <app-back-link [link]="projectPath()" [label]="project()" />
           <h1 class="detail__title mt-1.5">
-            <span class="detail__dot" [attr.data-status]="task.status" aria-hidden="true"></span>
-            {{ task.id }}
+            <span
+              class="detail__dot"
+              [class.skeleton]="!detail.task()"
+              [attr.data-status]="detail.task()?.status"
+              aria-hidden="true"
+            ></span>
+            {{ name() }}
           </h1>
-          <p class="detail__subtitle">{{ task.image }} · port {{ task.port }}</p>
+          @if (detail.task(); as task) {
+            <p class="detail__subtitle">{{ task.image }} · port {{ task.port }}</p>
+            @if (task.description) {
+              <p class="detail__description">{{ task.description }}</p>
+            }
+          } @else {
+            <p class="detail__subtitle skeleton-defer" aria-hidden="true">
+              <span class="skeleton skeleton--sub inline-block w-44 max-w-full"></span>
+            </p>
+          }
         </header>
 
+        @if (detail.task(); as task) {
         <!-- Screen readers cannot infer status from the action set. -->
         <p class="sr-only">Status: {{ task.status }}</p>
 
@@ -153,7 +189,7 @@ type View = (typeof VIEWS)[number];
             size="s"
             appearance="flat-destructive"
             [disabled]="actionDisabled(task)"
-            (click)="deleteTask(task.id)"
+            (click)="deleteTask(task.name)"
           >
             <tui-icon class="icon-sm" icon="@tui.trash-2" />
             Delete
@@ -167,6 +203,7 @@ type View = (typeof VIEWS)[number];
           <app-callout tone="warning" role="status">
             Environment changes are waiting for a container recreate.
           </app-callout>
+        }
         }
 
         <div class="hidden md:block">
@@ -185,15 +222,25 @@ type View = (typeof VIEWS)[number];
           />
         </div>
 
+        @if (detail.error() && !detail.hasLoaded()) {
+          <app-error-state
+            title="Unable to load task"
+            [message]="detail.error()!"
+            (retry)="reload()"
+          />
+        } @else {
         <!-- Preserve console scroll/buffer and environment drafts while switching views. -->
         <div class="detail__console" [class.hidden]="view() !== 'logs'">
           <app-log-console
             [entries]="logs.entries()"
             [connected]="logs.connected()"
-            [downloadUrl]="logs.downloadUrl()"
+            [connecting]="!detail.task() || logs.connecting()"
+            [downloading]="logs.downloading()"
+            (downloadRequested)="downloadLogs()"
           />
         </div>
 
+        @if (detail.task(); as task) {
         <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'environment'">
           <app-glass-segmented
             [items]="envItems()"
@@ -245,8 +292,15 @@ type View = (typeof VIEWS)[number];
             (copyFailed)="reportCopyFailure()"
           />
         </div>
+        } @else {
+          <div [class.hidden]="view() === 'logs'">
+            <app-inset-group>
+              <app-skeleton-rows variant="task" label="Loading task" />
+            </app-inset-group>
+          </div>
+        }
+        }
       </div>
-    }
   `,
   styles: `
     .detail__bar-title {
@@ -277,6 +331,13 @@ type View = (typeof VIEWS)[number];
       font-family: var(--app-font-mono);
       font-size: 0.9375rem;
       color: var(--tui-text-tertiary);
+      overflow-wrap: anywhere;
+    }
+
+    .detail__description {
+      margin: 0.375rem 0 0;
+      font-size: 0.9375rem;
+      color: var(--tui-text-secondary);
       overflow-wrap: anywhere;
     }
 
@@ -362,7 +423,12 @@ export class TaskDetailPage {
   private readonly router = inject(Router);
   protected readonly logs = inject(LogStreamStore);
 
-  readonly id = input('');
+  readonly slug = input('');
+  readonly name = input('');
+
+  protected readonly project = computed(() => this.slug());
+  protected readonly projectLink = computed(() => ['/projects', this.slug()]);
+  protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
   protected readonly view = signal<View>('logs');
   protected readonly viewIndex = computed(() => VIEWS.indexOf(this.view()));
@@ -390,21 +456,19 @@ export class TaskDetailPage {
   constructor() {
     registerPullRefresh({
       busy: this.detail.loading,
-      trigger: () => {
-        const id = this.id();
-        if (id) this.detail.refresh(id);
-      },
+      trigger: () => this.reload(),
     });
 
     effect(() => {
-      const id = this.id();
-      if (id) this.detail.refresh(id);
+      const slug = this.slug();
+      const name = this.name();
+      if (slug && name) this.detail.refresh(slug, name);
     });
 
-    // Wait for a loaded task so an unknown route id does not reconnect forever.
+    // Wait for a loaded task so an unknown route name does not reconnect forever.
     effect(() => {
       const task = this.detail.task();
-      if (task) this.logs.connect(task.id);
+      if (task) this.logs.connect(this.slug(), task.name);
     });
 
     effect(() => {
@@ -421,15 +485,23 @@ export class TaskDetailPage {
   }
 
   protected reload(): void {
-    if (this.id()) this.detail.refresh(this.id());
+    const slug = this.slug();
+    const name = this.name();
+    if (slug && name) this.detail.refresh(slug, name);
+  }
+
+  protected downloadLogs(): void {
+    this.logs.download().subscribe((success) => {
+      if (!success) this.notify('The log file could not be downloaded.', false);
+    });
   }
 
   protected actionDisabled(task: Task): boolean {
-    return isTransitioningTask(task) || this.commands.isPending(task.id);
+    return isTransitioningTask(task) || this.commands.isPending(task.name);
   }
 
   protected isPending(task: Task): boolean {
-    return this.commands.isPending(task.id);
+    return this.commands.isPending(task.name);
   }
 
   protected onMenuAction({ action, task }: TaskActionRequest): void {
@@ -437,7 +509,7 @@ export class TaskDetailPage {
     this.menuOpen.set(false);
 
     if (action === 'delete') {
-      this.deleteTask(task.id);
+      this.deleteTask(task.name);
       return;
     }
 
@@ -448,16 +520,16 @@ export class TaskDetailPage {
   protected changeState(action: TaskStateAction): void {
     const task = this.detail.task();
     if (!task) return;
-    this.commands.changeState(task, action).subscribe((result) => {
+    this.commands.changeState(this.slug(), task, action).subscribe((result) => {
       this.notify(result.message, result.success);
       if (result.success) this.reload();
     });
   }
 
-  protected deleteTask(taskId: string): void {
+  protected deleteTask(name: string): void {
     this.confirmations
       .confirm({
-        title: `Delete ${taskId}?`,
+        title: `Delete ${name}?`,
         message:
           'The container, environment metadata and proxy route will be deleted. This action cannot be undone.',
         confirmLabel: 'Delete task',
@@ -467,11 +539,11 @@ export class TaskDetailPage {
         filter(Boolean),
         map(() => this.detail.task()),
         filter((task): task is Task => task !== undefined),
-        switchMap((task) => this.commands.delete(task)),
+        switchMap((task) => this.commands.delete(this.slug(), task)),
       )
       .subscribe((result) => {
         this.notify(result.message, result.success);
-        if (result.success) void this.router.navigate(['/dashboard']);
+        if (result.success) void this.router.navigate(['/projects', this.slug()]);
       });
   }
 

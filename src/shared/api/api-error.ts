@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 export type ApiErrorKind =
   | 'invalid-input'
+  | 'unauthorized'
+  | 'forbidden'
   | 'not-found'
   | 'conflict'
   | 'server'
@@ -24,10 +26,14 @@ export function mapApiError(error: unknown): ApiError {
       return {kind: 'network', status: 0, message: 'Boreas is unreachable. Check the server and try again.'};
     case 400:
       return {kind: 'invalid-input', status: 400, message: 'The request contains invalid data.'};
+    case 401:
+      return {kind: 'unauthorized', status: 401, message: 'Your session has expired. Sign in again.'};
+    case 403:
+      return {kind: 'forbidden', status: 403, message: 'You do not have permission to do that.'};
     case 404:
-      return {kind: 'not-found', status: 404, message: 'The requested task was not found.'};
+      return {kind: 'not-found', status: 404, message: 'The requested item was not found.'};
     case 409:
-      return {kind: 'conflict', status: 409, message: 'The task changed state or is already transitioning. Wait for it to settle and try again.'};
+      return {kind: 'conflict', status: 409, message: 'The request conflicts with the current state. Wait for it to settle and try again.'};
     default:
       return {
         kind: error.status >= 500 ? 'server' : 'unknown',

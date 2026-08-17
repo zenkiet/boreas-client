@@ -38,20 +38,21 @@ const THEME_ICON: Record<ThemeMode, string> = {
   imports: [GlassSegmented, RouterLink, RouterOutlet, TuiButton, TuiIcon, TuiPullToRefresh],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
-    /* Unprovided, this token defaults to EMPTY and the spinner never stops. */
     {
       provide: TUI_PULL_TO_REFRESH_LOADED,
       useFactory: () => inject(PullToRefresh).loaded$,
     },
-    /* Force the iOS loader because the app uses the iOS skin on all touch platforms. */
     { provide: TUI_PULL_TO_REFRESH_COMPONENT, useValue: TUI_IOS_LOADER },
   ],
-  host: { class: 'block min-h-dvh bg-canvas', '(window:scroll)': 'onScroll()' },
+  host: {
+    class: 'flex flex-col min-h-dvh bg-canvas overflow-x-hidden',
+    '(window:scroll)': 'onScroll()',
+  },
   template: `
     @if (!mobile() && !onboarding()) {
       <header class="shell__bar">
         <div class="shell__bar-inner">
-          <a routerLink="/dashboard" class="shell__brand" aria-label="Boreas dashboard">
+          <a routerLink="/projects" class="shell__brand" aria-label="Boreas projects">
             <img class="shell__mark" src="/brand-mark.png" width="28" height="28" alt="" aria-hidden="true" />
             Boreas
           </a>
@@ -85,14 +86,13 @@ const THEME_ICON: Record<ThemeMode, string> = {
       </header>
     }
 
-    <!-- Keep document scrolling so Taiga's default scroll reference and rubber-band gesture work. -->
-    <tui-pull-to-refresh [styleHandler]="pullStyle" (pulled)="refreshPulled()">
+    <tui-pull-to-refresh class="block flex-1" [styleHandler]="pullStyle" (pulled)="refreshPulled()">
       <main class="w-full" [class]="mainClass()">
         <router-outlet />
       </main>
     </tui-pull-to-refresh>
 
-    @if (mobile() && !onboarding() && !taskPage()) {
+    @if (mobile() && !onboarding() && !pushedPage()) {
       <nav
         class="app-shell__tab-bar"
         aria-label="Sections"
@@ -108,7 +108,6 @@ const THEME_ICON: Record<ThemeMode, string> = {
     }
   `,
   styles: `
-    /* Let side bands pass scrolling through to the page. */
     .app-shell__tab-bar {
       position: fixed;
       z-index: 10;
@@ -117,8 +116,9 @@ const THEME_ICON: Record<ThemeMode, string> = {
       display: flex;
       justify-content: center;
       pointer-events: none;
-      view-transition-name: app-dock;
       transition: transform var(--tui-duration) cubic-bezier(0.4, 0.1, 0.2, 1);
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     .app-shell__tab-bar app-glass-segmented {
@@ -127,12 +127,11 @@ const THEME_ICON: Record<ThemeMode, string> = {
     }
 
     .app-shell__dock--min {
-      transform: scale(0.86);
+      transform: scale(0.86) translateZ(0);
       transform-origin: bottom center;
     }
 
     .shell__bar {
-      view-transition-name: app-header;
       position: sticky;
       z-index: 9;
       inset-block-start: 0;
@@ -200,6 +199,7 @@ export class AppShell {
   private readonly breakpoint = inject(TUI_BREAKPOINT);
   private readonly theme = inject(ThemeStore);
   private readonly document = inject(DOCUMENT);
+
   private readonly url = toSignal(
     this.router.events.pipe(
       filter((event) => event instanceof NavigationEnd),
@@ -210,24 +210,27 @@ export class AppShell {
 
   protected readonly mobile = computed(() => this.breakpoint() === 'mobile');
 
-  protected readonly onboarding = computed(() => this.url().startsWith('/welcome'));
+  protected readonly onboarding = computed(
+    () => this.url().startsWith('/welcome') || this.url().startsWith('/login'),
+  );
 
-  protected readonly taskPage = computed(() => this.url().startsWith('/tasks/'));
+  protected readonly pushedPage = computed(() => {
+    const url = this.url();
+    return /^\/projects\/./.test(url) || /^\/settings\/./.test(url);
+  });
 
   protected readonly mainClass = computed(() => {
     if (this.onboarding()) {
       return 'block';
     }
-
     const base =
       'mx-auto max-w-[80rem] px-4 pt-[max(1rem,env(safe-area-inset-top))] md:px-6 md:py-6 md:pb-10';
 
-    return `${base} ${this.taskPage() ? 'pb-10' : 'pb-28'}`;
+    return `${base} ${this.pushedPage() ? 'pb-6' : 'pb-20'}`;
   });
 
-  /* Task pages count as Home: they push on top of it and keep its tab lit. */
   protected readonly navItems: readonly NavItem[] = [
-    { label: 'Home', link: '/dashboard', icon: '@tui.house' },
+    { label: 'Home', link: '/projects', icon: '@tui.house' },
     { label: 'Search', link: '/search', icon: '@tui.search' },
     { label: 'Alerts', link: '/notifications', icon: '@tui.bell' },
     { label: 'Settings', link: '/settings', icon: '@tui.settings-2' },
@@ -245,7 +248,6 @@ export class AppShell {
     return index === -1 ? 0 : index;
   });
 
-  /* Asymmetric like iOS: 72px down shrinks, any up-move restores; 6px floor kills rubber-band jitter. */
   protected readonly minimized = signal(false);
   private lastScrollY = 0;
 

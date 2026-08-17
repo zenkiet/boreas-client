@@ -8,24 +8,24 @@ export type TaskStatusDto =
 
 export interface TaskDto {
   id: string;
+  project_id: string;
+  name: string;
+  description?: string;
   image: string;
   status: TaskStatusDto;
   port: number;
   container_id?: string;
   container_ip?: string;
   created_at: string;
-  last_accessed?: string;
   updated_at: string;
   labels?: Record<string, string>;
   env?: Record<string, string>;
-  cpu_nano?: number;
-  memory_bytes?: number;
   error?: string;
   pending_recreate?: boolean;
 }
 
 export interface TaskListResponseDto {
-  tasks: TaskDto[];
+  tasks: TaskDto[] | null;
   total: number;
 }
 
@@ -43,7 +43,7 @@ export interface DeleteTaskResponseDto {
 }
 
 export interface TaskEnvironmentResponseDto {
-  env: Record<string, string>;
+  env: Record<string, string> | null;
   total: number;
 }
 
@@ -60,11 +60,10 @@ export interface UpdateTaskEnvironmentResponseDto {
 }
 
 export interface CreateTaskRequestDto {
-  id: string;
+  name: string;
   image: string;
   port?: number;
+  description?: string;
   labels?: Record<string, string>;
   env?: Record<string, string>;
-  cpu_nano?: number;
-  memory_bytes?: number;
 }

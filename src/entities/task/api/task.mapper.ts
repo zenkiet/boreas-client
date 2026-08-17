@@ -10,18 +10,18 @@ import {
 export function toTask(dto: TaskDto): Task {
   return {
     id: dto.id,
+    projectId: dto.project_id,
+    name: dto.name,
+    description: dto.description || undefined,
     image: dto.image,
     status: dto.status,
     port: dto.port,
     containerId: dto.container_id,
     containerIp: dto.container_ip,
     createdAt: new Date(dto.created_at),
-    lastAccessed: toOptionalDate(dto.last_accessed),
     updatedAt: new Date(dto.updated_at),
     labels: { ...(dto.labels ?? {}) },
     env: { ...(dto.env ?? {}) },
-    cpuNano: dto.cpu_nano,
-    memoryBytes: dto.memory_bytes,
     error: dto.error,
     pendingRecreate: dto.pending_recreate ?? false,
   };
@@ -32,9 +32,10 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
   const environment = input.environment ?? {};
 
   return {
-    id: input.id,
+    name: input.name,
     image: input.image,
     port: input.port,
+    description: input.description || undefined,
     env: Object.keys(environment).length ? { ...environment } : undefined,
   };
 }
@@ -52,13 +53,4 @@ export function toEnvironmentUpdateResult(
   dto: UpdateTaskEnvironmentResponseDto,
 ): EnvironmentUpdateResult {
   return { message: dto.message, status: dto.status };
-}
-
-/* Go's zero time marshals as 0001-01-01; it means "never", not a real date. */
-function toOptionalDate(value: string | undefined): Date | undefined {
-  if (!value || value.startsWith('0001-01-01')) {
-    return undefined;
-  }
-
-  return new Date(value);
 }

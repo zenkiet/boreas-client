@@ -1,28 +1,28 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
-import { Task } from '@entities/task';
+import { FleetTask } from '../../model/search-tasks.store';
 
 @Component({
   selector: 'app-search-results',
   imports: [TuiIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @for (task of tasks(); track task.id) {
-      <button type="button" class="result" (click)="taskOpened.emit(task)">
-        <span class="result__dot" [attr.data-status]="task.status" aria-hidden="true"></span>
+    @for (entry of entries(); track entry.task.id) {
+      <button type="button" class="result" (click)="taskOpened.emit(entry)">
+        <span class="result__dot" [attr.data-status]="entry.task.status" aria-hidden="true"></span>
         <span class="min-w-0 flex-1">
           <span class="result__id">
-            {{ task.id }}
-            <span class="sr-only">, {{ task.status }}</span>
+            <span class="result__project">{{ entry.project.slug }}/</span>{{ entry.task.name }}
+            <span class="sr-only">, {{ entry.task.status }}</span>
           </span>
-          <span class="result__sub">{{ task.image }}</span>
+          <span class="result__sub">{{ entry.task.image }}</span>
         </span>
         <tui-icon class="result__chevron" icon="@tui.chevron-right" aria-hidden="true" />
       </button>
     } @empty {
       <p class="result__empty">
-        {{ query() ? 'No task ID or image matches "' + query() + '".' : 'No tasks yet.' }}
+        {{ query() ? 'No project, task or image matches "' + query() + '".' : 'No tasks yet.' }}
       </p>
     }
   `,
@@ -87,6 +87,11 @@ import { Task } from '@entities/task';
       white-space: nowrap;
     }
 
+    .result__project {
+      color: var(--tui-text-tertiary);
+      font-weight: 500;
+    }
+
     .result__sub {
       display: block;
       overflow: hidden;
@@ -113,7 +118,7 @@ import { Task } from '@entities/task';
   `,
 })
 export class SearchResults {
-  readonly tasks = input.required<readonly Task[]>();
+  readonly entries = input.required<readonly FleetTask[]>();
   readonly query = input('');
-  readonly taskOpened = output<Task>();
+  readonly taskOpened = output<FleetTask>();
 }

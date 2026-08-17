@@ -17,7 +17,7 @@ export interface TaskActionRequest {
   template: `
     <div
       class="flex items-center justify-end gap-0.5"
-      [attr.aria-label]="'Actions for ' + task().id"
+      [attr.aria-label]="'Actions for ' + task().name"
     >
       @if (task().status === 'running') {
         <a
@@ -28,7 +28,7 @@ export interface TaskActionRequest {
           rel="noopener"
           [href]="accessUrl()"
           [tuiHint]="'Open task'"
-          [attr.aria-label]="'Open ' + task().id"
+          [attr.aria-label]="'Open ' + task().name"
         >
           <tui-icon class="icon-sm" icon="@tui.external-link" />
         </a>
@@ -39,7 +39,7 @@ export interface TaskActionRequest {
           appearance="secondary"
           [disabled]="disabled()"
           [tuiHint]="disabledReason() || 'Stop task'"
-          [attr.aria-label]="'Stop ' + task().id"
+          [attr.aria-label]="'Stop ' + task().name"
           (click)="emitAction('stop')"
         >
           <!-- Reusing the lifecycle slot prevents pending rows from widening the action column. -->
@@ -57,7 +57,7 @@ export interface TaskActionRequest {
           appearance="secondary"
           [disabled]="disabled()"
           [tuiHint]="disabledReason() || 'Start task'"
-          [attr.aria-label]="'Start ' + task().id"
+          [attr.aria-label]="'Start ' + task().name"
           (click)="emitAction('start')"
         >
           @if (pending()) {
@@ -75,7 +75,7 @@ export interface TaskActionRequest {
         appearance="flat-grayscale"
         [disabled]="disabled()"
         [tuiHint]="disabledReason() || 'Restart task'"
-        [attr.aria-label]="'Restart ' + task().id"
+        [attr.aria-label]="'Restart ' + task().name"
         (click)="emitAction('restart')"
       >
         <tui-icon class="icon-sm" icon="@tui.rotate-cw" />
@@ -87,7 +87,7 @@ export interface TaskActionRequest {
         appearance="flat-destructive"
         [disabled]="disabled()"
         [tuiHint]="disabledReason() || 'Delete task'"
-        [attr.aria-label]="'Delete ' + task().id"
+        [attr.aria-label]="'Delete ' + task().name"
         (click)="emitAction('delete')"
       >
         <tui-icon class="icon-sm" icon="@tui.trash-2" />

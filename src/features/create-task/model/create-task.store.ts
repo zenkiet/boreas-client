@@ -13,7 +13,7 @@ export class CreateTaskStore {
   readonly creating = this.creatingState.asReadonly();
   readonly error = this.errorState.asReadonly();
 
-  create(input: CreateTaskInput): Observable<Task | undefined> {
+  create(project: string, input: CreateTaskInput): Observable<Task | undefined> {
     return defer(() => {
       if (this.creatingState()) {
         return of(undefined);
@@ -22,7 +22,7 @@ export class CreateTaskStore {
       this.creatingState.set(true);
       this.errorState.set(undefined);
 
-      return this.api.create(input).pipe(
+      return this.api.create(project, input).pipe(
         catchError((error: unknown) => {
           this.errorState.set(mapApiError(error).message);
           return of(undefined);

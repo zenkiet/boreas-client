@@ -1,20 +1,46 @@
+import {
+  HttpClient,
+  HttpDownloadProgressEvent,
+  HttpEventType,
+} from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { Observable, filter, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
 
 @Injectable({ providedIn: 'root' })
 export class TaskLogApi {
+  private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);
 
-  private base(taskId: string): string {
-    return `${this.config.baseUrl()}/api/v1/tasks/${encodeURIComponent(taskId)}/logs`;
+  private base(project: string, name: string): string {
+    const root = this.config.baseUrl();
+    return `${root}/api/v1/projects/${encodeURIComponent(project)}/tasks/${encodeURIComponent(name)}/logs`;
   }
 
-  downloadUrl(taskId: string, tail = 10000): string {
-    return `${this.base(taskId)}?tail=${tail}&download=true`;
+  /**
+   * Cumulative SSE body text, re-emitted as it grows.
+   *
+   * EventSource cannot send the Authorization header, so the stream rides
+   * HttpClient's progressive text download and the auth interceptor.
+   */
+  stream(project: string, name: string, tail = 100): Observable<string> {
+    return this.http
+      .get(`${this.base(project, name)}/stream?tail=${tail}`, {
+        headers: { Accept: 'text/event-stream' },
+        observe: 'events',
+        responseType: 'text',
+        reportProgress: true,
+      })
+      .pipe(
+        filter((event) => event.type === HttpEventType.DownloadProgress),
+        map((event) => (event as HttpDownloadProgressEvent).partialText ?? ''),
+      );
   }
 
-  streamUrl(taskId: string, tail = 100): string {
-    return `${this.base(taskId)}/stream?tail=${tail}`;
+  download(project: string, name: string, tail = 10000): Observable<Blob> {
+    return this.http.get(`${this.base(project, name)}?tail=${tail}&download=true`, {
+      responseType: 'blob',
+    });
   }
 }

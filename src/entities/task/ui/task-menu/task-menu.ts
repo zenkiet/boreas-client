@@ -9,8 +9,8 @@ import { TaskAction, TaskActionRequest } from '../task-actions/task-actions';
   imports: [TuiDataList, TuiOptGroup, TuiOption],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <tui-data-list [attr.aria-label]="'Actions for ' + task().id">
-      <tui-opt-group [label]="task().id">
+    <tui-data-list [attr.aria-label]="'Actions for ' + task().name">
+      <tui-opt-group [label]="task().name">
         @if (task().status === 'running') {
           <a
             tuiOption
