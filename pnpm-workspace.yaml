@@ -5,3 +5,14 @@ allowBuilds:
   msgpackr-extract: true
   sharp: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@taiga-ui/addon-charts@5.20.0'
+  - '@taiga-ui/addon-mobile@5.20.0'
+  - '@taiga-ui/cdk@5.20.0'
+  - '@taiga-ui/core@5.20.0'
+  - '@taiga-ui/i18n@5.20.0'
+  - '@taiga-ui/icons@5.20.0'
+  - '@taiga-ui/kit@5.20.0'
+  - '@taiga-ui/layout@5.20.0'
+  - '@taiga-ui/styles@5.20.0'
+  - '@lottiefiles/dotlottie-web@0.79.2'
