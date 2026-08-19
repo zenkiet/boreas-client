@@ -1,0 +1,10 @@
+# Changelog
+
+# 0.1.0 (2026-08-19)
+
+### Features
+
+* ✨ implement edit task ([a571200](https://github.com/zenkiet/boreas-client/commit/a5712007f6afe7dfd322934d0071b46e456524fd))
+* ✨ implement projects and redesign ([00b8db8](https://github.com/zenkiet/boreas-client/commit/00b8db8f1be47a0e80dff9933c990a041cc7c1ed))
+* ✨ improve UX home page ([0b7ef10](https://github.com/zenkiet/boreas-client/commit/0b7ef10da8f2de0630b5942bfa7fd96082dedbf4))
+* ✨ init project ([d452946](https://github.com/zenkiet/boreas-client/commit/d452946186d58caad43d778e450199ceadd734fe))
