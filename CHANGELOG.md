@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.1.1](https://github.com/zenkiet/boreas-client/compare/v0.1.0...v0.1.1) (2026-08-19)
+
 # 0.1.0 (2026-08-19)
 
 ### Features
