@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.2.0](https://github.com/zenkiet/boreas-client/compare/v0.1.1...v0.2.0) (2026-08-19)
+
+### Features
+
+* ✨ implement create api token ([28e0154](https://github.com/zenkiet/boreas-client/commit/28e01541576fc42cd0cb25846fe96a5b5f16c5ef))
+
 ## [0.1.1](https://github.com/zenkiet/boreas-client/compare/v0.1.0...v0.1.1) (2026-08-19)
 
 # 0.1.0 (2026-08-19)
