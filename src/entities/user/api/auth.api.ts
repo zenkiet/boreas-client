@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
@@ -7,7 +7,7 @@ import { Credentials, Session, User } from '../model/user';
 import { LoginRequestDto, LoginResponseDto, UserResponseDto } from './user.dto';
 import { toSession, toUser } from './user.mapper';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class AuthApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);

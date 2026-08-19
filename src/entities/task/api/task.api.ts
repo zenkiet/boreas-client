@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
@@ -14,7 +14,7 @@ import {
 } from './task.dto';
 import { toCreateTaskRequestDto, toTask, toUpdateTaskRequestDto } from './task.mapper';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class TaskApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);

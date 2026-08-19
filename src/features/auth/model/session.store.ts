@@ -1,12 +1,11 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Service, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, catchError, defer, finalize, map, of } from 'rxjs';
 
 import { AuthApi, Session, User } from '@entities/user';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 
-/* Root because the session is genuinely global, like the server address and theme. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class SessionStore {
   private readonly tokens = inject(AuthTokenStore);
   private readonly api = inject(AuthApi);
@@ -20,9 +19,7 @@ export class SessionStore {
   });
 
   readonly authenticated = this.tokens.authenticated;
-  readonly user = computed(() =>
-    this.profile.hasValue() ? this.profile.value() : this.seeded(),
-  );
+  readonly user = computed(() => (this.profile.hasValue() ? this.profile.value() : this.seeded()));
   readonly isAdmin = computed(() => this.user()?.role === 'admin');
 
   signIn(session: Session): void {

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Service, computed, effect, inject, signal } from '@angular/core';
 import { TuiThemeColorService } from '@taiga-ui/addon-mobile';
 import { TUI_DARK_MODE } from '@taiga-ui/core';
 
@@ -13,8 +13,7 @@ const STATUS_BAR_COLOR: Record<Theme, string> = {
   light: '#f4f6fa',
 };
 
-/** Resolves appearance through Taiga so explicit choices cannot desynchronize body and tui-root. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ThemeStore {
   private readonly document = inject(DOCUMENT);
   private readonly themeColor = inject(TuiThemeColorService);

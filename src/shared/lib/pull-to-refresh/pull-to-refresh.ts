@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, Signal, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Service, Signal, computed, inject, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { Observable, Subject, filter, map, merge, pairwise } from 'rxjs';
 
@@ -7,11 +7,9 @@ export interface PullRefreshSource {
   readonly trigger: () => void;
 }
 
-/** Bridges page refresh sources to Taiga's loaded signal, whose EMPTY default spins forever. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class PullToRefresh {
   private readonly sources = signal<readonly PullRefreshSource[]>([]);
-  /* A pull with no sources still has to release the spinner. */
   private readonly idlePull = new Subject<void>();
 
   private readonly busy = computed(() => this.sources().some((source) => source.busy()));

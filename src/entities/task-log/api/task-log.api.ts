@@ -1,14 +1,10 @@
-import {
-  HttpClient,
-  HttpDownloadProgressEvent,
-  HttpEventType,
-} from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpDownloadProgressEvent, HttpEventType } from '@angular/common/http';
+import { Service, inject } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class TaskLogApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);

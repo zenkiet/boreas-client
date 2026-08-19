@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
@@ -7,8 +7,7 @@ import { CreateUserInput, UpdateUserInput, User } from '../model/user';
 import { UserResponseDto, UsersResponseDto } from './user.dto';
 import { toCreateUserRequestDto, toUpdateUserRequestDto, toUser } from './user.mapper';
 
-/** Administration surface; every call 403s for non-admin users. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class UserApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);
@@ -31,13 +30,14 @@ export class UserApi {
 
   update(id: string, input: UpdateUserInput): Observable<User> {
     return this.http
-      .patch<UserResponseDto>(`${this.root}/${encodeURIComponent(id)}`, toUpdateUserRequestDto(input))
+      .patch<UserResponseDto>(
+        `${this.root}/${encodeURIComponent(id)}`,
+        toUpdateUserRequestDto(input),
+      )
       .pipe(map((response) => toUser(response.user)));
   }
 
   delete(id: string): Observable<void> {
-    return this.http
-      .delete(`${this.root}/${encodeURIComponent(id)}`)
-      .pipe(map(() => undefined));
+    return this.http.delete(`${this.root}/${encodeURIComponent(id)}`).pipe(map(() => undefined));
   }
 }

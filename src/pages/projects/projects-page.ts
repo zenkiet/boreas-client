@@ -113,15 +113,6 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     </div>
   `,
   styles: `
-    .page-title {
-      margin: 0;
-      font-size: 2.125rem;
-      font-weight: 700;
-      line-height: 1.2;
-      letter-spacing: -0.022em;
-      color: var(--tui-text-primary);
-    }
-
     /* Mirrors the trend card and stat tiles so content lands without layout shift. */
     .sk-trend {
       display: grid;

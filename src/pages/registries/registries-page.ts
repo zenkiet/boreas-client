@@ -199,15 +199,6 @@ interface CredentialDraft {
     </div>
   `,
   styles: `
-    .page-title {
-      margin: 0;
-      font-size: 2.125rem;
-      font-weight: 700;
-      line-height: 1.2;
-      letter-spacing: -0.022em;
-      color: var(--tui-text-primary);
-    }
-
     .row {
       display: flex;
       align-items: center;
@@ -240,33 +231,11 @@ interface CredentialDraft {
       white-space: nowrap;
     }
 
-    .frow {
-      display: grid;
-      gap: 0.125rem;
-      padding: 0.625rem 1rem;
-      transition: background-color var(--tui-duration);
-    }
-
-    .frow:focus-within {
-      background: var(--tui-background-neutral-1);
-    }
-
     .frow--inline {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       min-block-size: 3rem;
-    }
-
-    .frow__label {
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-    }
-
-    .frow__inline-label {
-      flex: 1;
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
     }
 
     .frow__input {
@@ -287,14 +256,6 @@ interface CredentialDraft {
     .frow__input::placeholder {
       color: var(--tui-text-tertiary);
       opacity: 0.6;
-    }
-
-    .footnote {
-      margin: 0;
-      padding: 0.5rem 1rem 0;
-      font-size: 0.8125rem;
-      line-height: 1.5;
-      color: var(--tui-text-tertiary);
     }
   `,
 })
@@ -346,7 +307,9 @@ export class RegistriesPage {
         .subscribe((credential) => {
           if (!credential) return;
           this.notify(`Credential ${credential.name} added.`, true);
-          this.model.set({ name: '', username: '', token: '' });
+          /* reset() clears touched and dirty too; setting the model alone would leave the
+             emptied fields flagged as touched and light up every required error. */
+          this.draft().reset({ name: '', username: '', token: '' });
           this.draftRegistry.set('ghcr');
           this.credentials.load();
         });

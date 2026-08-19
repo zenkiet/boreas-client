@@ -73,7 +73,7 @@ interface TaskEditDraft {
             </div>
           }
         </app-inset-group>
-        <p class="form__footnote">
+        <p class="footnote">
           The name is the proxy URL and cannot change. Changing the image or port recreates the
           container; editing only the description leaves it untouched.
         </p>
@@ -91,7 +91,7 @@ interface TaskEditDraft {
             />
           </label>
         </app-inset-group>
-        <p class="form__footnote">
+        <p class="footnote">
           Off: container changes wait as “pending recreate” until the next start or restart.
         </p>
       </div>
@@ -116,33 +116,11 @@ interface TaskEditDraft {
     </form>
   `,
   styles: `
-    .frow {
-      display: grid;
-      gap: 0.125rem;
-      padding: 0.625rem 1rem;
-      transition: background-color var(--tui-duration);
-    }
-
-    .frow:focus-within {
-      background: var(--tui-background-neutral-1);
-    }
-
     .frow--inline {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       min-block-size: 3rem;
-    }
-
-    .frow__label {
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-    }
-
-    .frow__inline-label {
-      flex: 1;
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
     }
 
     .frow__readonly {
@@ -166,15 +144,7 @@ interface TaskEditDraft {
       font-family: var(--tui-typography-family-text);
     }
 
-    .frow__input:focus {
-      outline: none;
-    }
-
-    .frow__input::placeholder {
-      color: var(--tui-text-tertiary);
-      opacity: 0.6;
-    }
-
+    /* Local, not shared: it must outrank the .frow__input above it. */
     .frow__input--end {
       inline-size: 7ch;
       flex: none;
@@ -182,27 +152,13 @@ interface TaskEditDraft {
       font-variant-numeric: tabular-nums;
     }
 
-    .frow__input[type='number']::-webkit-inner-spin-button,
-    .frow__input[type='number']::-webkit-outer-spin-button {
-      appearance: none;
-      margin: 0;
+    .frow__input:focus {
+      outline: none;
     }
 
-    .frow__input[type='number'] {
-      -moz-appearance: textfield;
-      appearance: textfield;
-    }
-
-    .frow__trailing-error {
-      padding: 0 1rem 0.625rem;
-    }
-
-    .form__footnote {
-      margin: 0;
-      padding: 0.5rem 1rem 0;
-      font-size: 0.8125rem;
-      line-height: 1.5;
+    .frow__input::placeholder {
       color: var(--tui-text-tertiary);
+      opacity: 0.6;
     }
   `,
 })

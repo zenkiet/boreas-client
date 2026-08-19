@@ -56,6 +56,19 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
             </button>
           </div>
         </app-panel>
+
+        <!-- Tokens belong to the person, not the admin role, so they sit beside the account. -->
+        <app-panel heading="API tokens" [flush]="true">
+          <a class="admin-row row-divider relative" routerLink="/settings/tokens">
+            <tui-icon class="icon-sm admin-row__icon" icon="@tui.key-round" aria-hidden="true" />
+            <span class="flex-1">Your API tokens</span>
+            <tui-icon
+              class="icon-sm admin-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
+          </a>
+        </app-panel>
       }
 
       @if (session.isAdmin()) {
