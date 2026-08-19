@@ -1,10 +1,9 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { computed, inject, Service, signal } from '@angular/core';
 
 const STORAGE_KEY = 'boreas-server';
 
-/** Owns the operator-provided API origin; the app has no development proxy. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ServerConfigStore {
   private readonly document = inject(DOCUMENT);
   private readonly baseUrlState = signal(this.read());

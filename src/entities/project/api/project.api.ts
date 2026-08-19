@@ -1,15 +1,11 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { AddMemberInput, Member } from '../model/member';
 import { CreateProjectInput, Project, UpdateProjectInput } from '../model/project';
-import {
-  MembersResponseDto,
-  ProjectResponseDto,
-  ProjectsResponseDto,
-} from './project.dto';
+import { MembersResponseDto, ProjectResponseDto, ProjectsResponseDto } from './project.dto';
 import {
   toAddMemberRequestDto,
   toCreateProjectRequestDto,
@@ -18,7 +14,7 @@ import {
   toUpdateProjectRequestDto,
 } from './project.mapper';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ProjectApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);

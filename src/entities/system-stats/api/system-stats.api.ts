@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
@@ -7,7 +7,7 @@ import { SystemStats } from '../model/system-stats';
 import { SystemStatsDto } from './system-stats.dto';
 import { toSystemStats } from './system-stats.mapper';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class SystemStatsApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);

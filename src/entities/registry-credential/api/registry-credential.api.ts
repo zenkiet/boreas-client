@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
@@ -7,8 +7,7 @@ import { CreateRegistryCredentialInput, RegistryCredential } from '../model/regi
 import { CredentialResponseDto, CredentialsResponseDto } from './registry-credential.dto';
 import { toCreateCredentialRequestDto, toRegistryCredential } from './registry-credential.mapper';
 
-/** Administration surface; every call 403s for non-admin users. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class RegistryCredentialApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);

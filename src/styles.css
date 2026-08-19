@@ -607,6 +607,65 @@ tui-pull-to-refresh > tui-mobile-ios-loader {
   inset-block-start: max(env(safe-area-inset-top), 0.5rem) !important;
 }
 
+/* One page title per screen, defined once instead of in every page. */
+.page-title {
+  margin: 0;
+  font-size: 2.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
+  color: var(--tui-text-primary);
+}
+
+/* The inset form row: the row, not the input, carries the visible focus cue.
+   Forms keep their own .frow__input, whose type differs per field. */
+.frow {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.625rem 1rem;
+  transition: background-color var(--tui-duration);
+}
+
+.frow:focus-within {
+  background: var(--tui-background-neutral-1);
+}
+
+.frow__label {
+  font-size: 0.8125rem;
+  color: var(--tui-text-tertiary);
+}
+
+.frow__inline-label {
+  flex: 1;
+  font-size: 1.0625rem;
+  color: var(--tui-text-primary);
+}
+
+/* Spinners would widen a row that already reads as a single value. */
+.frow__input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.frow__input[type='number']::-webkit-inner-spin-button,
+.frow__input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.frow__trailing-error {
+  padding: 0 1rem 0.625rem;
+}
+
+/* One hint under a group, never one per field. */
+.footnote {
+  margin: 0;
+  padding: 0.5rem 1rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--tui-text-tertiary);
+}
+
 /* Do not set host position here; unlayered CSS would override Tailwind positioning utilities. */
 .row-divider::before {
   content: '';

@@ -18,4 +18,17 @@ export const settingsRoutes: Routes = [
     loadComponent: () =>
       import('@pages/registries/registries-page').then(({ RegistriesPage }) => RegistriesPage),
   },
+  {
+    path: 'tokens',
+    title: 'API tokens | Boreas',
+    loadComponent: () => import('@pages/tokens/tokens-page').then(({ TokensPage }) => TokensPage),
+  },
+  {
+    path: 'tokens/new',
+    title: 'New API token | Boreas',
+    loadComponent: () =>
+      import('@pages/token-create/token-create-page').then(
+        ({ TokenCreatePage }) => TokenCreatePage,
+      ),
+  },
 ];

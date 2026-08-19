@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Service, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, catchError, switchMap, timer } from 'rxjs';
 
@@ -12,8 +12,7 @@ export interface StatsSample {
 const SAMPLE_INTERVAL_MS = 30_000;
 const MAX_SAMPLES = 121;
 
-/* The backend has no history endpoint; root scope preserves session samples across routes. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class StatsHistoryStore {
   private readonly api = inject(SystemStatsApi);
   private readonly buffer = signal<readonly StatsSample[]>([]);

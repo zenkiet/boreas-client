@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, linkedSignal } from '@angular/core';
+import { Service, computed, inject, linkedSignal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
@@ -21,8 +21,7 @@ interface OverviewSnapshot {
 /* Matches the /stats poll interval; an ops console must not show a fleet older than this. */
 const STALE_AFTER_MS = 30_000;
 
-/** Fleet overview for Home and Search; root-provided so its `2 + N` fan-out survives route changes. */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ListProjectsStore {
   private readonly projectApi = inject(ProjectApi);
   private readonly taskApi = inject(TaskApi);
