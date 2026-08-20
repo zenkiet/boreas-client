@@ -3,6 +3,9 @@ export interface ProjectDto {
   slug: string;
   name: string;
   registry_credential_id?: string;
+  default_image: string;
+  default_port: number;
+  default_env: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,11 +23,17 @@ export interface CreateProjectRequestDto {
   slug: string;
   name?: string;
   registry_credential_id?: string;
+  default_image?: string;
+  default_port?: number;
+  default_env?: Record<string, string>;
 }
 
 export interface UpdateProjectRequestDto {
   name?: string;
   registry_credential_id?: string | null;
+  default_image?: string;
+  default_port?: number;
+  default_env?: Record<string, string>;
 }
 
 export type ProjectRoleDto = 'owner' | 'member';

@@ -54,7 +54,7 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - `submit()` callbacks must be `async`. Never put `min`, `max`, `value`, `disabled` or `readonly` on an input that has `[formField]` — the schema drives those.
 - `[formField]` binds native inputs and `ControlValueAccessor` components. It cannot bind Taiga's `tuiInputNumber` (its CVA is typed `number | bigint | null`); use `<input tuiInput type="number">` inside `tui-textfield` for numeric fields.
 - Field errors go in `<tui-error [error]="…" />`. Pass `null`, not `''`, when there is no error, or Taiga renders its own generic message.
-- **Clear a form after a successful submit with `this.draft().reset(initialValue)`, never by writing the model signal.** `submit()` marks the tree touched, and touched survives a value change — so emptying the model alone leaves every field blank *and* touched, which lights up all the required errors at once. `reset()` clears touched and dirty and takes the fresh value in one call.
+- **Clear a form after a successful submit with `this.draft().reset(initialValue)`, never by writing the model signal.** `submit()` marks the tree touched, and touched survives a value change — so emptying the model alone leaves every field blank _and_ touched, which lights up all the required errors at once. `reset()` clears touched and dirty and takes the fresh value in one call.
 
 ## Styling: Tailwind CSS 4 + Taiga UI
 
@@ -203,6 +203,14 @@ point **downward** — never upward, never sideways between slices of the same l
 - **There is no hard delete for tokens.** `DELETE /auth/tokens/{id}` revokes; calling it again on a revoked token answers 200 and changes nothing, so revoked and expired rows live in the list forever. The page hides them behind a "Show N revoked and expired" row instead of pretending they are gone, and the group's trailing label counts only live tokens.
 - **Revoke is a resident button in the row, not a swipe action.** `TuiSwipeActions` collapses its strip to zero width on fine pointers, so a narrow window driven by a mouse — a normal desktop setup — had no revocation affordance at all, and swipe-only is undiscoverable even on a finger. The task rows get away with swipe because a long-press menu carries the same actions with labels; a row whose sole action is destructive needs that action visible.
 - `POST /tasks/{name}/deploy` is for pipelines (immutable `repo@sha256:…` only) and has no UI; changing an image in the app goes through the task edit page.
+
+## Project task defaults
+
+- A project carries `default_image`, `default_port` and `default_env` (`Project.defaults`), and they do exactly one thing: **prefill the new-task form**. The server never applies them to a task, so `POST /tasks` still sends image, port and env in full.
+- **Only image and env have an "unset" state.** Probing the API: `""` clears the image, `{}` clears the env, but `default_port: 0` is a 400 and `null` means "unchanged" — a bare project answers with port 80. So the port is a plain numeric row seeded from the project, never an optional preset, and 80 (`DEFAULT_TASK_PORT`) is what an untouched row means: nothing is sent.
+- Presets are edited **in place in the About group** (`features/manage-project/ui/project-defaults-form`), not on their own route: About already inline-edits the display name and the credential. The group keeps one Save for all three fields because the PATCH is partial, and it appears only while the draft differs from the server — which is also what makes a successful save hide it again without extra state.
+- `PATCH /projects/{project}` is owner-only. There is no client-side role gate: like the display-name row, a member's 403 surfaces as the command toast, because knowing the viewer's own role would cost a members call per project.
+- The new-task form takes `[defaults]` and seeds **once**, and only into rows the typist has not filled (empty image, port still 80, empty env) — the presets land after the form is already on screen. `CreateTaskStore` reads them with one `GET /projects/{slug}` whose failure collapses to `null`; the fleet cache is deliberately not used (its 2+N fan-out costs more than the one request, and deep links have no cache).
 
 ## Server address and onboarding
 

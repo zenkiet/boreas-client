@@ -1,8 +1,14 @@
 import { Component, computed, input, output, signal } from '@angular/core';
-import { FormField, form, pattern, required, submit } from '@angular/forms/signals';
+import { FormField, form, max, min, pattern, required, submit } from '@angular/forms/signals';
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
-import { CreateProjectInput, RESERVED_PROJECT_SLUGS } from '@entities/project';
+import { EnvironmentEditor } from '@entities/environment';
+import {
+  CreateProjectInput,
+  DEFAULT_TASK_PORT,
+  RESERVED_PROJECT_SLUGS,
+  TaskDefaultsInput,
+} from '@entities/project';
 import { RegistryCredential } from '@entities/registry-credential';
 import { Callout } from '@shared/ui/callout/callout';
 import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
@@ -15,11 +21,23 @@ let instances = 0;
 interface ProjectDraft {
   slug: string;
   name: string;
+  image: string;
+  port: number;
 }
 
 @Component({
   selector: 'app-project-form',
-  imports: [Callout, FormField, GlassSelect, InsetGroup, TuiButton, TuiError, TuiIcon, TuiLoader],
+  imports: [
+    Callout,
+    EnvironmentEditor,
+    FormField,
+    GlassSelect,
+    InsetGroup,
+    TuiButton,
+    TuiError,
+    TuiIcon,
+    TuiLoader,
+  ],
   template: `
     <form class="grid grid-cols-1 gap-3.5" novalidate [id]="formId()" (submit)="onSubmit($event)">
       @if (error(); as message) {
@@ -74,8 +92,59 @@ interface ProjectDraft {
         </p>
       </div>
 
+      <div>
+        <app-inset-group label="Task defaults" trailing="Optional">
+          <div class="frow row-divider relative">
+            <label class="frow__label" [for]="ids.image">Docker image</label>
+            <input
+              class="frow__input font-mono"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              placeholder="nginx:alpine"
+              [id]="ids.image"
+              [formField]="draft.image"
+            />
+          </div>
+
+          <div class="frow frow--inline row-divider relative">
+            <label class="frow__inline-label" [for]="ids.port">Internal port</label>
+            <input
+              class="frow__input frow__input--end"
+              type="number"
+              inputmode="numeric"
+              [id]="ids.port"
+              [formField]="draft.port"
+            />
+          </div>
+          @if (portError(); as message) {
+            <div class="frow__trailing-error">
+              <tui-error [error]="message" />
+            </div>
+          }
+
+          <div class="form__pad row-divider relative">
+            <app-environment-editor
+              [environment]="environment()"
+              (environmentChange)="environment.set($event)"
+              (errorsChange)="environmentErrors.set($event)"
+            />
+          </div>
+        </app-inset-group>
+        <p class="footnote">
+          These only prefill the new-task form. Tasks are never changed on their own, and every
+          field stays editable when you create one.
+        </p>
+      </div>
+
       <div class="hidden md:flex md:justify-end">
-        <button tuiButton type="submit" size="m" appearance="primary" [disabled]="creating()">
+        <button
+          tuiButton
+          type="submit"
+          size="m"
+          appearance="primary"
+          [disabled]="creating() || environmentErrors().length > 0"
+        >
           @if (creating()) {
             <tui-loader size="s" [inheritColor]="true" />
             Creating
@@ -105,6 +174,14 @@ interface ProjectDraft {
       color: var(--tui-text-primary);
     }
 
+    /* Local, not shared: it must outrank the .frow__input above it. */
+    .frow__input--end {
+      inline-size: 7ch;
+      flex: none;
+      text-align: end;
+      font-variant-numeric: tabular-nums;
+    }
+
     .frow__input:focus {
       outline: none;
     }
@@ -113,6 +190,10 @@ interface ProjectDraft {
       color: var(--tui-text-tertiary);
       opacity: 0.6;
     }
+
+    .form__pad {
+      padding: 0.875rem 1rem;
+    }
   `,
 })
 export class ProjectForm {
@@ -120,13 +201,19 @@ export class ProjectForm {
 
   readonly creating = input(false);
   readonly error = input<string | undefined>(undefined);
-  /** null when the viewer may not list credentials; the row is hidden. */
   readonly credentials = input.required<readonly RegistryCredential[] | null>();
   readonly formId = input(this.uid);
   readonly submitted = output<CreateProjectInput>();
 
-  private readonly model = signal<ProjectDraft>({ slug: '', name: '' });
+  private readonly model = signal<ProjectDraft>({
+    slug: '',
+    name: '',
+    image: '',
+    port: DEFAULT_TASK_PORT,
+  });
   protected readonly credentialId = signal('');
+  protected readonly environment = signal<Record<string, string>>({});
+  protected readonly environmentErrors = signal<readonly string[]>([]);
   private readonly reservedError = signal<string | null>(null);
 
   protected readonly draft = form(this.model, (path) => {
@@ -134,14 +221,17 @@ export class ProjectForm {
     pattern(path.slug, SLUG_PATTERN, {
       message: 'Use 1–63 lowercase letters, numbers or hyphens.',
     });
+    min(path.port, 1, { message: 'Internal port must be between 1 and 65535.' });
+    max(path.port, 65535, { message: 'Internal port must be between 1 and 65535.' });
   });
 
   protected readonly ids = {
     slug: `${this.uid}-slug`,
     name: `${this.uid}-name`,
+    image: `${this.uid}-image`,
+    port: `${this.uid}-port`,
   };
 
-  /* null while the viewer may not list credentials, or nothing exists to attach. */
   protected readonly credentialOptions = computed<readonly GlassSelectOption[] | null>(() => {
     const credentials = this.credentials();
     if (!credentials || credentials.length === 0) return null;
@@ -161,11 +251,20 @@ export class ProjectForm {
     return state.errors()[0]?.message ?? this.reservedError();
   });
 
+  protected readonly portError = computed(() => {
+    const state = this.draft.port();
+    if (!state.touched()) return null;
+    return state.errors()[0]?.message ?? null;
+  });
+
   protected onSubmit(event: Event): void {
     event.preventDefault();
 
+    if (this.environmentErrors().length > 0 || this.creating()) {
+      return;
+    }
+
     const slug = this.model().slug.trim();
-    /* Reserved names are known upfront; no reason to burn a request on them. */
     if ((RESERVED_PROJECT_SLUGS as readonly string[]).includes(slug)) {
       this.reservedError.set(`“${slug}” is reserved by the server. Pick another slug.`);
       return;
@@ -173,14 +272,28 @@ export class ProjectForm {
 
     this.reservedError.set(null);
 
-    /* Signal Forms requires a promise-returning submit action. */
     void submit(this.draft, async () => {
       const draft = this.model();
       this.submitted.emit({
         slug: draft.slug.trim(),
         name: draft.name.trim() || undefined,
         registryCredentialId: this.credentialId() || undefined,
+        defaults: this.defaults(),
       });
     });
+  }
+
+  private defaults(): TaskDefaultsInput {
+    const draft = this.model();
+    const environment = this.environment();
+    const defaults: {
+      -readonly [K in keyof TaskDefaultsInput]: TaskDefaultsInput[K];
+    } = {};
+
+    if (draft.image.trim()) defaults.image = draft.image.trim();
+    if (draft.port !== DEFAULT_TASK_PORT) defaults.port = draft.port;
+    if (Object.keys(environment).length > 0) defaults.env = environment;
+
+    return defaults;
   }
 }

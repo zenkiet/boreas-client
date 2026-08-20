@@ -1,13 +1,16 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { FormField, form, max, min, pattern, required, submit } from '@angular/forms/signals';
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
 import { EnvironmentEditor } from '@entities/environment';
+import { TaskDefaults } from '@entities/project';
 import { CreateTaskInput } from '@entities/task';
 import { Callout } from '@shared/ui/callout/callout';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 const TASK_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
+
+const DEFAULT_PORT = 80;
 
 let instances = 0;
 
@@ -101,6 +104,9 @@ interface TaskDraft {
           The name becomes part of the proxy URL and stays unique within the project. The image is
           any reference Docker can pull; the port is what the process listens on inside the
           container.
+          @if (prefilled()) {
+            Values below start from this project's defaults.
+          }
         </p>
       </div>
 
@@ -188,10 +194,17 @@ export class TaskForm {
 
   readonly creating = input(false);
   readonly error = input<string | undefined>(undefined);
+  readonly defaults = input<TaskDefaults | null>(null);
   readonly formId = input(this.uid);
   readonly submitted = output<CreateTaskInput>();
 
-  private readonly model = signal<TaskDraft>({ name: '', image: '', port: 80, description: '' });
+  private seeded = false;
+  private readonly model = signal<TaskDraft>({
+    name: '',
+    image: '',
+    port: DEFAULT_PORT,
+    description: '',
+  });
 
   protected readonly draft = form(this.model, (path) => {
     required(path.name, { message: 'Task name is required.' });
@@ -205,6 +218,7 @@ export class TaskForm {
 
   protected readonly environment = signal<Record<string, string>>({});
   protected readonly environmentErrors = signal<readonly string[]>([]);
+  protected readonly prefilled = signal(false);
 
   protected readonly ids = {
     name: `${this.uid}-name`,
@@ -212,6 +226,17 @@ export class TaskForm {
     description: `${this.uid}-description`,
     port: `${this.uid}-port`,
   };
+
+  constructor() {
+    effect(() => {
+      const defaults = this.defaults();
+      /* Seed once: the presets land after the form is already on screen. */
+      if (!defaults || this.seeded) return;
+      this.seeded = true;
+
+      untracked(() => this.seed(defaults));
+    });
+  }
 
   protected readonly nameError = computed(() => this.firstError(this.draft.name()));
   protected readonly imageError = computed(() => this.firstError(this.draft.image()));
@@ -237,6 +262,18 @@ export class TaskForm {
         environment,
       });
     });
+  }
+
+  private seed(defaults: TaskDefaults): void {
+    const draft = this.model();
+    const image = draft.image || defaults.image;
+    const port = draft.port === DEFAULT_PORT ? defaults.port : draft.port;
+    const seedEnv =
+      Object.keys(this.environment()).length === 0 && Object.keys(defaults.env).length > 0;
+
+    this.model.set({ ...draft, image, port });
+    if (seedEnv) this.environment.set({ ...defaults.env });
+    this.prefilled.set(image !== draft.image || port !== draft.port || seedEnv);
   }
 
   /* tui-error renders a generic fallback for any non-null empty value. */
