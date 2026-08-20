@@ -38,7 +38,6 @@ export interface GlassSegmentedItem {
         [class.segment--active]="i === activeIndex()"
         (click)="onSegmentClick(i)"
         (pointerdown)="onPointerDown($event)"
-        (pointermove)="onPointerMove($event)"
         (pointerup)="onPointerUp($event)"
         (pointercancel)="onPointerUp($event)"
       >
@@ -209,7 +208,12 @@ export class GlassSegmented {
       observer.observe(this.host.nativeElement);
       this.layout();
 
+      const host = this.host.nativeElement;
+      const onMove = (event: PointerEvent) => this.onPointerMove(event);
+      host.addEventListener('pointermove', onMove);
+
       destroyRef.onDestroy(() => {
+        host.removeEventListener('pointermove', onMove);
         observer.disconnect();
         media.revert();
       });
@@ -260,7 +264,7 @@ export class GlassSegmented {
     });
   }
 
-  protected onPointerMove(event: PointerEvent): void {
+  private onPointerMove(event: PointerEvent): void {
     if (!this.dragging || event.pointerId !== this.pointerId) {
       return;
     }

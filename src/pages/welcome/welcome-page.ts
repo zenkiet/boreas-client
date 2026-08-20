@@ -82,7 +82,6 @@ const FEATURES = [
         #viewport
         class="flow__viewport"
         (pointerdown)="onDown($event)"
-        (pointermove)="onMove($event)"
         (pointerup)="onUp($event)"
         (pointercancel)="onUp($event)"
       >
@@ -388,12 +387,17 @@ export class WelcomePage {
         };
       });
 
+      const viewport = this.viewport().nativeElement;
       const observer = new ResizeObserver(() => this.layout());
-      observer.observe(this.viewport().nativeElement);
+      observer.observe(viewport);
       this.layout();
       this.ready = true;
 
+      const onMove = (event: PointerEvent) => this.onMove(event);
+      viewport.addEventListener('pointermove', onMove);
+
       destroyRef.onDestroy(() => {
+        viewport.removeEventListener('pointermove', onMove);
         observer.disconnect();
         media.revert();
       });
@@ -498,7 +502,7 @@ export class WelcomePage {
     this.quickX = gsap.quickTo(this.track().nativeElement, 'x', { duration: 0.12, ease: 'power2' });
   }
 
-  protected onMove(event: PointerEvent): void {
+  private onMove(event: PointerEvent): void {
     if (!this.dragging || event.pointerId !== this.pointerId) {
       return;
     }
