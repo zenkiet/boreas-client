@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.3.0](https://github.com/zenkiet/boreas-client/compare/v0.2.0...v0.3.0) (2026-08-20)
+
+### Features
+
+* ✨ implement project default info ([a99d6b2](https://github.com/zenkiet/boreas-client/commit/a99d6b2846a6f87419d88422db1cb40046e6138b))
+
 # [0.2.0](https://github.com/zenkiet/boreas-client/compare/v0.1.1...v0.2.0) (2026-08-19)
 
 ### Features
