@@ -56,6 +56,11 @@
                 "glob": "**/*",
                 "input": "node_modules/@taiga-ui/icons/src",
                 "output": "assets/taiga-ui/icons"
+              },
+              {
+                "glob": "dotlottie-player.wasm",
+                "input": "node_modules/@lottiefiles/dotlottie-web/dist",
+                "output": "animations"
               }
             ],
             "styles": [

@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import {
@@ -45,7 +45,6 @@ const THEME_ICON: Record<ThemeMode, string> = {
   ],
   host: {
     class: 'flex flex-col min-h-dvh bg-canvas overflow-x-hidden',
-    '(window:scroll)': 'onScroll()',
   },
   template: `
     @if (!mobile() && !onboarding()) {
@@ -205,6 +204,7 @@ export class AppShell {
   private readonly breakpoint = inject(TUI_BREAKPOINT);
   private readonly theme = inject(ThemeStore);
   private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly url = toSignal(
     this.router.events.pipe(
@@ -255,7 +255,17 @@ export class AppShell {
   protected readonly minimized = signal(false);
   private lastScrollY = 0;
 
-  protected onScroll(): void {
+  private readonly scrollListener = afterNextRender(() => {
+    const view = this.document.defaultView;
+    if (!view) {
+      return;
+    }
+    const handler = () => this.onScroll();
+    view.addEventListener('scroll', handler, { passive: true });
+    this.destroyRef.onDestroy(() => view.removeEventListener('scroll', handler));
+  });
+
+  private onScroll(): void {
     const y = this.document.defaultView?.scrollY ?? 0;
     const delta = y - this.lastScrollY;
 

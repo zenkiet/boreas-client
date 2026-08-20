@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Boreas themed-icon (monochrome) layer, Android 13+.
+
+  The system discards every colour here and keeps ONLY the alpha channel, tinting it with a
+  wallpaper-derived colour. So this layer is a hard-edged silhouette: no gradient, no specular,
+  no drop shadow — semi-transparent effects would survive tinting as a halo.
+
+  Geometry matches the iOS icon: 0.729 of the 72dp visible face tall (52.488 x 35.086 dp).
+  Centred on the glyph's own bounding box, not on the source viewBox — the mark sits +30.31
+  units right of centre in boreas-glyph.svg, and carrying that offset over would put the bbox
+  corner at 33.26dp, outside the 33dp radius that every OEM mask is guaranteed to keep.
+  As centred here the half-diagonal is 31.567dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M 60.5863 39.8234 c 0 6.6639 -5.4035 12.0609 -12.0674 12.0609 c -0.2882 0 -0.5707 -0.0121 -0.8524 -0.0363 l 2.5572 -7.3546 h 0.0056 c 1.9093 -0.6962 3.2655 -2.5274 3.2655 -4.671 c 0 -2.7496 -2.2272 -4.9768 -4.9768 -4.9768 s -4.9712 2.2272 -4.9712 4.9768 v 40.4215 h -7.0897 V 39.8234 c 0 -2.3109 0.6544 -4.473 1.7829 -6.3098 c 2.1194 -3.4524 5.9259 -5.7576 10.278 -5.7576 c 6.6639 0 12.0674 5.4035 12.0674 12.0674 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M 71.5429 64.9297 c 0 7.0302 -5.6972 12.7274 -12.7274 12.7274 c -0.66 0 -1.3088 -0.0483 -1.939 -0.1441 v -6.8443 c 0.6126 0.2045 1.2605 0.3179 1.939 0.3179 c 3.3436 0 6.0579 -2.7134 6.0579 -6.0579 s -2.7134 -6.0514 -6.0579 -6.0514 s -6.0579 2.7078 -6.0579 6.0514 v 15.3153 h -6.6695 v -15.3153 c 0 -4.8327 2.6957 -9.0408 6.6695 -11.1964 c 1.8015 -0.9788 3.866 -1.531 6.0579 -1.531 c 7.0302 0 12.7274 5.7037 12.7274 12.7274 Z" />
+</vector>

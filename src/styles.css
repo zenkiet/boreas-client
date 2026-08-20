@@ -35,10 +35,8 @@
 :root,
 [tuiTheme='light'],
 [tuiTheme='dark'] {
-  --tui-typography-family-text:
-    -apple-system, system-ui, Inter, ui-sans-serif, 'Segoe UI', sans-serif;
-  --tui-typography-family-display:
-    -apple-system, system-ui, Inter, ui-sans-serif, 'Segoe UI', sans-serif;
+  --tui-typography-family-text: -apple-system, system-ui, ui-sans-serif, 'Segoe UI', sans-serif;
+  --tui-typography-family-display: -apple-system, system-ui, ui-sans-serif, 'Segoe UI', sans-serif;
   --app-font-mono:
     'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
