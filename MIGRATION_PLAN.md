@@ -17,20 +17,20 @@ token-guarded and nests tasks under projects.
 
 ## Old → new map
 
-| Old | New |
-| --- | --- |
-| `pages/dashboard` | `pages/projects` (home) + `pages/project-detail` |
-| `features/list-tasks/model/list-tasks.store` | `features/list-projects` (projects + stats + per-project tasks) |
-| `features/list-tasks/ui/dashboard-skeleton` | deleted (inline skeleton rows) |
-| `Task.id` (slug-like) | `Task.name` within `project`; `Task.id` is a UUID kept for tracking |
-| `Task.cpuNano/memoryBytes/lastAccessed` | removed by the API |
-| — | `Task.description`, `Task.projectId` |
-| `EventSource` log stream | HttpClient progressive-text SSE (bearer header) in `TaskLogApi.stream` |
-| download `<a href>` | blob fetch through the interceptor (`LogStreamStore.download`) |
-| `SystemStats.maxContainers/containerMemoryMb` | `totalProjects`; memory tile shows host total |
-| — | `entities/user`, `entities/project`, `entities/registry-credential` |
-| — | `features/auth` (SessionStore, LoginStore), `shared/api/auth-token.store`, `auth.interceptor`, `authenticated.guard` |
-| — | `pages/login`, `pages/project-create`, `pages/users`, `pages/registries` |
+| Old                                           | New                                                                                                                  |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `pages/dashboard`                             | `pages/projects` (home) + `pages/project-detail`                                                                     |
+| `features/list-tasks/model/list-tasks.store`  | `features/list-projects` (projects + stats + per-project tasks)                                                      |
+| `features/list-tasks/ui/dashboard-skeleton`   | deleted (inline skeleton rows)                                                                                       |
+| `Task.id` (slug-like)                         | `Task.name` within `project`; `Task.id` is a UUID kept for tracking                                                  |
+| `Task.cpuNano/memoryBytes/lastAccessed`       | removed by the API                                                                                                   |
+| —                                             | `Task.description`, `Task.projectId`                                                                                 |
+| `EventSource` log stream                      | HttpClient progressive-text SSE (bearer header) in `TaskLogApi.stream`                                               |
+| download `<a href>`                           | blob fetch through the interceptor (`LogStreamStore.download`)                                                       |
+| `SystemStats.maxContainers/containerMemoryMb` | `totalProjects`; memory tile shows host total                                                                        |
+| —                                             | `entities/user`, `entities/project`, `entities/registry-credential`                                                  |
+| —                                             | `features/auth` (SessionStore, LoginStore), `shared/api/auth-token.store`, `auth.interceptor`, `authenticated.guard` |
+| —                                             | `pages/login`, `pages/project-create`, `pages/users`, `pages/registries`                                             |
 
 ## API v1.1 (2026-08-18): PATCH /tasks/{name}
 
@@ -46,6 +46,19 @@ token-guarded and nests tasks under projects.
 - The `pending_recreate` callout carries a "Restart now" action.
 - Env apply keeps `auto_restart: true` (unchanged behaviour; the toggle lives
   only on the edit form).
+
+## API v1.2 (2026-08-20): project task defaults
+
+- Project gained `default_image` / `default_port` / `default_env`, mapped to
+  `Project.defaults` (`TaskDefaults`) and written through `TaskDefaultsInput` on
+  both create and PATCH. They only prefill the new-task form.
+- Verified against the API: `""` clears the image, `{}` clears the env,
+  `default_port: 0` is a 400 and `null` is a no-op, and a bare project answers
+  with port 80 — so the port is never "unset" in the UI.
+- Three touch points: an optional "Task defaults" group on project create, an
+  inline group in the project About tab (`ProjectDefaultsForm`, one Save for the
+  trio, shown only while the draft differs from the server), and seeding in
+  `TaskForm` fed by one `GET /projects/{slug}` in `CreateTaskStore`.
 
 ## Known follow-ups
 

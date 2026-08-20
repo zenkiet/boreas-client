@@ -6,12 +6,17 @@ import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
 import { filter, switchMap, take } from 'rxjs';
 
-import { Member, Project } from '@entities/project';
+import { Member, Project, TaskDefaultsInput } from '@entities/project';
 import { Task, TaskActionRequest } from '@entities/task';
 import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects';
 import { TaskList } from '@features/list-tasks';
-import { ManageProjectStore, MemberList, ProjectCommandResult } from '@features/manage-project';
+import {
+  ManageProjectStore,
+  MemberList,
+  ProjectCommandResult,
+  ProjectDefaultsForm,
+} from '@features/manage-project';
 import { ViewProjectStore } from '@features/view-project';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -45,6 +50,7 @@ type View = (typeof VIEWS)[number];
     GlassSelect,
     InsetGroup,
     MemberList,
+    ProjectDefaultsForm,
     Reveal,
     RouterLink,
     SkeletonRows,
@@ -221,6 +227,20 @@ type View = (typeof VIEWS)[number];
                 <span class="about__value tabular">{{ project.createdAt | date: 'MMM d, y' }}</span>
               </div>
             </app-inset-group>
+
+            <div>
+              <app-inset-group label="Task defaults">
+                <app-project-defaults-form
+                  [defaults]="project.defaults"
+                  [busy]="manage.busy()"
+                  (submitted)="saveDefaults(project, $event)"
+                />
+              </app-inset-group>
+              <p class="footnote">
+                Prefill for the new-task form in this project. Existing tasks and their containers
+                are never touched, and only the project owner can change these.
+              </p>
+            </div>
 
             <app-inset-group label="Danger zone">
               <button
@@ -488,6 +508,12 @@ export class ProjectDetailPage {
     if (!name || name === project.name) return;
 
     this.manage.update(project.slug, { name }).subscribe((result) => this.completeCommand(result));
+  }
+
+  protected saveDefaults(project: Project, defaults: TaskDefaultsInput): void {
+    this.manage
+      .update(project.slug, { defaults })
+      .subscribe((result) => this.completeCommand(result));
   }
 
   protected changeCredential(project: Project, value: string): void {

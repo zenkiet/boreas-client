@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiAppBar } from '@taiga-ui/layout';
 
@@ -55,6 +55,7 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
         formId="create-task-form"
         [creating]="create.creating()"
         [error]="create.error()"
+        [defaults]="create.defaults()"
         (submitted)="createTask($event)"
       />
     </div>
@@ -69,6 +70,13 @@ export class TaskCreatePage {
 
   protected readonly projectLink = computed(() => ['/projects', this.slug()]);
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
+
+  constructor() {
+    effect(() => {
+      const slug = this.slug();
+      if (slug) this.create.loadDefaults(slug);
+    });
+  }
 
   protected createTask(input: CreateTaskInput): void {
     this.create.create(this.slug(), input).subscribe((task) => {

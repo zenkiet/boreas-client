@@ -211,18 +211,21 @@ type View = (typeof VIEWS)[number];
         }
         @if (task.pendingRecreate) {
           <app-callout tone="warning" role="status">
-            <span>Changes are waiting for a container recreate. They apply on the next start or restart.</span>
-            <button
-              tuiButton
-              type="button"
-              size="s"
-              appearance="secondary"
-              class="mt-2 block"
-              [disabled]="actionDisabled(task)"
-              (click)="changeState('restart')"
-            >
-              Restart now
-            </button>
+            <p class="m-0">
+              Changes are waiting for a container recreate. They apply on the next start or restart.
+            </p>
+            <div class="mt-2">
+              <button
+                tuiButton
+                type="button"
+                size="s"
+                appearance="secondary"
+                [disabled]="actionDisabled(task)"
+                (click)="changeState('restart')"
+              >
+                Restart now
+              </button>
+            </div>
           </app-callout>
         }
       }
