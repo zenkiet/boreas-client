@@ -655,6 +655,29 @@ tui-pull-to-refresh > tui-mobile-ios-loader {
   padding: 0 1rem 0.625rem;
 }
 
+/* The iOS list row: label on the left, value trailing. Shared by settings and task detail. */
+.lrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-block-size: 2.75rem;
+  padding: 0.5rem 1rem;
+}
+
+.lrow__label {
+  flex: none;
+  font-size: 1rem;
+  color: var(--tui-text-primary);
+}
+
+.lrow__value {
+  font-size: 0.9375rem;
+  color: var(--tui-text-secondary);
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
 /* One hint under a group, never one per field. */
 .footnote {
   margin: 0;

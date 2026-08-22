@@ -1,10 +1,10 @@
 import { Component, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { FormField, form, max, min, required, submit } from '@angular/forms/signals';
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiSwitch } from '@taiga-ui/kit';
 
 import { Task, UpdateTaskInput } from '@entities/task';
 import { Callout } from '@shared/ui/callout/callout';
+import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 let instances = 0;
@@ -17,7 +17,7 @@ interface TaskEditDraft {
 
 @Component({
   selector: 'app-task-edit-form',
-  imports: [Callout, FormField, InsetGroup, TuiButton, TuiError, TuiIcon, TuiLoader, TuiSwitch],
+  imports: [Callout, FormField, GlassSwitch, InsetGroup, TuiButton, TuiError, TuiIcon, TuiLoader],
   template: `
     <form class="grid grid-cols-1 gap-3.5" novalidate [id]="formId()" (submit)="onSubmit($event)">
       @if (error(); as message) {
@@ -81,15 +81,15 @@ interface TaskEditDraft {
 
       <div>
         <app-inset-group label="Apply">
-          <label class="frow frow--inline row-divider relative">
+          <div class="frow frow--inline row-divider relative">
             <span class="frow__inline-label">Restart to apply</span>
-            <input
-              type="checkbox"
-              tuiSwitch
+            <button
+              appGlassSwitch
+              aria-label="Restart to apply"
               [checked]="restart()"
-              (change)="toggleRestart($event)"
-            />
-          </label>
+              (checkedChange)="restart.set($event)"
+            ></button>
+          </div>
         </app-inset-group>
         <p class="footnote">
           Off: container changes wait as “pending recreate” until the next start or restart.
@@ -217,10 +217,6 @@ export class TaskEditForm {
         }),
       );
     });
-  }
-
-  protected toggleRestart(event: Event): void {
-    this.restart.set((event.target as HTMLInputElement).checked);
   }
 
   protected onSubmit(event: Event): void {

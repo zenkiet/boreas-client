@@ -1,14 +1,25 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { TuiButton, TuiIcon } from '@taiga-ui/core';
+import { TuiIcon } from '@taiga-ui/core';
 
 import { SessionStore } from '@features/auth';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { PageHeader } from '@shared/ui/page-header/page-header';
-import { Panel } from '@shared/ui/panel/panel';
+
+interface NavLink {
+  readonly label: string;
+  readonly icon: string;
+  readonly route: string;
+}
+
+interface NavGroup {
+  readonly label: string;
+  readonly links: readonly NavLink[];
+}
 
 const THEME_MODES: readonly {
   readonly mode: ThemeMode;
@@ -20,6 +31,20 @@ const THEME_MODES: readonly {
   { mode: 'dark', label: 'Dark', icon: '@tui.moon' },
 ];
 
+/* Tokens belong to the person, not the admin role, so they sit above Administration. */
+const PERSONAL: NavGroup = {
+  label: 'API tokens',
+  links: [{ label: 'Your API tokens', icon: '@tui.key-round', route: '/settings/tokens' }],
+};
+
+const ADMIN: NavGroup = {
+  label: 'Administration',
+  links: [
+    { label: 'Users', icon: '@tui.users', route: '/settings/users' },
+    { label: 'Registry credentials', icon: '@tui.key-round', route: '/settings/registries' },
+  ],
+};
+
 const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
   { label: 'Frontend', value: 'Angular 22 · Signal Forms' },
   { label: 'Interface', value: 'Taiga UI 5 · Tailwind CSS 4' },
@@ -29,14 +54,14 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
 
 @Component({
   selector: 'app-settings-page',
-  imports: [GlassSegmented, PageHeader, Panel, Reveal, RouterLink, TuiButton, TuiIcon],
+  imports: [GlassSegmented, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
   template: `
     <div appReveal class="mx-auto grid max-w-176 grid-cols-1 gap-3.5 md:gap-4">
       <app-page-header title="Settings" />
 
       @if (session.user(); as user) {
-        <app-panel heading="Account">
-          <div class="flex items-center gap-3">
+        <app-inset-group label="Account">
+          <div class="account row-divider relative">
             <span class="account__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
             <span class="min-w-0 flex-1">
               <span class="account__name">
@@ -45,90 +70,78 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
               </span>
               <span class="account__email">{{ user.email }}</span>
             </span>
-            <button
-              tuiButton
-              type="button"
-              size="s"
-              appearance="flat-destructive"
-              (click)="signOut()"
-            >
-              Sign out
-            </button>
           </div>
-        </app-panel>
-
-        <!-- Tokens belong to the person, not the admin role, so they sit beside the account. -->
-        <app-panel heading="API tokens" [flush]="true">
-          <a class="admin-row row-divider relative" routerLink="/settings/tokens">
-            <tui-icon class="icon-sm admin-row__icon" icon="@tui.key-round" aria-hidden="true" />
-            <span class="flex-1">Your API tokens</span>
-            <tui-icon
-              class="icon-sm admin-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </a>
-        </app-panel>
+          <button type="button" class="lrow action-row row-divider relative" (click)="signOut()">
+            Sign out
+          </button>
+        </app-inset-group>
       }
 
-      @if (session.isAdmin()) {
-        <app-panel heading="Administration" [flush]="true">
-          <a class="admin-row row-divider relative" routerLink="/settings/users">
-            <tui-icon class="icon-sm admin-row__icon" icon="@tui.users" aria-hidden="true" />
-            <span class="flex-1">Users</span>
-            <tui-icon
-              class="icon-sm admin-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </a>
-          <a class="admin-row row-divider relative" routerLink="/settings/registries">
-            <tui-icon class="icon-sm admin-row__icon" icon="@tui.key-round" aria-hidden="true" />
-            <span class="flex-1">Registry credentials</span>
-            <tui-icon
-              class="icon-sm admin-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </a>
-        </app-panel>
-      }
-
-      <app-panel heading="Appearance" [description]="themeHint()">
-        <app-glass-segmented
-          [items]="themeItems"
-          [activeIndex]="themeIndex()"
-          (activeIndexChange)="setThemeByIndex($event)"
-        />
-      </app-panel>
-
-      <app-panel
-        heading="Server"
-        description="The Boreas API this device talks to. Changing it re-runs the connection check."
-      >
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <span class="min-w-0 break-all font-mono text-[0.9375rem] text-secondary">
-            {{ serverUrl() }}
-          </span>
-          <a tuiButton routerLink="/welcome/connect" size="s" appearance="secondary">
-            Change server
-          </a>
-        </div>
-      </app-panel>
-
-      <app-panel heading="About Boreas">
-        <dl class="m-0 grid divide-y divide-border text-[0.9375rem]">
-          @for (item of about; track item.label) {
-            <div class="flex flex-wrap justify-between gap-x-4 py-2.5 first:pt-0 last:pb-0">
-              <dt class="font-medium text-primary">{{ item.label }}</dt>
-              <dd class="m-0 text-secondary">{{ item.value }}</dd>
-            </div>
+      @for (group of navGroups(); track group.label) {
+        <app-inset-group [label]="group.label">
+          @for (link of group.links; track link.route) {
+            <a class="lrow nav-row row-divider relative" [routerLink]="link.route">
+              <tui-icon class="icon-sm nav-row__icon" [icon]="link.icon" aria-hidden="true" />
+              <span class="flex-1">{{ link.label }}</span>
+              <tui-icon
+                class="icon-sm nav-row__chevron"
+                icon="@tui.chevron-right"
+                aria-hidden="true"
+              />
+            </a>
           }
-        </dl>
-      </app-panel>
+        </app-inset-group>
+      }
+
+      <div>
+        <app-inset-group label="Appearance">
+          <div class="theme-row row-divider relative">
+            <app-glass-segmented
+              [items]="themeItems"
+              [activeIndex]="themeIndex()"
+              (activeIndexChange)="setThemeByIndex($event)"
+            />
+          </div>
+        </app-inset-group>
+        <p class="footnote">{{ themeHint() }}</p>
+      </div>
+
+      <div>
+        <app-inset-group label="Server">
+          <div class="lrow row-divider relative">
+            <span class="lrow__label">Address</span>
+            <span class="lrow__value font-mono">{{ serverUrl() }}</span>
+          </div>
+          <a class="lrow nav-row row-divider relative" routerLink="/welcome/connect">
+            <span class="flex-1">Change server</span>
+            <tui-icon
+              class="icon-sm nav-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
+          </a>
+        </app-inset-group>
+        <p class="footnote">The Boreas API this device talks to. Changing it re-runs the check.</p>
+      </div>
+
+      <app-inset-group label="About Boreas">
+        @for (item of about; track item.label) {
+          <div class="lrow row-divider relative">
+            <span class="lrow__label">{{ item.label }}</span>
+            <span class="lrow__value">{{ item.value }}</span>
+          </div>
+        }
+      </app-inset-group>
     </div>
   `,
   styles: `
+    .account {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+    }
+
     .account__avatar {
       display: inline-flex;
       align-items: center;
@@ -178,28 +191,47 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
       white-space: nowrap;
     }
 
-    .admin-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.8125rem 1rem;
+    .nav-row {
       font-size: 1rem;
-      font-weight: 500;
       color: var(--tui-text-primary);
       text-decoration: none;
       transition: background-color var(--tui-duration);
     }
 
-    .admin-row:hover {
+    .nav-row:hover {
       background: var(--tui-background-neutral-1);
     }
 
-    .admin-row__icon {
+    .nav-row__icon,
+    .nav-row__chevron {
       color: var(--tui-text-tertiary);
     }
 
-    .admin-row__chevron {
-      color: var(--tui-text-tertiary);
+    /* Tailwind has no preflight, so reset the native button explicitly. */
+    .action-row {
+      inline-size: 100%;
+      margin: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      font-size: 1.0625rem;
+      font-weight: 500;
+      color: var(--tui-text-negative);
+      text-align: start;
+      cursor: pointer;
+      transition: background-color var(--tui-duration);
+    }
+
+    .action-row:hover {
+      background: var(--tui-background-neutral-1);
+    }
+
+    .theme-row {
+      padding: 0.625rem 1rem;
+    }
+
+    .theme-row app-glass-segmented {
+      inline-size: 100%;
     }
   `,
 })
@@ -212,6 +244,10 @@ export class SettingsPage {
   protected readonly serverUrl = computed(() => this.config.baseUrl());
 
   protected readonly about = ABOUT;
+
+  protected readonly navGroups = computed<readonly NavGroup[]>(() =>
+    this.session.isAdmin() ? [PERSONAL, ADMIN] : [PERSONAL],
+  );
 
   protected readonly themeItems: readonly GlassSegmentedItem[] = THEME_MODES.map((option) => ({
     label: option.label,

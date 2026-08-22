@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiIcon } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -11,7 +11,6 @@ import {
   AlertList,
   EMPTY_ALERT_FILTER,
   ListAlertsStore,
-  ProjectAlert,
   matchesFilter,
 } from '@features/list-alerts';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -24,7 +23,7 @@ import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 interface FilterChip {
-  readonly key: 'project' | 'range' | 'status';
+  readonly key: 'project' | 'range' | 'failures';
   readonly label: string;
 }
 
@@ -106,7 +105,7 @@ interface FilterChip {
             <button type="button" class="empty-link" (click)="clearFilters()">Clear filters</button>
           </app-empty-state>
         } @else {
-          <app-alert-list [alerts]="filtered()" [boundary]="boundary" (opened)="openTask($event)" />
+          <app-alert-list [alerts]="filtered()" [boundary]="boundary" />
         }
       }
     </div>
@@ -175,7 +174,6 @@ interface FilterChip {
 })
 export class AlertsPage {
   protected readonly alerts = inject(ListAlertsStore);
-  private readonly router = inject(Router);
   private readonly dialogs = inject(TuiResponsiveDialogService);
 
   /* Captured before markSeen so this visit still shows which rows are new. */
@@ -188,16 +186,14 @@ export class AlertsPage {
   );
 
   protected readonly chips = computed<readonly FilterChip[]>(() => {
-    const { project, range, status } = this.filter();
+    const { project, range, failuresOnly } = this.filter();
     const chips: FilterChip[] = [];
 
     if (project) chips.push({ key: 'project', label: project });
     if (range) {
       chips.push({ key: 'range', label: `${formatDay(range.from)} – ${formatDay(range.to)}` });
     }
-    if (status !== 'all') {
-      chips.push({ key: 'status', label: status === 'success' ? 'Success' : 'Failures' });
-    }
+    if (failuresOnly) chips.push({ key: 'failures', label: 'Failures only' });
 
     return chips;
   });
@@ -229,16 +225,12 @@ export class AlertsPage {
     this.filter.update((filter) => {
       if (key === 'project') return { ...filter, project: '' };
       if (key === 'range') return { ...filter, range: null };
-      return { ...filter, status: 'all' };
+      return { ...filter, failuresOnly: false };
     });
   }
 
   protected clearFilters(): void {
     this.filter.set(EMPTY_ALERT_FILTER);
-  }
-
-  protected openTask(alert: ProjectAlert): void {
-    void this.router.navigate(['/projects', alert.project, 'tasks', alert.taskName]);
   }
 }
 

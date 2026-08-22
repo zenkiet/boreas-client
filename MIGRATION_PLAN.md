@@ -71,9 +71,10 @@ token-guarded and nests tasks under projects.
   root-provided fan-out store (no global endpoint), day-grouped feed with
   expandable bodies, filter via TuiResponsiveDialogService (tui-sheet-dialog
   on mobile, dialog on desktop; project / date range / status) with live
-  result count and removable chips. Round 2 minimalised rows: one line per
-  alert from structured fields (server title unused), failures alone carry
-  their first error line, unseen = bold instead of a dot.
+  result count and removable chips (status is a single "Failures only"
+  switch). Rows print the API's own title; only a failure adds its body
+  verbatim below, and success rows are inert — no expand, no task link.
+  Unseen = bold instead of a dot.
 - Unseen tracking is client-side (`boreas-alerts-seen`); dock badge dot and
   desktop nav dot come from the same `unseenCount`, loaded by the shell after
   sign-in. `GlassSegmentedItem` gained `dotLabel` so the badge does not

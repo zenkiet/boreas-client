@@ -4,7 +4,7 @@ import { TuiButton, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { EMPTY, defer, from } from 'rxjs';
 
 import { Task } from '@entities/task';
-import { Panel } from '@shared/ui/panel/panel';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 interface DetailRow {
   readonly label: string;
@@ -16,89 +16,59 @@ const COPIED_RESET_MS = 1600;
 
 @Component({
   selector: 'app-task-overview',
-  imports: [Panel, TuiButton, TuiHint, TuiIcon],
+  imports: [InsetGroup, TuiButton, TuiHint, TuiIcon],
   template: `
-    <app-panel heading="Overview">
-      <div class="overview__url">
-        <span class="overview__label">Proxy URL</span>
-        <div class="flex items-center gap-1">
-          <a
-            class="overview__link"
-            rel="noopener"
-            target="_blank"
-            [href]="proxyUrl()"
-            [attr.title]="proxyUrl()"
-          >
-            {{ proxyUrl() }}
-          </a>
-          <button
-            tuiIconButton
-            type="button"
-            size="xs"
-            appearance="flat-grayscale"
-            [tuiHint]="copied() ? 'Copied' : 'Copy URL'"
-            aria-label="Copy proxy URL"
-            (click)="copyUrl()"
-          >
-            <tui-icon class="icon-sm" [icon]="copied() ? '@tui.check' : '@tui.copy'" />
-          </button>
-        </div>
+    <app-inset-group label="Overview">
+      <div class="lrow row-divider relative">
+        <span class="lrow__label">Proxy URL</span>
+        <a
+          class="lrow__link"
+          rel="noopener"
+          target="_blank"
+          [href]="proxyUrl()"
+          [attr.title]="proxyUrl()"
+        >
+          {{ proxyUrl() }}
+        </a>
+        <button
+          tuiIconButton
+          type="button"
+          size="xs"
+          appearance="flat-grayscale"
+          [tuiHint]="copied() ? 'Copied' : 'Copy URL'"
+          aria-label="Copy proxy URL"
+          (click)="copyUrl()"
+        >
+          <tui-icon class="icon-sm" [icon]="copied() ? '@tui.check' : '@tui.copy'" />
+        </button>
       </div>
 
-      <dl class="overview__rows">
-        @for (row of rows(); track row.label) {
-          <div>
-            <dt class="overview__label">{{ row.label }}</dt>
-            <dd class="overview__value" [class.font-mono]="row.mono">{{ row.value }}</dd>
-          </div>
-        }
-      </dl>
-    </app-panel>
+      @for (row of rows(); track row.label) {
+        <div class="lrow row-divider relative">
+          <span class="lrow__label">{{ row.label }}</span>
+          <span class="lrow__value" [class.font-mono]="row.mono">{{ row.value }}</span>
+        </div>
+      }
+    </app-inset-group>
   `,
   styles: `
-    .overview__url {
-      display: grid;
-      gap: 0.25rem;
-      padding-block-end: 1rem;
-      border-block-end: 1px solid var(--tui-border-normal);
-    }
-
-    .overview__link {
+    /* Without flex+min-size the nowrap link refuses to shrink and shoves the copy button
+       outside the group, which put it out of reach entirely at 375px. */
+    .lrow__link {
+      flex: 1;
       min-inline-size: 0;
       overflow: hidden;
       font-family: var(--app-font-mono);
       font-size: 0.9375rem;
       color: var(--tui-text-action);
+      text-align: end;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .overview__link:hover {
+    .lrow__link:hover {
       text-decoration: underline;
       text-underline-offset: 0.125rem;
-    }
-
-    .overview__rows {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.875rem 1rem;
-      margin: 0;
-    }
-
-    .overview__label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.055em;
-      text-transform: uppercase;
-      color: var(--tui-text-tertiary);
-    }
-
-    .overview__value {
-      margin: 0;
-      margin-block-start: 0.125rem;
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
-      overflow-wrap: anywhere;
     }
   `,
 })
