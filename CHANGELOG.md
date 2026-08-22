@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.4.0](https://github.com/zenkiet/boreas-client/compare/v0.3.1...v0.4.0) (2026-08-22)
+
+### Features
+
+* ✨ implement alert page ([9b387c0](https://github.com/zenkiet/boreas-client/commit/9b387c0ef63e2363340c3a3e5d215af63f412377))
+
 ## [0.3.1](https://github.com/zenkiet/boreas-client/compare/v0.3.0...v0.3.1) (2026-08-21)
 
 # [0.3.0](https://github.com/zenkiet/boreas-client/compare/v0.2.0...v0.3.0) (2026-08-20)
