@@ -29,7 +29,7 @@ import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 import { TaskOverview } from '@widgets/task-overview';
 
-const VIEWS = ['logs', 'environment', 'info'] as const;
+const VIEWS = ['info', 'environment', 'logs'] as const;
 
 type View = (typeof VIEWS)[number];
 
@@ -272,40 +272,48 @@ type View = (typeof VIEWS)[number];
               (activeIndexChange)="setEnvMode($event)"
             />
 
-            <div class="detail__card" [class.hidden]="envMode() !== 'list'">
-              <app-environment-list
-                [environment]="detail.environment()"
-                (copyFailed)="reportValueCopyFailure()"
-              />
+            <div [class.hidden]="envMode() !== 'list'">
+              <app-inset-group>
+                <div class="detail__pad">
+                  <app-environment-list
+                    [environment]="detail.environment()"
+                    (copyFailed)="reportValueCopyFailure()"
+                  />
+                </div>
+              </app-inset-group>
             </div>
 
-            <div class="detail__card grid grid-cols-1 gap-4" [class.hidden]="envMode() !== 'raw'">
-              <app-environment-editor
-                [environment]="detail.environment()"
-                [resetKey]="environmentResetKey()"
-                (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
-                (errorsChange)="environmentErrors.set($event)"
-              />
+            <div [class.hidden]="envMode() !== 'raw'">
+              <app-inset-group>
+                <div class="detail__pad">
+                  <app-environment-editor
+                    [environment]="detail.environment()"
+                    [resetKey]="environmentResetKey()"
+                    (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
+                    (errorsChange)="environmentErrors.set($event)"
+                  />
+                </div>
 
-              <div class="flex justify-end border-t border-border pt-4">
-                <button
-                  tuiButton
-                  type="button"
-                  size="m"
-                  appearance="primary"
-                  [disabled]="
-                    !environmentDirty() ||
-                    detail.savingEnvironment() ||
-                    environmentErrors().length > 0
-                  "
-                  (click)="applyEnvironment()"
-                >
-                  @if (detail.savingEnvironment()) {
-                    <tui-loader size="s" [inheritColor]="true" />
-                  }
-                  Apply environment
-                </button>
-              </div>
+                <div class="detail__apply row-divider relative">
+                  <button
+                    tuiButton
+                    type="button"
+                    size="m"
+                    appearance="primary"
+                    [disabled]="
+                      !environmentDirty() ||
+                      detail.savingEnvironment() ||
+                      environmentErrors().length > 0
+                    "
+                    (click)="applyEnvironment()"
+                  >
+                    @if (detail.savingEnvironment()) {
+                      <tui-loader size="s" [inheritColor]="true" />
+                    }
+                    Apply environment
+                  </button>
+                </div>
+              </app-inset-group>
             </div>
           </div>
 
@@ -429,12 +437,14 @@ type View = (typeof VIEWS)[number];
       }
     }
 
-    .detail__card {
-      border: 1px solid var(--tui-border-normal);
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-base);
-      box-shadow: var(--app-shadow-panel);
+    .detail__pad {
       padding: 0.875rem 1rem;
+    }
+
+    .detail__apply {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0.75rem 1rem;
     }
   `,
 })
@@ -461,7 +471,7 @@ export class TaskDetailPage {
   protected readonly projectLink = computed(() => ['/projects', this.slug()]);
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
-  protected readonly view = signal<View>('logs');
+  protected readonly view = signal<View>('info');
   protected readonly viewIndex = computed(() => VIEWS.indexOf(this.view()));
   protected readonly menuOpen = signal(false);
 
@@ -469,9 +479,9 @@ export class TaskDetailPage {
   protected readonly envModeIndex = computed(() => (this.envMode() === 'raw' ? 0 : 1));
 
   protected readonly viewItems = computed<readonly GlassSegmentedItem[]>(() => [
-    { label: 'Logs' },
-    { label: 'Environment', dot: this.environmentDirty() },
     { label: 'Info' },
+    { label: 'Environment', dot: this.environmentDirty() },
+    { label: 'Logs' },
   ]);
 
   protected readonly envItems = computed<readonly GlassSegmentedItem[]>(() => [

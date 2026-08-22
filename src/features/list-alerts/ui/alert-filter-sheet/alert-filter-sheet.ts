@@ -4,9 +4,9 @@ import { TuiButton, TuiDialogContext, TuiIcon } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
 
 import { DateRangePickerService } from '@shared/ui/date-range-picker/date-range-picker.service';
-import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
 import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
-import { AlertFilter, AlertStatusFilter, matchesFilter } from '../../model/alert-filter';
+import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
+import { AlertFilter, matchesFilter } from '../../model/alert-filter';
 import { ProjectAlert } from '../../model/list-alerts.store';
 
 export interface AlertFilterSheetData {
@@ -15,14 +15,12 @@ export interface AlertFilterSheetData {
   readonly value: AlertFilter;
 }
 
-const STATUSES: readonly AlertStatusFilter[] = ['all', 'success', 'failure'];
-
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Opened through TuiResponsiveDialogService: a sheet on mobile, a dialog on desktop. */
 @Component({
   selector: 'app-alert-filter-sheet',
-  imports: [GlassSegmented, GlassSelect, TuiButton, TuiIcon],
+  imports: [GlassSelect, GlassSwitch, TuiButton, TuiIcon],
   template: `
     <div class="head">
       <h2 class="head__title">Filters</h2>
@@ -74,14 +72,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
         }
       </button>
 
-      <div class="frow row-divider relative">
-        <span class="frow__label">Status</span>
-        <app-glass-segmented
-          class="status"
-          [items]="statusItems"
-          [activeIndex]="statusIndex()"
-          (activeIndexChange)="setStatus($event)"
-        />
+      <div class="frow frow--inline row-divider relative">
+        <span class="frow__inline-label">Failures only</span>
+        <button
+          appGlassSwitch
+          aria-label="Failures only"
+          [checked]="failuresOnly()"
+          (checkedChange)="failuresOnly.set($event)"
+        ></button>
       </div>
     </div>
 
@@ -155,11 +153,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
       cursor: pointer;
     }
 
-    .status {
-      inline-size: 100%;
-      margin-block: 0.375rem 0.25rem;
-    }
-
     .apply {
       inline-size: 100%;
       margin-block-start: 0.875rem;
@@ -173,15 +166,7 @@ export class AlertFilterSheet {
 
   protected readonly project = signal(this.context.data.value.project);
   protected readonly range = signal(this.context.data.value.range);
-  protected readonly status = signal(this.context.data.value.status);
-
-  protected readonly statusItems: readonly GlassSegmentedItem[] = [
-    { label: 'All' },
-    { label: 'Success' },
-    { label: 'Failures' },
-  ];
-
-  protected readonly statusIndex = computed(() => STATUSES.indexOf(this.status()));
+  protected readonly failuresOnly = signal(this.context.data.value.failuresOnly);
 
   protected readonly projectOptions = computed<readonly GlassSelectOption[]>(() => [
     { value: '', label: 'All projects' },
@@ -189,14 +174,14 @@ export class AlertFilterSheet {
   ]);
 
   protected readonly pristine = computed(
-    () => !this.project() && !this.range() && this.status() === 'all',
+    () => !this.project() && !this.range() && !this.failuresOnly(),
   );
 
   protected readonly count = computed(() => {
     const draft: AlertFilter = {
       project: this.project(),
       range: this.range(),
-      status: this.status(),
+      failuresOnly: this.failuresOnly(),
     };
     return this.context.data.alerts.filter((alert) => matchesFilter(alert, draft)).length;
   });
@@ -206,10 +191,6 @@ export class AlertFilterSheet {
     if (!range) return 'Any time';
     return `${format(range.from)} – ${format(range.to)}`;
   });
-
-  protected setStatus(index: number): void {
-    this.status.set(STATUSES[index] ?? 'all');
-  }
 
   protected pickRange(): void {
     const today = TuiDay.currentLocal();
@@ -228,14 +209,14 @@ export class AlertFilterSheet {
   protected reset(): void {
     this.project.set('');
     this.range.set(null);
-    this.status.set('all');
+    this.failuresOnly.set(false);
   }
 
   protected apply(): void {
     this.context.completeWith({
       project: this.project(),
       range: this.range(),
-      status: this.status(),
+      failuresOnly: this.failuresOnly(),
     });
   }
 }

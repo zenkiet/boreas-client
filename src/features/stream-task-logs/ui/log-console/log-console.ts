@@ -12,7 +12,7 @@ import {
 import { TuiButton, TuiIcon, TuiLoader, TuiTextfield } from '@taiga-ui/core';
 
 import { LogEntry } from '@entities/task-log';
-import { Panel } from '@shared/ui/panel/panel';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 let instances = 0;
 
@@ -20,29 +20,11 @@ const FOLLOW_THRESHOLD = 24;
 
 @Component({
   selector: 'app-log-console',
-  imports: [Panel, SlicePipe, TuiButton, TuiIcon, TuiLoader, TuiTextfield],
+  imports: [InsetGroup, SlicePipe, TuiButton, TuiIcon, TuiLoader, TuiTextfield],
   template: `
-    <app-panel heading="Live logs" [flush]="true">
-      <!-- A plain download href cannot carry the bearer token, so the page fetches. -->
-      <button
-        panelActions
-        tuiButton
-        type="button"
-        size="s"
-        appearance="secondary"
-        [disabled]="downloading()"
-        (click)="downloadRequested.emit()"
-      >
-        <tui-icon class="icon-sm" icon="@tui.download" />
-        Download
-      </button>
-
-      <div class="logs__toolbar">
-        <tui-textfield
-          tuiTextfieldSize="s"
-          iconStart="@tui.search"
-          class="min-w-0 flex-1 md:max-w-[20rem]"
-        >
+    <app-inset-group label="Live logs" [trailing]="countLabel()">
+      <div class="toolbar row-divider relative">
+        <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search" class="min-w-0 flex-1">
           <input
             tuiInput
             type="search"
@@ -55,12 +37,23 @@ const FOLLOW_THRESHOLD = 24;
           />
         </tui-textfield>
 
-        <p class="logs__count tabular">{{ countLabel() }}</p>
+        <button
+          tuiButton
+          type="button"
+          size="s"
+          appearance="secondary"
+          [attr.aria-pressed]="wrap()"
+          (click)="wrap.set(!wrap())"
+        >
+          <tui-icon class="icon-sm" icon="@tui.wrap-text" />
+          {{ wrap() ? 'Wrap on' : 'Wrap off' }}
+        </button>
       </div>
 
       <div
         #body
-        class="logs__body"
+        class="logs"
+        [class.logs--wrap]="wrap()"
         role="log"
         aria-live="polite"
         aria-label="Task logs"
@@ -89,37 +82,39 @@ const FOLLOW_THRESHOLD = 24;
           @for (entry of visibleEntries(); track $index) {
             <p class="logs__line" [attr.data-stream]="entry.stream">
               <span class="logs__time">{{ entry.timestamp | slice: 11 : 19 }}</span>
-              <span class="logs__stream">{{ entry.stream }}</span>
+              <!-- Colour carries the stream visually, so the name is left for screen readers. -->
+              <span class="sr-only">{{ entry.stream }}</span>
               <span class="logs__message">{{ entry.message }}</span>
             </p>
           }
         }
       </div>
-    </app-panel>
+
+      <!-- A plain download href cannot carry the bearer token, so the page fetches. -->
+      <button
+        type="button"
+        class="logs__action row-divider relative"
+        [disabled]="downloading()"
+        (click)="downloadRequested.emit()"
+      >
+        <tui-icon class="icon-sm" icon="@tui.download" />
+        Download logs
+      </button>
+    </app-inset-group>
   `,
   styles: `
-    .logs__toolbar {
+    .toolbar {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.625rem 0.875rem;
-      border-block-end: 1px solid var(--tui-border-normal);
+      padding: 0.5rem 0.75rem;
     }
 
-    .logs__count {
-      margin: 0;
-      margin-inline-start: auto;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-      white-space: nowrap;
-    }
-
-    .logs__body {
+    .logs {
       min-block-size: var(--console-min, 18rem);
       max-block-size: var(--console-max, 32rem);
       overflow: auto;
-      padding: 0.625rem 0;
+      padding-block: 0.5rem;
       background: var(--app-code-bg);
       font-family: var(--app-font-mono);
       font-size: 0.8125rem;
@@ -127,15 +122,15 @@ const FOLLOW_THRESHOLD = 24;
       overscroll-behavior: contain;
     }
 
+    /* One entry, one line: long lines scroll sideways instead of wrapping into a paragraph. */
     .logs__line {
-      display: grid;
-      grid-template-columns: auto auto minmax(0, 1fr);
+      display: flex;
       gap: 0.75rem;
+      inline-size: max-content;
+      min-inline-size: 100%;
       margin: 0;
       padding: 0.0625rem 0.875rem;
-      border-inline-start: 2px solid transparent;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      white-space: pre;
       color: var(--tui-text-primary);
     }
 
@@ -143,26 +138,56 @@ const FOLLOW_THRESHOLD = 24;
       background: var(--tui-background-neutral-1);
     }
 
-    /* Marker only: nginx et al. write everything to stderr — tinting every line marks nothing. */
     .logs__line[data-stream='stderr'] {
-      border-inline-start-color: var(--tui-status-negative);
+      background: var(--tui-status-negative-pale);
     }
 
-    .logs__time,
-    .logs__stream {
+    .logs__line[data-stream='stderr']:hover {
+      background: var(--tui-status-negative-pale-hover);
+    }
+
+    .logs__time {
+      flex: none;
       color: var(--tui-text-tertiary);
       user-select: none;
     }
 
-    .logs__line[data-stream='stderr'] .logs__time,
-    .logs__line[data-stream='stderr'] .logs__stream {
-      color: var(--tui-status-negative);
+    .logs--wrap .logs__line {
+      inline-size: auto;
+      min-inline-size: 0;
+      white-space: pre-wrap;
     }
 
-    .logs__stream {
-      inline-size: 3rem;
-      font-size: 0.75rem;
-      text-transform: uppercase;
+    .logs--wrap .logs__message {
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+    }
+
+    /* Tailwind has no preflight, so reset the native button explicitly. */
+    .logs__action {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      inline-size: 100%;
+      margin: 0;
+      border: 0;
+      padding: 0.6875rem 1rem;
+      background: none;
+      font: inherit;
+      font-size: 1.0625rem;
+      font-weight: 500;
+      color: var(--tui-text-action);
+      cursor: pointer;
+      transition: background-color var(--tui-duration);
+    }
+
+    .logs__action:hover {
+      background: var(--tui-background-neutral-1);
+    }
+
+    .logs__action:disabled {
+      opacity: 0.5;
+      pointer-events: none;
     }
 
     .logs__empty {
@@ -180,16 +205,6 @@ const FOLLOW_THRESHOLD = 24;
       align-items: center;
       gap: 0.75rem;
     }
-
-    @media (max-width: 47.99rem) {
-      .logs__line {
-        grid-template-columns: auto minmax(0, 1fr);
-      }
-
-      .logs__stream {
-        display: none;
-      }
-    }
   `,
 })
 export class LogConsole {
@@ -204,6 +219,7 @@ export class LogConsole {
 
   protected readonly filterId = `${this.uid}-filter`;
   protected readonly query = signal('');
+  protected readonly wrap = signal(false);
 
   private readonly follow = signal(true);
 

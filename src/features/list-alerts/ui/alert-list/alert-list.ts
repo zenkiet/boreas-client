@@ -1,5 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
-import { TuiIcon } from '@taiga-ui/core';
+import { Component, computed, input } from '@angular/core';
 
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { ProjectAlert } from '../../model/list-alerts.store';
@@ -12,49 +11,28 @@ interface AlertGroup {
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
 
-/* Failure bodies open with the image ref the caller already knows; the message follows it. */
-const IMAGE_REF_PREFIX = /^\S+@sha256:[0-9a-f]{64}:\s*/i;
-
 @Component({
   selector: 'app-alert-list',
-  imports: [InsetGroup, TuiIcon],
+  imports: [InsetGroup],
   template: `
     @for (group of groups(); track group.label) {
       <app-inset-group [label]="group.label" [trailing]="failedLabel(group)">
         @for (alert of group.items; track alert.id) {
           <div class="alert row-divider relative">
-            <button
-              type="button"
-              class="alert__row"
-              [attr.aria-expanded]="expanded().has(alert.id)"
-              (click)="toggle(alert.id)"
-            >
+            <div class="alert__row">
               <span class="alert__dot" [attr.data-status]="alert.status" aria-hidden="true"></span>
-              <span class="sr-only">
-                {{ alert.status === 'failure' ? 'Deploy failed:' : 'Deployed:' }}
-              </span>
-              <span class="alert__main">
-                <span
-                  class="alert__path"
-                  [class.alert__path--new]="alert.createdAt.getTime() > boundary()"
-                >
-                  {{ alert.project }}/{{ alert.taskName }}
-                </span>
-                @if (alert.status === 'failure' && alert.body && !expanded().has(alert.id)) {
-                  <span class="alert__error">{{ errorLine(alert.body) }}</span>
-                }
+              <span
+                class="alert__title"
+                [class.alert__title--new]="alert.createdAt.getTime() > boundary()"
+              >
+                {{ alert.title }}
               </span>
               <span class="alert__time tabular">{{ timeLabel(alert.createdAt) }}</span>
-            </button>
+            </div>
 
-            @if (expanded().has(alert.id)) {
-              @if (alert.body) {
-                <pre class="alert__body">{{ alert.body }}</pre>
-              }
-              <button type="button" class="alert__open" (click)="opened.emit(alert)">
-                Open {{ alert.project }}/{{ alert.taskName }}
-                <tui-icon class="icon-sm" icon="@tui.arrow-up-right" />
-              </button>
+            <!-- A success carries only the digest it shipped; a failure carries the reason. -->
+            @if (alert.status === 'failure' && alert.body) {
+              <pre class="alert__body">{{ alert.body }}</pre>
             }
           </div>
         }
@@ -67,26 +45,11 @@ const IMAGE_REF_PREFIX = /^\S+@sha256:[0-9a-f]{64}:\s*/i;
       gap: 0.875rem;
     }
 
-    /* Tailwind has no preflight, so reset the native button explicitly. */
     .alert__row {
       display: flex;
       align-items: flex-start;
       gap: 0.625rem;
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
       padding: 0.75rem 1rem;
-      background: none;
-      font: inherit;
-      color: inherit;
-      text-align: start;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background-color var(--tui-duration);
-    }
-
-    .alert__row:hover {
-      background: var(--tui-background-neutral-1);
     }
 
     /* Optically centered against the first text line. */
@@ -106,14 +69,9 @@ const IMAGE_REF_PREFIX = /^\S+@sha256:[0-9a-f]{64}:\s*/i;
       background: var(--tui-status-negative);
     }
 
-    .alert__main {
-      display: grid;
+    .alert__title {
       flex: 1;
-      gap: 0.1875rem;
       min-inline-size: 0;
-    }
-
-    .alert__path {
       overflow: hidden;
       font-family: var(--app-font-mono);
       font-size: 0.875rem;
@@ -124,18 +82,9 @@ const IMAGE_REF_PREFIX = /^\S+@sha256:[0-9a-f]{64}:\s*/i;
     }
 
     /* Unseen reads as weight, iOS Mail style, instead of one more dot. */
-    .alert__path--new {
+    .alert__title--new {
       font-weight: 650;
       color: var(--tui-text-primary);
-    }
-
-    .alert__error {
-      overflow: hidden;
-      font-family: var(--app-font-mono);
-      font-size: 0.75rem;
-      color: var(--tui-text-negative);
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     .alert__time {
@@ -146,31 +95,16 @@ const IMAGE_REF_PREFIX = /^\S+@sha256:[0-9a-f]{64}:\s*/i;
     }
 
     .alert__body {
-      margin: 0 1rem 0.625rem;
+      margin: 0 1rem 0.75rem 1.9375rem;
       border-radius: var(--tui-radius-m);
-      padding: 0.625rem 0.75rem;
+      padding: 0.5rem 0.625rem;
       background: var(--tui-background-neutral-1);
       font-family: var(--app-font-mono);
       font-size: 0.75rem;
-      line-height: 1.6;
-      color: var(--tui-text-secondary);
+      line-height: 1.55;
+      color: var(--tui-text-negative);
       white-space: pre-wrap;
       word-break: break-word;
-    }
-
-    .alert__open {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.375rem;
-      margin: 0 1rem 0.75rem;
-      border: 0;
-      padding: 0;
-      background: none;
-      font: inherit;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--tui-text-action);
-      cursor: pointer;
     }
   `,
 })
@@ -178,9 +112,6 @@ export class AlertList {
   readonly alerts = input.required<readonly ProjectAlert[]>();
   /** Rows created after this timestamp render as unseen. */
   readonly boundary = input(0);
-  readonly opened = output<ProjectAlert>();
-
-  protected readonly expanded = signal<ReadonlySet<string>>(new Set());
 
   protected readonly groups = computed<readonly AlertGroup[]>(() => {
     const groups: AlertGroup[] = [];
@@ -205,19 +136,6 @@ export class AlertList {
   protected failedLabel(group: AlertGroup): string {
     const failed = group.items.filter((alert) => alert.status === 'failure').length;
     return failed ? `${failed} failed` : '';
-  }
-
-  protected toggle(id: string): void {
-    this.expanded.update((ids) => {
-      const next = new Set(ids);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
-  }
-
-  protected errorLine(body: string): string {
-    const line = body.split('\n', 1)[0];
-    return line.replace(IMAGE_REF_PREFIX, '') || line;
   }
 
   protected timeLabel(date: Date): string {
