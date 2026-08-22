@@ -34,14 +34,9 @@ export const routes: Routes = [
   },
   {
     path: 'notifications',
-    title: 'Notifications | Boreas',
+    title: 'Alerts | Boreas',
     canActivate: guards,
-    data: {
-      icon: '@tui.bell',
-      description: 'Realtime alerts for your tasks are on the way. Check back in a future update.',
-    },
-    loadComponent: () =>
-      import('@pages/coming-soon/coming-soon-page').then(({ ComingSoonPage }) => ComingSoonPage),
+    loadComponent: () => import('@pages/alerts/alerts-page').then(({ AlertsPage }) => AlertsPage),
   },
   {
     path: 'settings',

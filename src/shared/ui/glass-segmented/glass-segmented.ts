@@ -16,6 +16,7 @@ export interface GlassSegmentedItem {
   readonly label: string;
   readonly icon?: string;
   readonly dot?: boolean;
+  readonly dotLabel?: string;
 }
 
 @Component({
@@ -46,7 +47,7 @@ export interface GlassSegmentedItem {
         }
         <span class="segment__label">{{ item.label }}</span>
         @if (item.dot) {
-          <span class="dot" aria-label="Unsaved changes"></span>
+          <span class="dot" [attr.aria-label]="item.dotLabel ?? 'Unsaved changes'"></span>
         }
       </button>
     }
