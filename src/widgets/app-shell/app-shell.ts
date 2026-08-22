@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import {
@@ -11,6 +11,8 @@ import {
 import { TUI_BREAKPOINT, TuiButton, TuiIcon } from '@taiga-ui/core';
 import { filter, map } from 'rxjs';
 
+import { ListAlertsStore } from '@features/list-alerts';
+import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { PullToRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
@@ -71,6 +73,9 @@ const THEME_ICON: Record<ThemeMode, string> = {
                 [attr.aria-current]="activeTab() === $index ? 'page' : null"
               >
                 {{ item.label }}
+                @if (item.link === '/notifications' && alertsUnseen()) {
+                  <span class="shell__nav-dot" aria-label="New alerts"></span>
+                }
               </a>
             }
           </nav>
@@ -104,7 +109,7 @@ const THEME_ICON: Record<ThemeMode, string> = {
         [class.app-shell__dock--min]="minimized()"
       >
         <app-glass-segmented
-          [items]="dockItems"
+          [items]="dockItems()"
           [stacked]="true"
           [activeIndex]="activeTab()"
           (activeIndexChange)="openTab($event)"
@@ -172,9 +177,17 @@ const THEME_ICON: Record<ThemeMode, string> = {
       block-size: 1.75rem;
     }
 
+    .shell__nav-dot {
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      border-radius: 999px;
+      background: var(--tui-background-accent-1);
+    }
+
     .shell__nav-item {
       display: inline-flex;
       align-items: center;
+      gap: 0.375rem;
       block-size: 1.875rem;
       padding-inline: 0.625rem;
       border-radius: var(--tui-radius-s);
@@ -235,6 +248,11 @@ export class AppShell {
     return `${base} ${this.pushedPage() ? 'pb-6' : 'pb-20'}`;
   });
 
+  private readonly alerts = inject(ListAlertsStore);
+  private readonly tokens = inject(AuthTokenStore);
+
+  protected readonly alertsUnseen = computed(() => this.alerts.unseenCount() > 0);
+
   protected readonly navItems: readonly NavItem[] = [
     { label: 'Home', link: '/projects', icon: '@tui.house' },
     { label: 'Search', link: '/search', icon: '@tui.search' },
@@ -242,10 +260,14 @@ export class AppShell {
     { label: 'Settings', link: '/settings', icon: '@tui.settings-2' },
   ];
 
-  protected readonly dockItems: readonly GlassSegmentedItem[] = this.navItems.map((item) => ({
-    label: item.label,
-    icon: item.icon,
-  }));
+  protected readonly dockItems = computed<readonly GlassSegmentedItem[]>(() =>
+    this.navItems.map((item) => ({
+      label: item.label,
+      icon: item.icon,
+      dot: item.link === '/notifications' && this.alertsUnseen(),
+      dotLabel: 'New alerts',
+    })),
+  );
 
   protected readonly activeTab = computed(() => {
     const index = this.navItems.findIndex((item, i) => i > 0 && this.url().startsWith(item.link));
@@ -254,6 +276,10 @@ export class AppShell {
 
   protected readonly minimized = signal(false);
   private lastScrollY = 0;
+
+  private readonly badgeLoader = effect(() => {
+    if (this.tokens.authenticated()) this.alerts.ensureFresh();
+  });
 
   private readonly scrollListener = afterNextRender(() => {
     const view = this.document.defaultView;
