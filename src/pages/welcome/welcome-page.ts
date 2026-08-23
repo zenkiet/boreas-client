@@ -6,76 +6,48 @@ import {
   computed,
   effect,
   inject,
-  signal,
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormField, form, pattern, required, submit } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiError, TuiIcon, TuiLoader, TuiTextfield } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { gsap } from 'gsap';
-import { EMPTY, defaultIfEmpty, switchMap } from 'rxjs';
 
-import { ConnectFailedDialog, ConnectServerStore } from '@features/connect-server';
+import { ChangeServerSheet } from '@features/connect-server';
 import { OnboardingHero } from '@features/onboarding';
+import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { WelcomeSeenStore } from '@shared/api/welcome-seen.store';
+import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
-const URL_PATTERN = /^https?:\/\/\S+$/i;
 const STEPS = [0, 1, 2] as const;
 const LAST = STEPS.length - 1;
 const HERO_SCALE = 0.6;
 // A fast flick advances before the distance threshold is reached, measured in px/ms.
 const FLICK = 0.5;
 
-const FEATURES = [
-  {
-    icon: '@tui.play',
-    title: 'Lifecycle control',
-    detail: 'Start, stop, restart and delete environments.',
-  },
-  {
-    icon: '@tui.terminal',
-    title: 'Live logs',
-    detail: 'Stream, filter and download container output.',
-  },
-  {
-    icon: '@tui.file-text',
-    title: 'Environment as .env',
-    detail: 'Paste or import a file, apply with a recreate.',
-  },
-] as const;
-
 @Component({
   selector: 'app-welcome-page',
-  imports: [
-    FormField,
-    InsetGroup,
-    OnboardingHero,
-    Reveal,
-    TuiError,
-    TuiIcon,
-    TuiLoader,
-    TuiTextfield,
-  ],
-  providers: [ConnectServerStore],
+  imports: [OnboardingHero, Reveal],
   template: `
     <div class="flow">
       <div #hero class="flow__hero">
         <div appReveal class="flow__hero-content">
           <app-onboarding-hero />
-          <h1 class="flow__brand">Boreas</h1>
         </div>
-        <p
+        <div
           #tagline
           class="flow__tagline"
           [class.flow__tagline--hidden]="step() !== 0"
           [attr.aria-hidden]="step() === 0 ? null : true"
         >
-          Spin up isolated Docker environments, each with its own proxy URL.
-        </p>
+          <h1 class="flow__title flow__title--hero">Every branch,<br />its own URL.</h1>
+          <p class="flow__sub">
+            Boreas runs each task in an isolated container and serves it at /project/task/ — ready
+            before the coffee is.
+          </p>
+        </div>
       </div>
 
       <div
@@ -89,43 +61,42 @@ const FEATURES = [
           <section class="flow__step" [inert]="step() !== 0"></section>
 
           <section class="flow__step" [inert]="step() !== 1">
-            <h2 class="flow__title">Run it all from one place</h2>
-            <app-inset-group>
-              @for (feature of features; track feature.title) {
-                <div class="flow__row row-divider relative">
-                  <tui-icon class="flow__icon icon-sm" [icon]="feature.icon" aria-hidden="true" />
-                  <div class="min-w-0">
-                    <div class="flow__name">{{ feature.title }}</div>
-                    <div class="flow__detail">{{ feature.detail }}</div>
-                  </div>
-                </div>
-              }
-            </app-inset-group>
+            <h2 class="flow__title">Deploy from CI,<br />not from a laptop</h2>
+            <p class="flow__sub flow__sub--start">
+              One API token, one call. The exact image your pipeline built is the one that runs.
+            </p>
+            <div class="mini">
+              <pre class="mini__code" aria-hidden="true">
+curl -X POST …/tasks/web/deploy \\
+  -d '&#123;"image":"ghcr.io/acme/web@sha256:…"&#125;'</pre>
+              <div class="mini__row" aria-hidden="true">
+                <span class="mini__dot"></span>
+                <span class="font-mono mini__deployed">Deployed: acme/web</span>
+                <span class="mini__when">now</span>
+              </div>
+            </div>
           </section>
 
           <section class="flow__step" [inert]="step() !== 2">
-            <form #connectForm id="connect-form" novalidate (submit)="onSubmit($event)">
-              <h2 class="flow__title">Connect to your server</h2>
-              <p class="flow__hint">Where is the Boreas API running?</p>
-
-              <div class="grid gap-1.5">
-                <label class="flow__label" for="server-url">Server address</label>
-                <tui-textfield tuiTextfieldSize="m" [tuiTextfieldCleaner]="false">
-                  <input
-                    #address
-                    tuiInput
-                    id="server-url"
-                    type="url"
-                    autocomplete="url"
-                    spellcheck="false"
-                    class="font-mono!"
-                    placeholder="http://127.0.0.1:8080"
-                    [formField]="draft.url"
-                  />
-                </tui-textfield>
-                <tui-error [error]="urlError()" />
+            <h2 class="flow__title">Logs, alerts,<br />and glass</h2>
+            <p class="flow__sub flow__sub--start">
+              Live logs stream in, deploys land in Alerts, and the whole thing wears Liquid Glass.
+            </p>
+            <div class="mini mini--lit" aria-hidden="true">
+              <div class="mini__row font-mono">
+                <span class="mini__time">16:12:44</span>
+                <span>GET / 200</span>
               </div>
-            </form>
+              <div class="mini__row mini__row--err font-mono">
+                <span class="mini__time">16:12:45</span>
+                <span>open() failed</span>
+              </div>
+              <div class="mini__dock">
+                <span class="mini__tab mini__tab--on">Home</span>
+                <span class="mini__tab">Search</span>
+                <span class="mini__tab">Alerts</span>
+              </div>
+            </div>
           </section>
         </div>
       </div>
@@ -138,18 +109,19 @@ const FEATURES = [
           }
         </div>
 
+        <button type="button" class="glass-button glass-button--pill" (click)="signIn()">
+          Sign in
+        </button>
+        <!-- Hidden (not removed) off the hero so the footer never changes height mid-swipe. -->
         <button
           type="button"
-          class="glass-button glass-button--pill"
-          [disabled]="connection.checking()"
-          (click)="next()"
+          class="flow__ghost"
+          [class.flow__ghost--hidden]="step() !== 0"
+          [attr.aria-hidden]="step() === 0 ? null : true"
+          [tabindex]="step() === 0 ? null : -1"
+          (click)="changeServer()"
         >
-          @if (step() === 2 && connection.checking()) {
-            <tui-loader size="s" [inheritColor]="true" />
-            Checking
-          } @else {
-            {{ step() === 2 ? 'Connect' : 'Continue' }}
-          }
+          Use a different server
         </button>
       </div>
     </div>
@@ -179,14 +151,6 @@ const FEATURES = [
       align-items: center;
     }
 
-    .flow__brand {
-      margin: 0;
-      font-size: 2.125rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      color: var(--tui-text-primary);
-    }
-
     .flow__viewport {
       flex: 1;
       min-block-size: 0;
@@ -213,15 +177,11 @@ const FEATURES = [
 
     .flow__tagline {
       position: absolute;
-      inset-block-start: calc(100% + 0.75rem);
+      inset-block-start: calc(100% - 0.25rem);
       inset-inline: 1.5rem;
-      margin: 0;
-      max-inline-size: 16rem;
-      margin-inline: auto;
-      font-size: 1.0625rem;
-      line-height: 1.55;
+      display: grid;
+      gap: 0.875rem;
       text-align: center;
-      color: var(--tui-text-secondary);
     }
 
     .flow__tagline--hidden {
@@ -233,51 +193,122 @@ const FEATURES = [
       margin: 0;
       font-size: 1.375rem;
       font-weight: 700;
-      line-height: 1.25;
+      line-height: 1.2;
       letter-spacing: -0.02em;
       color: var(--tui-text-primary);
     }
 
-    .flow__hint {
-      margin: -0.375rem 0 0;
+    .flow__title--hero {
+      font-size: 2rem;
+      letter-spacing: -0.03em;
+    }
+
+    .flow__sub {
+      margin: 0;
+      max-inline-size: 17.5rem;
       font-size: 0.9375rem;
+      line-height: 1.55;
       color: var(--tui-text-secondary);
     }
 
-    .flow__label {
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--tui-text-tertiary);
-      padding-inline-start: 0.25rem;
+    .flow__tagline .flow__sub {
+      margin-inline: auto;
     }
 
-    #connect-form {
+    .flow__sub--start {
+      margin-block-end: 0.375rem;
+    }
+
+    /* Miniature of the real product: a terminal call and the alert row it produces. */
+    .mini {
       display: grid;
-      gap: 1rem;
+      gap: 0.5rem;
+      border-radius: 1.125rem;
+      padding: 0.875rem;
+      background: var(--tui-background-neutral-1);
     }
 
-    .flow__row {
+    .mini--lit {
+      background:
+        radial-gradient(circle at 30% 15%, var(--app-accent-soft), transparent 65%),
+        var(--tui-background-neutral-1);
+    }
+
+    .mini__code {
+      margin: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-radius: 0.625rem;
+      padding: 0.625rem 0.75rem;
+      /* A terminal stays dark in both themes. */
+      background: #131316;
+      font-family: var(--tui-font-text-mono, monospace);
+      font-size: 0.6875rem;
+      line-height: 1.6;
+      color: #c2c6cf;
+    }
+
+    .mini__row {
       display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      padding: 0.75rem 0.875rem;
-    }
-
-    .flow__icon {
-      margin-block-start: 0.125rem;
-      color: var(--tui-text-action);
-    }
-
-    .flow__name {
-      font-size: 1.0625rem;
-      font-weight: 600;
+      align-items: center;
+      gap: 0.5rem;
+      padding-inline: 0.25rem;
+      font-size: 0.75rem;
       color: var(--tui-text-primary);
     }
 
-    .flow__detail {
-      font-size: 0.9375rem;
-      line-height: 1.5;
+    .mini__row--err {
+      border-radius: 0.5rem;
+      padding-block: 0.125rem;
+      background: var(--tui-status-negative-pale);
+      color: var(--tui-text-negative);
+    }
+
+    .mini__dot {
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      flex: none;
+      border-radius: 999px;
+      background: var(--tui-status-positive);
+    }
+
+    .mini__deployed {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .mini__when {
+      margin-inline-start: auto;
+      font-size: 0.6875rem;
       color: var(--tui-text-tertiary);
+    }
+
+    .mini__time {
+      color: var(--tui-text-tertiary);
+    }
+
+    .mini__dock {
+      display: flex;
+      justify-content: center;
+      gap: 0.25rem;
+      margin-block-start: 0.25rem;
+      border-radius: 999px;
+      padding: 0.25rem;
+      background: var(--app-glass-lens, var(--tui-background-neutral-1));
+      backdrop-filter: var(--app-segment-filter);
+    }
+
+    .mini__tab {
+      border-radius: 999px;
+      padding: 0.3125rem 0.75rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--tui-text-secondary);
+    }
+
+    .mini__tab--on {
+      background: var(--app-segment-thumb-fill);
+      color: var(--tui-text-primary);
     }
 
     .flow__footer {
@@ -308,8 +339,22 @@ const FEATURES = [
       background: var(--tui-text-action);
     }
 
-    .glass-button[disabled] {
-      opacity: 0.6;
+    .flow__ghost {
+      margin: 0;
+      border: 0;
+      padding: 0.5rem;
+      background: none;
+      font: inherit;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: var(--tui-text-secondary);
+      cursor: pointer;
+      transition: opacity var(--tui-duration);
+    }
+
+    .flow__ghost--hidden {
+      visibility: hidden;
+      opacity: 0;
       pointer-events: none;
     }
   `,
@@ -318,17 +363,16 @@ export class WelcomePage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialogs = inject(TuiResponsiveDialogService);
-  protected readonly connection = inject(ConnectServerStore);
+  private readonly welcome = inject(WelcomeSeenStore);
+  private readonly tokens = inject(AuthTokenStore);
+  private readonly config = inject(ServerConfigStore);
 
   private readonly hero = viewChild.required<ElementRef<HTMLElement>>('hero');
   private readonly tagline = viewChild.required<ElementRef<HTMLElement>>('tagline');
   private readonly viewport = viewChild.required<ElementRef<HTMLElement>>('viewport');
   private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
-  private readonly connectForm = viewChild<ElementRef<HTMLFormElement>>('connectForm');
-  private readonly address = viewChild<ElementRef<HTMLInputElement>>('address');
 
   protected readonly steps = STEPS;
-  protected readonly features = FEATURES;
 
   private readonly params = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -337,19 +381,6 @@ export class WelcomePage {
   protected readonly step = computed(() => {
     const raw = Number(this.params().get('step') ?? 0);
     return Number.isInteger(raw) ? Math.min(Math.max(raw, 0), LAST) : 0;
-  });
-
-  private readonly model = signal({ url: this.connection.suggestedUrl() });
-
-  protected readonly draft = form(this.model, (path) => {
-    required(path.url, { message: 'Server address is required.' });
-    pattern(path.url, URL_PATTERN, { message: 'Use a full http:// or https:// address.' });
-  });
-
-  protected readonly urlError = computed(() => {
-    const field = this.draft.url();
-    if (!field.touched()) return null;
-    return field.errors()[0]?.message ?? null;
   });
 
   private motion = false;
@@ -404,12 +435,22 @@ export class WelcomePage {
     });
   }
 
-  protected next(): void {
-    if (this.step() === LAST) {
-      this.connectForm()?.nativeElement.requestSubmit();
-      return;
-    }
-    this.go(this.step() + 1);
+  protected signIn(): void {
+    /* The flag is what keeps the tour from ever coming back on this device. */
+    this.welcome.markSeen();
+    void this.router.navigate(['/login']);
+  }
+
+  protected changeServer(): void {
+    const before = this.config.baseUrl();
+    this.dialogs
+      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
+      .subscribe((url) => {
+        /* A leftover token belongs to the previous server. */
+        if (url !== before) {
+          this.tokens.clear();
+        }
+      });
   }
 
   // Query state lets back, forward, and deep links address each onboarding step.
@@ -556,34 +597,5 @@ export class WelcomePage {
     } else {
       this.settle(step);
     }
-  }
-
-  protected onSubmit(event: Event): void {
-    event.preventDefault();
-    // Signal Forms requires an async submit action; connect remains Observable-driven.
-    void submit(this.draft, async () => this.connect());
-  }
-
-  private connect(): void {
-    this.connection
-      .connect(this.model().url.trim())
-      .pipe(
-        switchMap((connected) => {
-          if (connected) {
-            /* The API is token-guarded; sign-in is the step after a reachable server. */
-            void this.router.navigate(['/login']);
-            return EMPTY;
-          }
-
-          return this.dialogs
-            .open<void>(new PolymorpheusComponent(ConnectFailedDialog), {
-              label: "Couldn't reach the server",
-              size: 's',
-              dismissible: true,
-            })
-            .pipe(defaultIfEmpty(undefined));
-        }),
-      )
-      .subscribe(() => this.address()?.nativeElement.focus());
   }
 }

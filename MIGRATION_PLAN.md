@@ -108,6 +108,21 @@ token-guarded and nests tasks under projects.
 - Change server became `ChangeServerSheet` (sheet on mobile, dialog on
   desktop) opened from Settings and the login header; saves only after a
   health check, and switching servers signs the device out.
+
+## Welcome v2 (2026-08-23)
+
+- Welcome rebuilt as a pitch, not a wizard: hero tagline ("Every branch, its
+  own URL.") with Sign in right there, plus two optional swipe cards drawn as
+  miniature real UI (curl deploy + alert row; log lines + glass dock). The
+  connect form and Continue chain are gone; "Use a different server" opens
+  ChangeServerSheet.
+- Shows exactly once per device: Sign in sets `boreas-welcomed`, and
+  `welcomeSeenGuard` on /login bounces only flagless, tokenless visits to
+  /welcome. Deep links (/welcome, /welcome/connect) still open the tour.
+- Flag store + guard live in shared/api (not the onboarding feature): the
+  barrel would pull the hero's dotlottie into the eager bundle (+59 kB raw),
+  and shared segments cannot cross-import.
+- ConnectFailedDialog deleted — the sheet's inline callout replaced it.
 - Welcome redesign is mocked, not built:
   https://claude.ai/code/artifact/fa1a67da-6fe8-4141-877c-35d0fa91637c
   (hero + two optional cards, Sign in everywhere, show-once flag).

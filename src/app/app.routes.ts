@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authenticatedGuard } from '@shared/api/authenticated.guard';
+import { welcomeSeenGuard } from '@shared/api/welcome-seen.guard';
 import { serverConfiguredGuard } from '@shared/config/server-configured.guard';
 
 const guards = [serverConfiguredGuard, authenticatedGuard];
@@ -18,7 +19,7 @@ export const routes: Routes = [
   {
     path: 'login',
     title: 'Sign in | Boreas',
-    canActivate: [serverConfiguredGuard],
+    canActivate: [serverConfiguredGuard, welcomeSeenGuard],
     loadComponent: () => import('@pages/login/login-page').then(({ LoginPage }) => LoginPage),
   },
   {

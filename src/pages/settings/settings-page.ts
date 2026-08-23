@@ -206,8 +206,8 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
       transition: background-color var(--tui-duration);
     }
 
-    /* Tailwind has no preflight, so reset the button-shaped row explicitly. */
     button.nav-row {
+      inline-size: 100%;
       margin: 0;
       border: 0;
       background: none;
