@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.5.0](https://github.com/zenkiet/boreas-client/compare/v0.4.1...v0.5.0) (2026-08-23)
+
+### Features
+
+* ✨ implement rbac page ([90b859b](https://github.com/zenkiet/boreas-client/commit/90b859b6b6694bc57de67b5eb37a2270ce30958f))
+
 ## [0.4.1](https://github.com/zenkiet/boreas-client/compare/v0.4.0...v0.4.1) (2026-08-22)
 
 # [0.4.0](https://github.com/zenkiet/boreas-client/compare/v0.3.1...v0.4.0) (2026-08-22)
