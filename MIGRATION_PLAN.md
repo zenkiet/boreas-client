@@ -112,10 +112,14 @@ token-guarded and nests tasks under projects.
 ## Welcome v2 (2026-08-23)
 
 - Welcome rebuilt as a pitch, not a wizard: hero tagline ("Every branch, its
-  own URL.") with Sign in right there, plus two optional swipe cards drawn as
-  miniature real UI (curl deploy + alert row; log lines + glass dock). The
-  connect form and Continue chain are gone; "Use a different server" opens
-  ChangeServerSheet.
+  own URL.") plus two swipe cards drawn as miniature real UI (curl deploy +
+  alert row; log lines + glass dock). The capsule walks Continue -> Continue ->
+  Sign in; "Use a different server" sits on the last step and opens
+  ChangeServerSheet. The connect form is gone.
+- Post-review tweaks: pull-to-refresh is route-opt-out
+  (data.pullToRefresh: false on welcome/login; shell blocks the gesture in
+  capture phase), the dock's alert dot became an iOS count badge on the bell
+  icon, and the change-server sheet dropped its footnote.
 - Shows exactly once per device: Sign in sets `boreas-welcomed`, and
   `welcomeSeenGuard` on /login bounces only flagless, tokenless visits to
   /welcome. Deep links (/welcome, /welcome/connect) still open the tour.

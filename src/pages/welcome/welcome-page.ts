@@ -109,16 +109,16 @@ curl -X POST …/tasks/web/deploy \\
           }
         </div>
 
-        <button type="button" class="glass-button glass-button--pill" (click)="signIn()">
-          Sign in
+        <button type="button" class="glass-button glass-button--pill" (click)="next()">
+          {{ step() === last ? 'Sign in' : 'Continue' }}
         </button>
-        <!-- Hidden (not removed) off the hero so the footer never changes height mid-swipe. -->
+        <!-- Hidden (not removed) off the last step so the footer never changes height mid-swipe. -->
         <button
           type="button"
           class="flow__ghost"
-          [class.flow__ghost--hidden]="step() !== 0"
-          [attr.aria-hidden]="step() === 0 ? null : true"
-          [tabindex]="step() === 0 ? null : -1"
+          [class.flow__ghost--hidden]="step() !== last"
+          [attr.aria-hidden]="step() === last ? null : true"
+          [tabindex]="step() === last ? null : -1"
           (click)="changeServer()"
         >
           Use a different server
@@ -373,6 +373,7 @@ export class WelcomePage {
   private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
 
   protected readonly steps = STEPS;
+  protected readonly last = LAST;
 
   private readonly params = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -435,7 +436,11 @@ export class WelcomePage {
     });
   }
 
-  protected signIn(): void {
+  protected next(): void {
+    if (this.step() < LAST) {
+      this.go(this.step() + 1);
+      return;
+    }
     /* The flag is what keeps the tour from ever coming back on this device. */
     this.welcome.markSeen();
     void this.router.navigate(['/login']);

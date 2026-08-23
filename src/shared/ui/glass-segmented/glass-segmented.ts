@@ -17,6 +17,8 @@ export interface GlassSegmentedItem {
   readonly icon?: string;
   readonly dot?: boolean;
   readonly dotLabel?: string;
+  readonly badge?: number;
+  readonly badgeLabel?: string;
 }
 
 @Component({
@@ -43,7 +45,14 @@ export interface GlassSegmentedItem {
         (pointercancel)="onPointerUp($event)"
       >
         @if (item.icon) {
-          <tui-icon class="segment__icon" [icon]="item.icon" />
+          <span class="segment__glyph">
+            <tui-icon class="segment__icon" [icon]="item.icon" />
+            @if (item.badge) {
+              <span class="segment__badge" [attr.aria-label]="item.badgeLabel">
+                {{ item.badge > 99 ? '99+' : item.badge }}
+              </span>
+            }
+          </span>
         }
         <span class="segment__label">{{ item.label }}</span>
         @if (item.dot) {
@@ -136,6 +145,31 @@ export interface GlassSegmentedItem {
       block-size: 1rem;
       font-size: 1rem;
       flex: none;
+    }
+
+    .segment__glyph {
+      position: relative;
+      display: inline-flex;
+      flex: none;
+    }
+
+    .segment__badge {
+      position: absolute;
+      inset-block-start: -0.3125rem;
+      inset-inline-end: -0.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: 0.9375rem;
+      block-size: 0.9375rem;
+      border-radius: 999px;
+      padding-inline: 0.25rem;
+      background: var(--tui-status-negative);
+      color: #fff;
+      font-size: 0.5625rem;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
     }
 
     .dot {

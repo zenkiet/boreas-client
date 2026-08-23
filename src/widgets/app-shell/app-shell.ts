@@ -1,7 +1,23 @@
 import { DOCUMENT } from '@angular/common';
-import { afterNextRender, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import {
+  ActivatedRouteSnapshot,
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterOutlet,
+} from '@angular/router';
 import {
   TUI_IOS_LOADER,
   TUI_PULL_TO_REFRESH_COMPONENT,
@@ -233,6 +249,19 @@ export class AppShell {
     () => this.url().startsWith('/welcome') || this.url().startsWith('/login'),
   );
 
+  /* Routes opt out of pull-to-refresh with data.pullToRefresh: false (any ancestor counts). */
+  private readonly pullEnabled = computed(() => {
+    this.url();
+    for (
+      let route: ActivatedRouteSnapshot | null = this.router.routerState.snapshot.root;
+      route;
+      route = route.firstChild
+    ) {
+      if (route.data['pullToRefresh'] === false) return false;
+    }
+    return true;
+  });
+
   protected readonly pushedPage = computed(() => {
     const url = this.url();
     return /^\/projects\/./.test(url) || /^\/settings\/./.test(url);
@@ -260,14 +289,15 @@ export class AppShell {
     { label: 'Settings', link: '/settings', icon: '@tui.settings-2' },
   ];
 
-  protected readonly dockItems = computed<readonly GlassSegmentedItem[]>(() =>
-    this.navItems.map((item) => ({
+  protected readonly dockItems = computed<readonly GlassSegmentedItem[]>(() => {
+    const unseen = this.alerts.unseenCount();
+    return this.navItems.map((item) => ({
       label: item.label,
       icon: item.icon,
-      dot: item.link === '/notifications' && this.alertsUnseen(),
-      dotLabel: 'New alerts',
-    })),
-  );
+      badge: item.link === '/notifications' ? unseen : 0,
+      badgeLabel: `${unseen} new alert${unseen === 1 ? '' : 's'}`,
+    }));
+  });
 
   protected readonly activeTab = computed(() => {
     const index = this.navItems.findIndex((item, i) => i > 0 && this.url().startsWith(item.link));
@@ -281,6 +311,8 @@ export class AppShell {
     if (this.tokens.authenticated()) this.alerts.ensureFresh();
   });
 
+  private readonly pullHost = viewChild.required(TuiPullToRefresh, { read: ElementRef });
+
   private readonly scrollListener = afterNextRender(() => {
     const view = this.document.defaultView;
     if (!view) {
@@ -289,6 +321,14 @@ export class AppShell {
     const handler = () => this.onScroll();
     view.addEventListener('scroll', handler, { passive: true });
     this.destroyRef.onDestroy(() => view.removeEventListener('scroll', handler));
+    const pullHost = this.pullHost().nativeElement;
+    const block = (event: TouchEvent) => {
+      if (!this.pullEnabled()) event.stopPropagation();
+    };
+    pullHost.addEventListener('touchstart', block, { capture: true, passive: true });
+    this.destroyRef.onDestroy(() =>
+      pullHost.removeEventListener('touchstart', block, { capture: true }),
+    );
   });
 
   private onScroll(): void {

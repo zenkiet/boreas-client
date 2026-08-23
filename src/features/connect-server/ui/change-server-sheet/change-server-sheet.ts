@@ -34,11 +34,6 @@ import { ConnectServerStore } from '../../model/connect-server.store';
           />
         </div>
       </div>
-      <p class="footnote">
-        The address is saved only after a health check answers. Switching servers signs this device
-        out.
-      </p>
-
       <button
         tuiButton
         type="submit"
