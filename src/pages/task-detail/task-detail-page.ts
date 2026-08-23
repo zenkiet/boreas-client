@@ -6,6 +6,7 @@ import { TuiAppBar } from '@taiga-ui/layout';
 import { filter, map, switchMap, take } from 'rxjs';
 
 import { EnvironmentEditor, EnvironmentList } from '@entities/environment';
+import { AddMemberInput, GRANTABLE_ROLES, Member } from '@entities/project';
 import {
   Task,
   TaskActionRequest,
@@ -15,6 +16,7 @@ import {
 } from '@entities/task';
 import { ControlTaskStore } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects';
+import { ManageGrantsStore, MemberList } from '@features/manage-project';
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
 import { ViewTaskStore } from '@features/view-task';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -45,6 +47,7 @@ type View = (typeof VIEWS)[number];
     GlassSegmented,
     InsetGroup,
     LogConsole,
+    MemberList,
     Reveal,
     RouterLink,
     SkeletonRows,
@@ -56,7 +59,7 @@ type View = (typeof VIEWS)[number];
     TuiIcon,
     TuiLoader,
   ],
-  providers: [ViewTaskStore, ControlTaskStore, LogStreamStore],
+  providers: [ViewTaskStore, ControlTaskStore, LogStreamStore, ManageGrantsStore],
   template: `
     <!-- iOS push: the name is already in the URL, so chrome renders before any data. -->
     <div appReveal class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
@@ -317,12 +320,34 @@ type View = (typeof VIEWS)[number];
             </div>
           </div>
 
-          <div [class.hidden]="view() !== 'info'">
+          <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'info'">
             <app-task-overview
               [task]="task"
               [proxyUrl]="detail.proxyUrl()"
               (copyFailed)="reportCopyFailure()"
             />
+
+            <!-- Listing grants is owner-only, so a null list self-gates the whole panel. -->
+            @if (grants.grants(); as grantList) {
+              <div>
+                <app-inset-group label="Access" [trailing]="grantSummary(grantList.length)">
+                  <app-member-list
+                    dateVerb="Granted"
+                    defaultRole="viewer"
+                    [members]="grantList"
+                    [users]="grants.users()"
+                    [busy]="grants.busy()"
+                    [roles]="grantableRoles"
+                    (addRequested)="addGrant($event)"
+                    (removeRequested)="removeGrant($event)"
+                  />
+                </app-inset-group>
+                <p class="footnote">
+                  A grant raises this task's access above the person's project role — it never
+                  lowers it — and disappears with the task.
+                </p>
+              </div>
+            }
           </div>
         } @else {
           <div [class.hidden]="view() === 'logs'">
@@ -449,6 +474,8 @@ type View = (typeof VIEWS)[number];
   `,
 })
 export class TaskDetailPage {
+  protected readonly grants = inject(ManageGrantsStore);
+  protected readonly grantableRoles = GRANTABLE_ROLES;
   protected readonly detail = inject(ViewTaskStore);
   private readonly commands = inject(ControlTaskStore);
   private readonly confirmations = inject(ConfirmActionService);
@@ -504,6 +531,12 @@ export class TaskDetailPage {
       const slug = this.slug();
       const name = this.name();
       if (slug && name) this.detail.refresh(slug, name);
+    });
+
+    effect(() => {
+      const slug = this.slug();
+      const name = this.name();
+      if (slug && name) this.grants.load(slug, name);
     });
 
     // Wait for a loaded task so an unknown route name does not reconnect forever.
@@ -622,6 +655,35 @@ export class TaskDetailPage {
 
   protected reportCopyFailure(): void {
     this.notify('The proxy URL could not be copied to the clipboard.', false);
+  }
+
+  protected grantSummary(count: number): string {
+    return `${count} ${count === 1 ? 'person' : 'people'}`;
+  }
+
+  protected addGrant(input: AddMemberInput): void {
+    this.grants.add(input).subscribe((result) => {
+      this.notify(result.message, result.success);
+      if (result.success) this.grants.reload();
+    });
+  }
+
+  protected removeGrant(grant: Member): void {
+    this.confirmations
+      .confirm({
+        title: `Revoke access for ${grant.username}?`,
+        message: 'They lose this task immediately; their project role is untouched.',
+        confirmLabel: 'Revoke access',
+        destructive: true,
+      })
+      .pipe(
+        filter(Boolean),
+        switchMap(() => this.grants.remove(grant.userId, grant.username)),
+      )
+      .subscribe((result) => {
+        this.notify(result.message, result.success);
+        if (result.success) this.grants.reload();
+      });
   }
 
   private notify(message: string, success: boolean): void {

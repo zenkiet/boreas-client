@@ -31,8 +31,7 @@ export class ManageProjectStore {
 
   /* Both lists 403 for non-admins; null hides the pickers that need them. */
   private readonly usersResource = rxResource({
-    stream: () =>
-      this.userApi.list().pipe(catchError(() => of<readonly User[] | null>(null))),
+    stream: () => this.userApi.list().pipe(catchError(() => of<readonly User[] | null>(null))),
   });
 
   private readonly credentialsResource = rxResource({

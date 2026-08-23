@@ -5,7 +5,12 @@ import { Observable, map } from 'rxjs';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { AddMemberInput, Member } from '../model/member';
 import { CreateProjectInput, Project, UpdateProjectInput } from '../model/project';
-import { MembersResponseDto, ProjectResponseDto, ProjectsResponseDto } from './project.dto';
+import {
+  GrantsResponseDto,
+  MembersResponseDto,
+  ProjectResponseDto,
+  ProjectsResponseDto,
+} from './project.dto';
 import {
   toAddMemberRequestDto,
   toCreateProjectRequestDto,
@@ -74,5 +79,28 @@ export class ProjectApi {
     return this.http
       .delete(`${this.projectUrl(slug)}/members/${encodeURIComponent(userId)}`)
       .pipe(map(() => undefined));
+  }
+
+  /** Owner-only; a grant rides the member shape and raises one task's access, never lowers it. */
+  grants(slug: string, task: string): Observable<readonly Member[]> {
+    return this.http
+      .get<GrantsResponseDto>(`${this.grantsUrl(slug, task)}`)
+      .pipe(map((response) => (response.grants ?? []).map(toMember)));
+  }
+
+  addGrant(slug: string, task: string, input: AddMemberInput): Observable<void> {
+    return this.http
+      .post(this.grantsUrl(slug, task), toAddMemberRequestDto(input))
+      .pipe(map(() => undefined));
+  }
+
+  removeGrant(slug: string, task: string, userId: string): Observable<void> {
+    return this.http
+      .delete(`${this.grantsUrl(slug, task)}/${encodeURIComponent(userId)}`)
+      .pipe(map(() => undefined));
+  }
+
+  private grantsUrl(slug: string, task: string): string {
+    return `${this.projectUrl(slug)}/tasks/${encodeURIComponent(task)}/grants`;
   }
 }

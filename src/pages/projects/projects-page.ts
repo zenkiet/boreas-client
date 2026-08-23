@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { TUI_BREAKPOINT, TuiButton, TuiIcon } from '@taiga-ui/core';
 
 import { Project } from '@entities/project';
+import { SessionStore } from '@features/auth';
 import { ListProjectsStore, ProjectList } from '@features/list-projects';
 import { StatTiles, StatsHistoryStore, StatsTrend } from '@features/track-stats';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -35,18 +36,21 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-4">
       <header class="flex items-center justify-between gap-3">
         <h1 class="page-title">Projects</h1>
-        @if (mobile()) {
-          <a
-            appGlassIconButton
-            icon="@tui.plus"
-            routerLink="/projects/new"
-            aria-label="New project"
-          ></a>
-        } @else {
-          <a tuiButton routerLink="/projects/new" size="s" appearance="primary">
-            <tui-icon class="icon-sm" icon="@tui.plus" />
-            New project
-          </a>
+        <!-- POST /projects is admin-only; a visible button would just collect 403s. -->
+        @if (session.isAdmin()) {
+          @if (mobile()) {
+            <a
+              appGlassIconButton
+              icon="@tui.plus"
+              routerLink="/projects/new"
+              aria-label="New project"
+            ></a>
+          } @else {
+            <a tuiButton routerLink="/projects/new" size="s" appearance="primary">
+              <tui-icon class="icon-sm" icon="@tui.plus" />
+              New project
+            </a>
+          }
         }
       </header>
 
@@ -93,7 +97,11 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
             @if (overview.summaries().length === 0) {
               <app-empty-state
                 title="No projects yet"
-                description="A project groups related task environments under one URL prefix and one team."
+                [description]="
+                  session.isAdmin()
+                    ? 'A project groups related task environments under one URL prefix and one team.'
+                    : 'An administrator has to create a project or grant you access to one.'
+                "
                 [bordered]="false"
               />
             } @else {
@@ -103,10 +111,12 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
               />
             }
 
-            <a class="add-row row-divider relative" routerLink="/projects/new">
-              <tui-icon class="icon-sm" icon="@tui.plus" />
-              New project
-            </a>
+            @if (session.isAdmin()) {
+              <a class="add-row row-divider relative" routerLink="/projects/new">
+                <tui-icon class="icon-sm" icon="@tui.plus" />
+                New project
+              </a>
+            }
           </app-inset-group>
         </div>
       }
@@ -165,6 +175,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
   `,
 })
 export class ProjectsPage {
+  protected readonly session = inject(SessionStore);
   protected readonly overview = inject(ListProjectsStore);
   protected readonly history = inject(StatsHistoryStore);
   private readonly router = inject(Router);

@@ -1,8 +1,12 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiIcon } from '@taiga-ui/core';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 
 import { SessionStore } from '@features/auth';
+import { ChangeServerSheet } from '@features/connect-server';
+import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
@@ -112,14 +116,18 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
             <span class="lrow__label">Address</span>
             <span class="lrow__value font-mono">{{ serverUrl() }}</span>
           </div>
-          <a class="lrow nav-row row-divider relative" routerLink="/welcome/connect">
+          <button
+            type="button"
+            class="lrow nav-row action-like row-divider relative"
+            (click)="changeServer()"
+          >
             <span class="flex-1">Change server</span>
             <tui-icon
               class="icon-sm nav-row__chevron"
               icon="@tui.chevron-right"
               aria-hidden="true"
             />
-          </a>
+          </button>
         </app-inset-group>
         <p class="footnote">The Boreas API this device talks to. Changing it re-runs the check.</p>
       </div>
@@ -198,6 +206,17 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
       transition: background-color var(--tui-duration);
     }
 
+    /* Tailwind has no preflight, so reset the button-shaped row explicitly. */
+    button.nav-row {
+      margin: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      font-size: 1rem;
+      text-align: start;
+      cursor: pointer;
+    }
+
     .nav-row:hover {
       background: var(--tui-background-neutral-1);
     }
@@ -239,6 +258,8 @@ export class SettingsPage {
   private readonly theme = inject(ThemeStore);
   private readonly config = inject(ServerConfigStore);
   private readonly router = inject(Router);
+  private readonly dialogs = inject(TuiResponsiveDialogService);
+  private readonly tokens = inject(AuthTokenStore);
   protected readonly session = inject(SessionStore);
 
   protected readonly serverUrl = computed(() => this.config.baseUrl());
@@ -271,6 +292,21 @@ export class SettingsPage {
   protected setThemeByIndex(index: number): void {
     const option = THEME_MODES[index];
     if (option) this.theme.setMode(option.mode);
+  }
+
+  /* Sheet on mobile, dialog on desktop; a dismissal completes without emitting. */
+  protected changeServer(): void {
+    const before = this.config.baseUrl();
+
+    this.dialogs
+      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
+      .subscribe((url) => {
+        /* A different server means a different session; the old token is meaningless there. */
+        if (url !== before) {
+          this.tokens.clear();
+          void this.router.navigate(['/login']);
+        }
+      });
   }
 
   protected signOut(): void {

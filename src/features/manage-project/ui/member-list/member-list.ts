@@ -1,8 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, linkedSignal, output, signal } from '@angular/core';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
 
-import { AddMemberInput, Member, ProjectRole } from '@entities/project';
+import { AddMemberInput, Member, PROJECT_ROLES, ProjectRole } from '@entities/project';
 import { User } from '@entities/user';
 import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
 
@@ -15,7 +15,7 @@ import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-se
         <span class="row__avatar" aria-hidden="true">{{ initials(member.username) }}</span>
         <span class="min-w-0 flex-1">
           <span class="row__name">{{ member.username }}</span>
-          <span class="row__sub">Joined {{ member.createdAt | date: 'MMM d, y' }}</span>
+          <span class="row__sub">{{ dateVerb() }} {{ member.createdAt | date: 'MMM d, y' }}</span>
         </span>
         <span class="row__role" [attr.data-role]="member.role">{{ member.role }}</span>
         <button
@@ -60,7 +60,7 @@ import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-se
 
       <app-glass-select
         ariaLabel="Role"
-        [options]="roleOptions"
+        [options]="roleOptions()"
         [value]="draftRole()"
         [disabled]="busy()"
         (valueChange)="pickRole($event)"
@@ -174,16 +174,19 @@ export class MemberList {
   /** null when the viewer may not list users; the form falls back to a raw id field. */
   readonly users = input.required<readonly User[] | null>();
   readonly busy = input(false);
+  /** Grants reuse this list with the owner rung removed. */
+  readonly roles = input<readonly ProjectRole[]>(PROJECT_ROLES);
+  readonly defaultRole = input<ProjectRole>('member');
+  readonly dateVerb = input('Joined');
   readonly addRequested = output<AddMemberInput>();
   readonly removeRequested = output<Member>();
 
   protected readonly draftUserId = signal('');
-  protected readonly draftRole = signal<ProjectRole>('member');
+  protected readonly draftRole = linkedSignal(() => this.defaultRole());
 
-  protected readonly roleOptions: readonly GlassSelectOption[] = [
-    { value: 'member', label: 'member' },
-    { value: 'owner', label: 'owner' },
-  ];
+  protected readonly roleOptions = computed<readonly GlassSelectOption[]>(() =>
+    this.roles().map((role) => ({ value: role, label: role })),
+  );
 
   protected readonly candidates = computed(() => {
     const users = this.users();
@@ -216,6 +219,6 @@ export class MemberList {
 
     this.addRequested.emit({ userId, role: this.draftRole() });
     this.draftUserId.set('');
-    this.draftRole.set('member');
+    this.draftRole.set(this.defaultRole());
   }
 }

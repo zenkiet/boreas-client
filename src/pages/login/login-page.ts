@@ -1,9 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, required, submit } from '@angular/forms/signals';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButton, TuiError, TuiLoader, TuiTextfield } from '@taiga-ui/core';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 
 import { LoginStore } from '@features/auth';
+import { ChangeServerSheet } from '@features/connect-server';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -16,7 +19,7 @@ interface LoginDraft {
 
 @Component({
   selector: 'app-login-page',
-  imports: [Callout, FormField, Reveal, RouterLink, TuiButton, TuiError, TuiLoader, TuiTextfield],
+  imports: [Callout, FormField, Reveal, TuiButton, TuiError, TuiLoader, TuiTextfield],
   providers: [LoginStore],
   template: `
     <main appReveal class="login">
@@ -34,7 +37,7 @@ interface LoginDraft {
           <h1 class="login__title">Sign in to Boreas</h1>
           <p class="login__server">
             <span class="font-mono">{{ serverHost() }}</span>
-            <a class="login__change" routerLink="/welcome">Change</a>
+            <button type="button" class="login__change" (click)="changeServer()">Change</button>
           </p>
         </div>
 
@@ -132,9 +135,15 @@ interface LoginDraft {
       color: var(--tui-text-tertiary);
     }
 
+    /* Tailwind has no preflight, so reset the button-shaped link explicitly. */
     .login__change {
+      margin: 0;
+      border: 0;
+      padding: 0;
+      background: none;
+      font: inherit;
       color: var(--tui-text-action);
-      text-decoration: none;
+      cursor: pointer;
     }
 
     .login__form {
@@ -150,6 +159,7 @@ interface LoginDraft {
   `,
 })
 export class LoginPage {
+  private readonly dialogs = inject(TuiResponsiveDialogService);
   protected readonly login = inject(LoginStore);
   private readonly config = inject(ServerConfigStore);
   private readonly tokens = inject(AuthTokenStore);
@@ -175,6 +185,13 @@ export class LoginPage {
 
   protected readonly usernameError = computed(() => this.firstError(this.draft.username()));
   protected readonly passwordError = computed(() => this.firstError(this.draft.password()));
+
+  /* No result handling needed: a signed-out page only shows the (already updated) host. */
+  protected changeServer(): void {
+    this.dialogs
+      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
+      .subscribe();
+  }
 
   protected onSubmit(event: Event): void {
     event.preventDefault();

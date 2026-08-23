@@ -6,7 +6,7 @@ import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
 import { filter, switchMap, take } from 'rxjs';
 
-import { Member, Project, TaskDefaultsInput } from '@entities/project';
+import { AddMemberInput, Member, Project, TaskDefaultsInput } from '@entities/project';
 import { Task, TaskActionRequest } from '@entities/task';
 import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects';
@@ -170,7 +170,7 @@ type View = (typeof VIEWS)[number];
             </app-inset-group>
           } @else {
             <app-callout tone="info">
-              Members are only visible to project members and administrators.
+              Members and access are managed by the project owner.
             </app-callout>
           }
         </div>
@@ -178,30 +178,37 @@ type View = (typeof VIEWS)[number];
         @if (detail.project(); as project) {
           <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'about'">
             <app-inset-group label="About">
-              <div class="about__row row-divider relative">
-                <label class="about__label" for="project-name">Display name</label>
-                <div class="flex items-center gap-2">
-                  <input
-                    id="project-name"
-                    class="about__input"
-                    autocomplete="off"
-                    [value]="draftName()"
-                    (input)="typeName($event)"
-                  />
-                  @if (draftName() !== project.name) {
-                    <button
-                      tuiButton
-                      type="button"
-                      size="s"
-                      appearance="secondary"
-                      [disabled]="manage.busy()"
-                      (click)="saveName(project)"
-                    >
-                      Save
-                    </button>
-                  }
+              @if (canManage()) {
+                <div class="about__row row-divider relative">
+                  <label class="about__label" for="project-name">Display name</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      id="project-name"
+                      class="about__input"
+                      autocomplete="off"
+                      [value]="draftName()"
+                      (input)="typeName($event)"
+                    />
+                    @if (draftName() !== project.name) {
+                      <button
+                        tuiButton
+                        type="button"
+                        size="s"
+                        appearance="secondary"
+                        [disabled]="manage.busy()"
+                        (click)="saveName(project)"
+                      >
+                        Save
+                      </button>
+                    }
+                  </div>
                 </div>
-              </div>
+              } @else {
+                <div class="about__row about__row--inline row-divider relative">
+                  <span class="about__label about__label--inline">Display name</span>
+                  <span class="about__value">{{ project.name }}</span>
+                </div>
+              }
 
               @if (credentialOptions(); as options) {
                 <div class="about__row about__row--inline row-divider relative">
@@ -228,35 +235,39 @@ type View = (typeof VIEWS)[number];
               </div>
             </app-inset-group>
 
-            <div>
-              <app-inset-group label="Task defaults">
-                <app-project-defaults-form
-                  [defaults]="project.defaults"
-                  [busy]="manage.busy()"
-                  (submitted)="saveDefaults(project, $event)"
-                />
-              </app-inset-group>
-              <p class="footnote">
-                Prefill for the new-task form in this project. Existing tasks and their containers
-                are never touched, and only the project owner can change these.
-              </p>
-            </div>
+            @if (canManage()) {
+              <div>
+                <app-inset-group label="Task defaults">
+                  <app-project-defaults-form
+                    [defaults]="project.defaults"
+                    [busy]="manage.busy()"
+                    (submitted)="saveDefaults(project, $event)"
+                  />
+                </app-inset-group>
+                <p class="footnote">
+                  Prefill for the new-task form in this project. Existing tasks and their containers
+                  are never touched, and only the project owner can change these.
+                </p>
+              </div>
+            }
 
-            <app-inset-group label="Danger zone">
-              <button
-                tuiButton
-                type="button"
-                size="m"
-                appearance="flat-destructive"
-                class="about__delete"
-                [disabled]="manage.busy()"
-                (click)="deleteProject(project)"
-              >
-                <tui-icon class="icon-sm" icon="@tui.trash-2" />
-                Delete project
-              </button>
-              <p class="about__hint">A project that still owns tasks cannot be deleted.</p>
-            </app-inset-group>
+            @if (canManage()) {
+              <app-inset-group label="Danger zone">
+                <button
+                  tuiButton
+                  type="button"
+                  size="m"
+                  appearance="flat-destructive"
+                  class="about__delete"
+                  [disabled]="manage.busy()"
+                  (click)="deleteProject(project)"
+                >
+                  <tui-icon class="icon-sm" icon="@tui.trash-2" />
+                  Delete project
+                </button>
+                <p class="about__hint">A project that still owns tasks cannot be deleted.</p>
+              </app-inset-group>
+            }
           </div>
         }
       }
@@ -377,6 +388,8 @@ export class ProjectDetailPage {
   private readonly seededName = readSeededName(inject(DOCUMENT));
 
   protected readonly mobile = computed(() => this.breakpoint() === 'mobile');
+  /* Listing members is owner-only, so a non-null list IS the owner/admin signal. */
+  protected readonly canManage = computed(() => this.detail.members() !== null);
   protected readonly view = signal<View>('tasks');
   protected readonly viewIndex = computed(() => VIEWS.indexOf(this.view()));
   protected readonly draftName = signal('');
@@ -524,7 +537,7 @@ export class ProjectDetailPage {
       .subscribe((result) => this.completeCommand(result));
   }
 
-  protected addMember(input: { userId: string; role: 'owner' | 'member' }): void {
+  protected addMember(input: AddMemberInput): void {
     this.manage
       .addMember(this.detail.slug(), input)
       .subscribe((result) => this.completeCommand(result));

@@ -36,7 +36,7 @@ export interface UpdateProjectRequestDto {
   default_env?: Record<string, string>;
 }
 
-export type ProjectRoleDto = 'owner' | 'member';
+export type ProjectRoleDto = 'viewer' | 'operator' | 'member' | 'owner';
 
 export interface MemberDto {
   user_id: string;
@@ -53,4 +53,9 @@ export interface MembersResponseDto {
 export interface AddMemberRequestDto {
   user_id: string;
   role?: ProjectRoleDto;
+}
+
+export interface GrantsResponseDto {
+  grants: MemberDto[] | null;
+  total: number;
 }

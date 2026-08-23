@@ -80,6 +80,38 @@ token-guarded and nests tasks under projects.
   sign-in. `GlassSegmentedItem` gained `dotLabel` so the badge does not
   announce "Unsaved changes".
 
+## API v1.4 (2026-08-23): RBAC ranks + task grants
+
+- `ProjectRole` viewer/operator/member/owner (ranked; `atLeastRole` in
+  entities/project). `POST /projects` admin-only — every New-project entry
+  point is gated on `session.isAdmin()` and the empty state explains it.
+- 404 now also means "hidden from you"; 403 means "outranked". Error copy
+  updated to match (404 stays silent about permissions).
+- Members list turned owner-only, which makes `members() !== null` the
+  owner signal — About editing, Task defaults, Danger zone and member
+  management gate on it. Task actions stay optimistic on purpose: grants
+  are invisible to their grantee, so the client cannot know per-task rank.
+- Task grants: `ProjectApi.grants/addGrant/removeGrant`, `ManageGrantsStore`
+  (grants 403→null doubles as the hide signal), and an owner-only Access
+  panel on the task Info tab reusing a parametrized `MemberList`
+  (`GRANTABLE_ROLES` = no owner; API 400s it).
+- **Backend bug found while probing**: a grantee's `GET /projects/{p}`
+  blanks `default_env`, but `GET /projects` (the list) returns it intact —
+  secrets leak through the list endpoint. Needs a BE fix; FE cannot patch
+  around it (the fleet fan-out reads the list).
+
+## Onboarding v2 groundwork (2026-08-23)
+
+- `DEFAULT_SERVER_URL = https://boreas.zenkiet.dev`: a fresh device skips the
+  server step entirely and lands on /login. An explicit localStorage value
+  still wins, so dev setups keep localhost.
+- Change server became `ChangeServerSheet` (sheet on mobile, dialog on
+  desktop) opened from Settings and the login header; saves only after a
+  health check, and switching servers signs the device out.
+- Welcome redesign is mocked, not built:
+  https://claude.ai/code/artifact/fa1a67da-6fe8-4141-877c-35d0fa91637c
+  (hero + two optional cards, Sign in everywhere, show-once flag).
+
 ## Known follow-ups
 
 - Members add for non-admin owners requires a raw user id (the API's

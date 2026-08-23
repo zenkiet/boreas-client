@@ -3,6 +3,9 @@ import { computed, inject, Service, signal } from '@angular/core';
 
 const STORAGE_KEY = 'boreas-server';
 
+/* A fresh device talks to the hosted instance; onboarding no longer asks for an address. */
+export const DEFAULT_SERVER_URL = 'https://boreas.zenkiet.dev';
+
 @Service()
 export class ServerConfigStore {
   private readonly document = inject(DOCUMENT);
@@ -29,9 +32,12 @@ export class ServerConfigStore {
 
   private read(): string {
     try {
-      return normalizeBaseUrl(this.document.defaultView?.localStorage.getItem(STORAGE_KEY) ?? '');
+      return (
+        normalizeBaseUrl(this.document.defaultView?.localStorage.getItem(STORAGE_KEY) ?? '') ||
+        DEFAULT_SERVER_URL
+      );
     } catch {
-      return '';
+      return DEFAULT_SERVER_URL;
     }
   }
 }
