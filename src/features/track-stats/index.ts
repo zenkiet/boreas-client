@@ -1,4 +1,4 @@
-export { StatsHistoryStore } from './model/stats-history.store';
-export type { StatsSample } from './model/stats-history.store';
+export { LiveMetricsStore } from './model/live-metrics.store';
+export type { MetricPoint } from './model/live-metrics.store';
+export { LiveMonitor } from './ui/live-monitor/live-monitor';
 export { StatTiles } from './ui/stat-tiles/stat-tiles';
-export { StatsTrend } from './ui/stats-trend/stats-trend';

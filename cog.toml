@@ -16,8 +16,10 @@ pre_bump_hooks = [
 ]
 
 post_bump_hooks = [
+  "git commit --amend -m 'chore: 🔖 bump version {{version}}'",
+  "git tag --force {{version_tag}}",
   "git push origin main",
-  "git push origin {{version_tag}}",
+  "git push origin --tags"
 ]
 
 pre_package_bump_hooks = []

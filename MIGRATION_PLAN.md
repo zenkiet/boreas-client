@@ -141,3 +141,22 @@ token-guarded and nests tasks under projects.
   skipped deliberately.
 - Labels are editable via the API but exposed in neither Create nor Edit,
   deliberately, until something needs them.
+
+## Live monitor card (v1.5 metrics SSE, 2026-08-24)
+
+- Home "Running tasks" trend card replaced by app-live-monitor. Final shape
+  (operator simplified option A after a C round): fleet-total CPU / Memory /
+  Network vitals, one aggregate CPU chart, per-project figures behind a
+  collapsed "By project" disclosure. Color only past thresholds (>=60% warn,
+  >=90% danger; memory measured against host RAM from /stats).
+- No BE aggregation exists (verified: only the two stream routes; query
+  params ignored; no global stream). Grouping is client-side: one stream per
+  project, 1s buckets summing that project's tasks; deltas for network,
+  first-sample skip for cpu, >3.5s silence drops a task, silent projects age
+  out of the 60s window.
+- History is client-only: 60-point window in RAM plus a localStorage snapshot
+  (boreas-monitor) so reloads repaint instantly (dimmed until live again).
+- StatsTrend and StatsHistoryStore deleted; the /stats poll survives only for
+  the stat tiles.
+- BE nice-to-have noted: a global /metrics/stream with a project field would
+  collapse N connections into one once fleets grow.

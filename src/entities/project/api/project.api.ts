@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpDownloadProgressEvent, HttpEventType } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, filter, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { AddMemberInput, Member } from '../model/member';
@@ -98,6 +98,21 @@ export class ProjectApi {
     return this.http
       .delete(`${this.grantsUrl(slug, task)}/${encodeURIComponent(userId)}`)
       .pipe(map(() => undefined));
+  }
+
+  /** Cumulative SSE body; EventSource cannot send the auth header, so this rides progressive download. */
+  metricsStream(slug: string): Observable<string> {
+    return this.http
+      .get(`${this.projectUrl(slug)}/metrics/stream`, {
+        headers: { Accept: 'text/event-stream' },
+        observe: 'events',
+        responseType: 'text',
+        reportProgress: true,
+      })
+      .pipe(
+        filter((event) => event.type === HttpEventType.DownloadProgress),
+        map((event) => (event as HttpDownloadProgressEvent).partialText ?? ''),
+      );
   }
 
   private grantsUrl(slug: string, task: string): string {

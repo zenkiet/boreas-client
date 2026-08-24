@@ -5,7 +5,7 @@ import { TUI_BREAKPOINT, TuiButton, TuiIcon } from '@taiga-ui/core';
 import { Project } from '@entities/project';
 import { SessionStore } from '@features/auth';
 import { ListProjectsStore, ProjectList } from '@features/list-projects';
-import { StatTiles, StatsHistoryStore, StatsTrend } from '@features/track-stats';
+import { LiveMonitor, StatTiles } from '@features/track-stats';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { Callout } from '@shared/ui/callout/callout';
@@ -28,7 +28,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     RouterLink,
     SkeletonRows,
     StatTiles,
-    StatsTrend,
+    LiveMonitor,
     TuiButton,
     TuiIcon,
   ],
@@ -83,7 +83,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
       } @else {
         <div class="grid grid-cols-1 gap-4">
           @if (overview.stats(); as stats) {
-            <app-stats-trend [stats]="stats" [samples]="history.samples()" />
+            <app-live-monitor [projects]="slugs()" [hostMemoryMb]="stats.totalMemoryMb" />
             <app-stat-tiles [stats]="stats" />
           }
 
@@ -177,7 +177,6 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 export class ProjectsPage {
   protected readonly session = inject(SessionStore);
   protected readonly overview = inject(ListProjectsStore);
-  protected readonly history = inject(StatsHistoryStore);
   private readonly router = inject(Router);
   private readonly breakpoint = inject(TUI_BREAKPOINT);
 
@@ -185,6 +184,10 @@ export class ProjectsPage {
 
   /* Must match StatTiles so the redacted grid swaps in place. */
   protected readonly tileLabels = ['Projects', 'Stopped', 'Host memory'] as const;
+
+  protected readonly slugs = computed(() =>
+    this.overview.summaries().map((summary) => summary.project.slug),
+  );
 
   protected readonly summary = computed(() => {
     const total = this.overview.summaries().length;
