@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.6.1](https://github.com/zenkiet/boreas-client/compare/89dea8db424a9e3cd2c150b177de9bfe87f913c7..v0.6.1) - 2026-08-25
+#### 🎨 Styles & Formatting
+- 💄 improve UI/UX for alert page - ([89dea8d](https://github.com/zenkiet/boreas-client/commit/89dea8db424a9e3cd2c150b177de9bfe87f913c7)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.6.0](https://github.com/zenkiet/boreas-client/compare/716228f7db86d6e98a542ff86fcb7aa87137f978..v0.6.0) - 2026-08-25
 #### 🚀 Features
 - ✨implement fcm - ([fd079e2](https://github.com/zenkiet/boreas-client/commit/fd079e29a974432e054b117af81eed3a95879b3c)) - [@zenkiet](https://github.com/zenkiet)
