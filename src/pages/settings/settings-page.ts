@@ -11,8 +11,10 @@ import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
+import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { PageHeader } from '@shared/ui/page-header/page-header';
+import { PushStore } from '@shared/lib/push';
 
 interface NavLink {
   readonly label: string;
@@ -58,7 +60,7 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
 
 @Component({
   selector: 'app-settings-page',
-  imports: [GlassSegmented, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
+  imports: [GlassSegmented, GlassSwitch, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
   template: `
     <div appReveal class="mx-auto grid max-w-176 grid-cols-1 gap-3.5 md:gap-4">
       <app-page-header title="Settings" />
@@ -107,8 +109,25 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
             />
           </div>
         </app-inset-group>
-        <p class="footnote">{{ themeHint() }}</p>
       </div>
+
+      @if (push.permission() !== 'unsupported') {
+        <div>
+          <app-inset-group label="Notifications">
+            <div class="lrow row-divider relative">
+              <span class="lrow__label">Push notifications</span>
+              <button
+                appGlassSwitch
+                aria-label="Push notifications"
+                [checked]="push.enabled()"
+                [busy]="push.busy()"
+                [disabled]="push.permission() === 'denied'"
+                (checkedChange)="togglePush($event)"
+              ></button>
+            </div>
+          </app-inset-group>
+        </div>
+      }
 
       <div>
         <app-inset-group label="Server">
@@ -129,7 +148,6 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
             />
           </button>
         </app-inset-group>
-        <p class="footnote">The Boreas API this device talks to. Changing it re-runs the check.</p>
       </div>
 
       <app-inset-group label="About Boreas">
@@ -261,6 +279,7 @@ export class SettingsPage {
   private readonly dialogs = inject(TuiResponsiveDialogService);
   private readonly tokens = inject(AuthTokenStore);
   protected readonly session = inject(SessionStore);
+  protected readonly push = inject(PushStore);
 
   protected readonly serverUrl = computed(() => this.config.baseUrl());
 
@@ -282,16 +301,14 @@ export class SettingsPage {
     ),
   );
 
-  protected readonly themeHint = computed(() => {
-    const mode = this.theme.mode();
-    return mode === 'system'
-      ? `Following your device appearance, currently ${this.theme.theme()}.`
-      : `Using the ${mode} appearance on this device.`;
-  });
-
   protected setThemeByIndex(index: number): void {
     const option = THEME_MODES[index];
     if (option) this.theme.setMode(option.mode);
+  }
+
+  /* The knob renders from enabled() alone, so a denied prompt simply leaves it off. */
+  protected togglePush(next: boolean): void {
+    (next ? this.push.enable() : this.push.disable()).subscribe();
   }
 
   /* Sheet on mobile, dialog on desktop; a dismissal completes without emitting. */

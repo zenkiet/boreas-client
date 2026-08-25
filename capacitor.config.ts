@@ -8,6 +8,11 @@ const config: CapacitorConfig = {
     // the long-press link-preview sheet reads as browser chrome inside an app
     allowsLinkPreview: false,
   },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
+  },
 };
 
 export default config;

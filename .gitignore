@@ -39,6 +39,13 @@ testem.log
 /typings
 __screenshots__/
 
+# Native build artifacts — archives carry the signed binary and provisioning profile
+*.xcarchive
+
 # System files
 .DS_Store
 Thumbs.db
+
+# Firebase
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist

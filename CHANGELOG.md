@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.6.0](https://github.com/zenkiet/boreas-client/compare/a512483f0409d96fb406498c585c32f99e8dba8f..v0.6.0) - 2026-08-24
+#### 🚀 Features
+- ✨ implement monitor page - ([a512483](https://github.com/zenkiet/boreas-client/commit/a512483f0409d96fb406498c585c32f99e8dba8f)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.5.1](https://github.com/zenkiet/boreas-client/compare/55ee701781c54df10c6945a7e254d95a312ea16b..v0.5.1) - 2026-08-23
 #### 🎨 Styles & Formatting
 - 💄 improve UI/UX for welcome page & glass segmented - ([55ee701](https://github.com/zenkiet/boreas-client/commit/55ee701781c54df10c6945a7e254d95a312ea16b)) - [@zenkiet](https://github.com/zenkiet)

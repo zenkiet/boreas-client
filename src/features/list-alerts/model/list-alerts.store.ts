@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Service, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Service, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
@@ -7,6 +7,7 @@ import { Notification, NotificationApi } from '@entities/notification';
 import { ProjectApi } from '@entities/project';
 import { mapApiError } from '@shared/api/api-error';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { PushStore } from '@shared/lib/push';
 
 /** A notification tagged with its project; the API payload has no project field. */
 export interface ProjectAlert extends Notification {
@@ -27,6 +28,7 @@ export class ListAlertsStore {
   private readonly notificationApi = inject(NotificationApi);
   private readonly tokens = inject(AuthTokenStore);
   private readonly document = inject(DOCUMENT);
+  private readonly push = inject(PushStore);
 
   private loadedAt = 0;
   private readonly seenState = signal(this.readSeen());
@@ -91,6 +93,14 @@ export class ListAlertsStore {
   readonly unseenCount = computed(
     () => this.alerts().filter((alert) => alert.createdAt.getTime() > this.seenState()).length,
   );
+
+  constructor() {
+    effect(() => {
+      if (this.push.message()) {
+        this.load();
+      }
+    });
+  }
 
   /** Pages call this on entry: serves the cache, refetching only once it is stale. */
   ensureFresh(): void {

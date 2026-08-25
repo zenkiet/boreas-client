@@ -1,6 +1,6 @@
 {
   "name": "boreas-client",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -27,6 +27,7 @@
     "@capacitor/core": "^8.5.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
     "@lottiefiles/dotlottie-web": "^0.79.2",
     "@ng-web-apis/platform": "^5.3.0",
     "@taiga-ui/addon-charts": "^5.20.0",
@@ -38,6 +39,7 @@
     "@taiga-ui/layout": "^5.20.0",
     "@taiga-ui/polymorpheus": "^5.0.1",
     "@taiga-ui/styles": "^5.20.0",
+    "firebase": "^12.18.0",
     "gsap": "^3.15.0",
     "rxjs": "~7.8.2",
     "tslib": "^2.8.1"
