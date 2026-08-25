@@ -1,7 +1,14 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, defer, finalize, map, of } from 'rxjs';
 
-import { Task, TaskApi, TaskStateAction, describeCompletedAction } from '@entities/task';
+import {
+  DEV_STATUS_LABEL,
+  DevStatus,
+  Task,
+  TaskApi,
+  TaskStateAction,
+  describeCompletedAction,
+} from '@entities/task';
 import { mapApiError } from '@shared/api/api-error';
 
 export interface TaskCommandResult {
@@ -33,8 +40,20 @@ export class ControlTaskStore {
     );
   }
 
+  setDevStatus(project: string, task: Task, status: DevStatus): Observable<TaskCommandResult> {
+    return this.execute(
+      task.name,
+      this.api.update(project, task.name, { devStatus: status }),
+      `Task ${task.name} marked ${DEV_STATUS_LABEL[status]}.`,
+    );
+  }
+
   delete(project: string, task: Task): Observable<TaskCommandResult> {
-    return this.execute(task.name, this.api.delete(project, task.name), `Task ${task.name} deleted.`);
+    return this.execute(
+      task.name,
+      this.api.delete(project, task.name),
+      `Task ${task.name} deleted.`,
+    );
   }
 
   /* Both outcomes become values so command subscribers only route toast results. */

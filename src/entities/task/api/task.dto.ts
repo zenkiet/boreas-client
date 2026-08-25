@@ -1,10 +1,6 @@
-export type TaskStatusDto =
-  | 'creating'
-  | 'starting'
-  | 'running'
-  | 'stopped'
-  | 'error'
-  | 'unknown';
+export type TaskStatusDto = 'creating' | 'starting' | 'running' | 'stopped' | 'error' | 'unknown';
+
+export type DevStatusDto = 'in_progress' | 'blocked' | 'ready';
 
 export interface TaskDto {
   id: string;
@@ -13,6 +9,7 @@ export interface TaskDto {
   description?: string;
   image: string;
   status: TaskStatusDto;
+  dev_status?: DevStatusDto | null;
   port: number;
   container_id?: string;
   container_ip?: string;
@@ -44,6 +41,7 @@ export interface DeleteTaskResponseDto {
 
 export interface UpdateTaskRequestDto {
   description?: string;
+  dev_status?: DevStatusDto;
   image?: string;
   port?: number;
   labels?: Record<string, string>;

@@ -10,6 +10,7 @@ export function toTask(dto: TaskDto): Task {
     description: dto.description || undefined,
     image: dto.image,
     status: dto.status,
+    devStatus: dto.dev_status ?? 'in_progress',
     port: dto.port,
     containerId: dto.container_id,
     containerIp: dto.container_ip,
@@ -39,6 +40,7 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
 export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskRequestDto {
   return {
     description: input.description,
+    dev_status: input.devStatus,
     image: input.image,
     port: input.port,
     labels: input.labels ? { ...input.labels } : undefined,

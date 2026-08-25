@@ -1,3 +1,5 @@
+import { DevStatus } from './task';
+
 export interface CreateTaskInput {
   readonly name: string;
   readonly image: string;
@@ -9,6 +11,7 @@ export interface CreateTaskInput {
 /** Only present fields are sent; image, port, labels or env changes recreate the container. */
 export interface UpdateTaskInput {
   readonly description?: string;
+  readonly devStatus?: DevStatus;
   readonly image?: string;
   readonly port?: number;
   readonly labels?: Readonly<Record<string, string>>;

@@ -1,10 +1,10 @@
 import { DatePipe } from '@angular/common';
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TuiSwipeActions, TuiSwipeActionsAutoClose } from '@taiga-ui/addon-mobile';
 import { TuiDropdown, TuiDropdownContext, TuiIcon } from '@taiga-ui/core';
 
-import { Task, TaskActionRequest, TaskActions, TaskMenu } from '@entities/task';
+import { Task, TaskActionRequest, TaskActions, TaskMenu, sortByDevStatus } from '@entities/task';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 
 @Component({
@@ -24,7 +24,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
   template: `
     @if (mobile()) {
       <ul class="m-0 list-none p-0" aria-label="Boreas tasks">
-        @for (task of tasks(); track task.id) {
+        @for (task of sorted(); track task.id) {
           <li class="row-divider relative">
             <tui-swipe-actions autoClose class="swipe">
               <!-- A button owns the click that longtap's passive listener cannot cancel. -->
@@ -36,7 +36,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                 (longtap)="armMenu()"
                 (click)="openTask($event, task)"
               >
-                <span class="dot" [attr.data-status]="task.status" aria-hidden="true"></span>
+                <span class="dot" [attr.data-dev]="task.devStatus" aria-hidden="true"></span>
                 <span class="min-w-0 flex-1">
                   <span class="row__id">
                     {{ task.name }}
@@ -44,6 +44,9 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                   </span>
                   <span class="row__sub tabular">
                     Port {{ task.port }} · {{ environmentCount(task) }} variables
+                    @if (task.status !== 'running') {
+                      · {{ task.status }}
+                    }
                   </span>
                   @if (task.error) {
                     <span class="note note--negative">{{ task.error }}</span>
@@ -89,7 +92,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
       </ul>
     } @else {
       <div role="list" aria-label="Boreas tasks">
-        @for (task of tasks(); track task.id) {
+        @for (task of sorted(); track task.id) {
           <div
             role="listitem"
             class="row row--pointer row-divider relative"
@@ -97,13 +100,18 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
             (click)="openTask($event, task)"
             (keydown.enter)="openTask($event, task)"
           >
-            <span class="dot" [attr.data-status]="task.status" aria-hidden="true"></span>
+            <span class="dot" [attr.data-dev]="task.devStatus" aria-hidden="true"></span>
             <span class="min-w-0 flex-1">
               <a class="row__id row__id--link" [routerLink]="routeFor()(task)">
                 {{ task.name }}
                 <span class="sr-only">, {{ task.status }}</span>
               </a>
-              <span class="row__sub" [attr.title]="task.image">{{ task.image }}</span>
+              <span class="row__sub" [attr.title]="task.image">
+                {{ task.image }}
+                @if (task.status !== 'running') {
+                  · {{ task.status }}
+                }
+              </span>
               @if (task.error) {
                 <span class="note note--negative">{{ task.error }}</span>
               }
@@ -179,24 +187,16 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
       background: var(--tui-status-neutral);
     }
 
-    .dot[data-status='running'] {
-      background: var(--tui-status-positive);
+    .dot[data-dev='in_progress'] {
+      background: var(--tui-status-warning);
     }
 
-    .dot[data-status='error'] {
+    .dot[data-dev='blocked'] {
       background: var(--tui-status-negative);
     }
 
-    .dot[data-status='creating'],
-    .dot[data-status='starting'] {
-      background: var(--tui-status-warning);
-      animation: dot-pulse 1.4s ease-in-out infinite;
-    }
-
-    @keyframes dot-pulse {
-      50% {
-        opacity: 0.4;
-      }
+    .dot[data-dev='ready'] {
+      background: var(--tui-status-positive);
     }
 
     .row__id {
@@ -271,6 +271,8 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
 })
 export class TaskList {
   readonly tasks = input.required<readonly Task[]>();
+
+  protected readonly sorted = computed(() => sortByDevStatus(this.tasks()));
   /** Pending commands are keyed by task name within the page's project. */
   readonly pendingTaskIds = input.required<ReadonlySet<string>>();
   readonly mobile = input.required<boolean>();

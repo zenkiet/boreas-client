@@ -2,6 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { TuiIcon } from '@taiga-ui/core';
 
 import { Project } from '@entities/project';
+import { Task, sortByDevStatus } from '@entities/task';
 import { ProjectSummary } from '../../model/list-projects.store';
 
 const MAX_DOTS = 6;
@@ -24,8 +25,8 @@ const MAX_DOTS = 6;
         </span>
 
         <span class="row__dots" aria-hidden="true">
-          @for (task of summary.tasks.slice(0, maxDots); track task.id) {
-            <i class="row__dot" [attr.data-status]="task.status"></i>
+          @for (task of dotTasks(summary); track task.id) {
+            <i class="row__dot" [attr.data-dev]="task.devStatus"></i>
           }
           @if (summary.tasks.length > maxDots) {
             <span class="row__more tabular">+{{ summary.tasks.length - maxDots }}</span>
@@ -97,17 +98,16 @@ const MAX_DOTS = 6;
       background: var(--tui-status-neutral);
     }
 
-    .row__dot[data-status='running'] {
-      background: var(--tui-status-positive);
+    .row__dot[data-dev='in_progress'] {
+      background: var(--tui-status-warning);
     }
 
-    .row__dot[data-status='error'] {
+    .row__dot[data-dev='blocked'] {
       background: var(--tui-status-negative);
     }
 
-    .row__dot[data-status='creating'],
-    .row__dot[data-status='starting'] {
-      background: var(--tui-status-warning);
+    .row__dot[data-dev='ready'] {
+      background: var(--tui-status-positive);
     }
 
     .row__more {
@@ -127,6 +127,10 @@ export class ProjectList {
   readonly projectOpened = output<Project>();
 
   protected readonly maxDots = MAX_DOTS;
+
+  protected dotTasks(summary: ProjectSummary): readonly Task[] {
+    return sortByDevStatus(summary.tasks).slice(0, MAX_DOTS);
+  }
 
   protected taskLabel(summary: ProjectSummary): string {
     const total = summary.tasks.length;

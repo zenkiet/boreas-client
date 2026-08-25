@@ -3,7 +3,7 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { TuiButton, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { EMPTY, defer, from } from 'rxjs';
 
-import { Task } from '@entities/task';
+import { DEV_STATUS_LABEL, Task } from '@entities/task';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 interface DetailRow {
@@ -19,6 +19,15 @@ const COPIED_RESET_MS = 1600;
   imports: [InsetGroup, TuiButton, TuiHint, TuiIcon],
   template: `
     <app-inset-group label="Overview">
+      <button type="button" class="lrow row-divider relative status" (click)="statusClicked.emit()">
+        <span class="lrow__label">Status</span>
+        <span class="status__value">
+          <span class="status__dot" [attr.data-dev]="task().devStatus" aria-hidden="true"></span>
+          {{ statusLabel() }}
+        </span>
+        <tui-icon class="status__chevron icon-sm" icon="@tui.chevron-right" aria-hidden="true" />
+      </button>
+
       <div class="lrow row-divider relative">
         <span class="lrow__label">Proxy URL</span>
         <a
@@ -52,6 +61,48 @@ const COPIED_RESET_MS = 1600;
     </app-inset-group>
   `,
   styles: `
+    /* Tailwind has no preflight, so reset the button-shaped row explicitly. */
+    button.status {
+      inline-size: 100%;
+      margin: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      text-align: start;
+      cursor: pointer;
+    }
+
+    .status__value {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4375rem;
+      margin-inline-start: auto;
+      font-size: 0.9375rem;
+      color: var(--tui-text-primary);
+    }
+
+    .status__dot {
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      border-radius: 999px;
+    }
+
+    .status__dot[data-dev='in_progress'] {
+      background: var(--tui-status-warning);
+    }
+
+    .status__dot[data-dev='blocked'] {
+      background: var(--tui-status-negative);
+    }
+
+    .status__dot[data-dev='ready'] {
+      background: var(--tui-status-positive);
+    }
+
+    .status__chevron {
+      color: var(--tui-text-tertiary);
+    }
+
     /* Without flex+min-size the nowrap link refuses to shrink and shoves the copy button
        outside the group, which put it out of reach entirely at 375px. */
     .lrow__link {
@@ -78,6 +129,9 @@ export class TaskOverview {
   readonly task = input.required<Task>();
   readonly proxyUrl = input.required<string>();
   readonly copyFailed = output<void>();
+  readonly statusClicked = output<void>();
+
+  protected readonly statusLabel = computed(() => DEV_STATUS_LABEL[this.task().devStatus]);
 
   protected readonly copied = signal(false);
 
@@ -85,6 +139,7 @@ export class TaskOverview {
     const task = this.task();
 
     return [
+      { label: 'Container', value: task.status },
       { label: 'Image', value: task.image, mono: true },
       { label: 'Internal port', value: String(task.port) },
       { label: 'Container IP', value: task.containerIp || 'Unavailable', mono: true },

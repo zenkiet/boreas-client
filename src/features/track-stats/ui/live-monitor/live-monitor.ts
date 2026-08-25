@@ -23,76 +23,73 @@ const STATE_COLOR: Record<string, string> = {
   template: `
     <header class="mon__head">
       <span class="mon__label" aria-live="polite">
-        {{ metrics.live() ? 'Live' : 'Waiting' }} · {{ slugs().length }}
-        {{ slugs().length === 1 ? 'project' : 'projects' }}
+        {{ stale() ? 'Waiting' : 'Live' }} · {{ projects().length }}
+        {{ projects().length === 1 ? 'project' : 'projects' }}
       </span>
       <span class="mon__trail tabular">60s</span>
     </header>
 
-    @if (current(); as now) {
-      <div class="mon__body" [class.mon__stale]="!metrics.live()">
-        <div class="mon__vitals">
-          <div class="mon__vital">
-            <span class="mon__key">CPU</span>
-            <span class="mon__num tabular" [attr.data-state]="cpuState()">
-              {{ now.cpu.toFixed(1) }}%
-            </span>
-          </div>
-          <div class="mon__vital">
-            <span class="mon__key">Memory</span>
-            <span class="mon__num tabular" [attr.data-state]="memState()">
-              {{ bytes(now.mem) }}
-            </span>
-          </div>
-          <div class="mon__vital">
-            <span class="mon__key">Network</span>
-            <span class="mon__num tabular">{{ bytes(now.net) }}/s</span>
-          </div>
+    @let now = current();
+    <div class="mon__body" [class.mon__stale]="stale()">
+      <div class="mon__vitals">
+        <div class="mon__vital">
+          <span class="mon__key">CPU</span>
+          <span class="mon__num tabular" [attr.data-state]="cpuState()">
+            {{ now.cpu.toFixed(1) }}%
+          </span>
         </div>
-
-        <tui-axes
-          class="mon__axes"
-          [horizontalLines]="2"
-          [horizontalLinesHandler]="dashed"
-          [axisXLabels]="xLabels()"
-        >
-          <tui-line-chart
-            [style.color]="chartColor()"
-            [x]="0"
-            [y]="0"
-            [width]="width()"
-            [height]="yMax()"
-            [value]="cpuPoints()"
-            [filled]="true"
-          />
-        </tui-axes>
-
-        <button
-          type="button"
-          class="mon__disclose"
-          [attr.aria-expanded]="expanded()"
-          (click)="expanded.set(!expanded())"
-        >
-          By project
-          <tui-icon
-            class="mon__chevron icon-sm"
-            icon="@tui.chevron-down"
-            [class.mon__chevron--open]="expanded()"
-          />
-        </button>
-
-        @if (expanded()) {
-          @for (row of rows(); track row.slug) {
-            <a class="mon__row" [routerLink]="['/projects', row.slug]">
-              <span class="mon__slug">{{ row.slug }}</span>
-              <span class="mon__figures tabular">{{ row.figures }}</span>
-            </a>
-          }
-        }
+        <div class="mon__vital">
+          <span class="mon__key">Memory</span>
+          <span class="mon__num tabular" [attr.data-state]="memState()">
+            {{ bytes(now.mem) }}
+          </span>
+        </div>
+        <div class="mon__vital">
+          <span class="mon__key">Network</span>
+          <span class="mon__num tabular">{{ bytes(now.net) }}/s</span>
+        </div>
       </div>
-    } @else {
-      <p class="mon__idle">Nothing running — charts wake with the first live sample.</p>
-    }
+
+      <tui-axes
+        class="mon__axes"
+        [horizontalLines]="2"
+        [horizontalLinesHandler]="dashed"
+        [axisXLabels]="xLabels()"
+      >
+        <tui-line-chart
+          [style.color]="chartColor()"
+          [x]="0"
+          [y]="0"
+          [width]="width()"
+          [height]="yMax()"
+          [value]="cpuPoints()"
+          [filled]="true"
+        />
+      </tui-axes>
+
+      <button
+        type="button"
+        class="mon__disclose"
+        [attr.aria-expanded]="expanded()"
+        (click)="expanded.set(!expanded())"
+      >
+        By project
+        <tui-icon
+          class="mon__chevron icon-sm"
+          icon="@tui.chevron-down"
+          [class.mon__chevron--open]="expanded()"
+        />
+      </button>
+
+      @if (expanded()) {
+        @for (row of rows(); track row.slug) {
+          <a class="mon__row" [routerLink]="['/projects', row.slug]">
+            <span class="mon__slug">{{ row.slug }}</span>
+            <span class="mon__figures tabular">{{ row.figures }}</span>
+          </a>
+        }
+      }
+    </div>
   `,
   styles: `
     :host {
@@ -219,14 +216,6 @@ const STATE_COLOR: Record<string, string> = {
       color: var(--tui-text-tertiary);
       white-space: nowrap;
     }
-
-    .mon__idle {
-      margin: 0;
-      padding-block: 1.5rem;
-      font-size: 0.875rem;
-      color: var(--tui-text-tertiary);
-      text-align: center;
-    }
   `,
 })
 export class LiveMonitor {
@@ -243,9 +232,7 @@ export class LiveMonitor {
     effect(() => this.metrics.setProjects(this.projects()));
   }
 
-  protected readonly slugs = computed(() =>
-    this.projects().filter((slug) => this.metrics.buffers().get(slug)?.length),
-  );
+  protected readonly stale = computed(() => !this.metrics.live() && this.totals().length > 0);
 
   /* Buckets share one ticker, so summing right-aligned lines the series up by time. */
   protected readonly totals = computed<readonly MetricPoint[]>(() => {
@@ -270,7 +257,9 @@ export class LiveMonitor {
     });
   });
 
-  protected readonly current = computed(() => this.totals().at(-1));
+  protected readonly current = computed(
+    () => this.totals().at(-1) ?? { at: 0, cpu: 0, mem: 0, net: 0 },
+  );
 
   protected readonly cpuState = computed(() => this.state(this.current()?.cpu ?? 0));
 
@@ -281,9 +270,15 @@ export class LiveMonitor {
 
   protected readonly chartColor = computed(() => STATE_COLOR[this.cpuState()]);
 
-  protected readonly cpuPoints = computed<readonly TuiPoint[]>(() =>
-    this.totals().map((point, i) => [i, point.cpu]),
-  );
+  protected readonly cpuPoints = computed<readonly TuiPoint[]>(() => {
+    const totals = this.totals();
+    if (totals.length === 0)
+      return [
+        [0, 0],
+        [1, 0],
+      ];
+    return totals.map((point, i) => [i, point.cpu]);
+  });
 
   protected readonly width = computed(() => Math.max(this.totals().length - 1, 1));
 
@@ -299,9 +294,8 @@ export class LiveMonitor {
   });
 
   protected readonly rows = computed(() =>
-    this.slugs().map((slug) => {
-      const points = this.metrics.buffers().get(slug)!;
-      const last = points[points.length - 1];
+    this.projects().map((slug) => {
+      const last = this.metrics.buffers().get(slug)?.at(-1) ?? { cpu: 0, mem: 0, net: 0 };
       return {
         slug,
         figures: `${last.cpu.toFixed(1)}% · ${this.bytes(last.mem)} · ${this.bytes(last.net)}/s`,

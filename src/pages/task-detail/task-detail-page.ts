@@ -1,13 +1,17 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButton, TuiDropdown, TuiIcon, TuiLoader } from '@taiga-ui/core';
 import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { filter, map, switchMap, take } from 'rxjs';
 
 import { EnvironmentEditor, EnvironmentList } from '@entities/environment';
 import { AddMemberInput, GRANTABLE_ROLES, Member } from '@entities/project';
 import {
+  DevStatus,
+  DevStatusSheet,
   Task,
   TaskActionRequest,
   TaskMenu,
@@ -74,15 +78,7 @@ type View = (typeof VIEWS)[number];
             [routerLink]="projectLink()"
             aria-label="Back to project"
           ></a>
-          <span class="detail__bar-title">
-            <span
-              class="detail__dot"
-              [class.skeleton]="!detail.task()"
-              [attr.data-status]="detail.task()?.status"
-              aria-hidden="true"
-            ></span>
-            {{ name() }}
-          </span>
+          <span class="detail__bar-title">{{ name() }}</span>
           @if (detail.task(); as task) {
             <!-- A single ng-container root lets this @if project into tuiSlot="end". -->
             <ng-container tuiSlot="end">
@@ -119,15 +115,7 @@ type View = (typeof VIEWS)[number];
 
       <header class="hidden md:block">
         <app-back-link [link]="projectPath()" [label]="project()" />
-        <h1 class="detail__title mt-1.5">
-          <span
-            class="detail__dot"
-            [class.skeleton]="!detail.task()"
-            [attr.data-status]="detail.task()?.status"
-            aria-hidden="true"
-          ></span>
-          {{ name() }}
-        </h1>
+        <h1 class="detail__title mt-1.5">{{ name() }}</h1>
         @if (detail.task(); as task) {
           <p class="detail__subtitle">{{ task.image }} · port {{ task.port }}</p>
           @if (task.description) {
@@ -325,6 +313,7 @@ type View = (typeof VIEWS)[number];
               [task]="task"
               [proxyUrl]="detail.proxyUrl()"
               (copyFailed)="reportCopyFailure()"
+              (statusClicked)="changeDevStatus(task)"
             />
 
             <!-- Listing grants is owner-only, so a null list self-gates the whole panel. -->
@@ -361,9 +350,6 @@ type View = (typeof VIEWS)[number];
   `,
   styles: `
     .detail__bar-title {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
       min-inline-size: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -371,9 +357,6 @@ type View = (typeof VIEWS)[number];
     }
 
     .detail__title {
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
       margin: 0;
       font-family: var(--app-font-mono);
       font-size: clamp(1.375rem, 4vw, 1.75rem);
@@ -396,34 +379,6 @@ type View = (typeof VIEWS)[number];
       font-size: 0.9375rem;
       color: var(--tui-text-secondary);
       overflow-wrap: anywhere;
-    }
-
-    .detail__dot {
-      inline-size: 0.4375rem;
-      block-size: 0.4375rem;
-      flex: none;
-      border-radius: 999px;
-      background: var(--tui-status-neutral);
-    }
-
-    .detail__dot[data-status='running'] {
-      background: var(--tui-status-positive);
-    }
-
-    .detail__dot[data-status='error'] {
-      background: var(--tui-status-negative);
-    }
-
-    .detail__dot[data-status='creating'],
-    .detail__dot[data-status='starting'] {
-      background: var(--tui-status-warning);
-      animation: detail-dot-pulse 1.4s ease-in-out infinite;
-    }
-
-    @keyframes detail-dot-pulse {
-      50% {
-        opacity: 0.4;
-      }
     }
 
     /* Fixed console bounds prevent streaming lines from shifting page layout. */
@@ -479,6 +434,7 @@ export class TaskDetailPage {
   protected readonly detail = inject(ViewTaskStore);
   private readonly commands = inject(ControlTaskStore);
   private readonly confirmations = inject(ConfirmActionService);
+  private readonly dialogs = inject(TuiResponsiveDialogService);
   private readonly toasts = inject(TuiToastService);
   private readonly router = inject(Router);
   private readonly fleet = inject(ListProjectsStore);
@@ -593,6 +549,27 @@ export class TaskDetailPage {
     }
 
     this.changeState(action);
+  }
+
+  protected changeDevStatus(task: Task): void {
+    this.dialogs
+      .open<DevStatus>(new PolymorpheusComponent(DevStatusSheet), {
+        label: 'Dev status',
+        data: task.devStatus,
+      })
+      .pipe(
+        filter((status) => status !== task.devStatus),
+        switchMap((status) => this.commands.setDevStatus(this.slug(), task, status)),
+      )
+      .subscribe((result) => {
+        this.notify(result.message, result.success);
+
+        if (result.success) {
+          /* Home and the project list read this as dot colors. */
+          this.fleet.invalidate();
+          this.reload();
+        }
+      });
   }
 
   /* Reversible lifecycle actions do not require confirmation. */

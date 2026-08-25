@@ -9,7 +9,7 @@ import { FleetTask } from '../../model/search-tasks.store';
   template: `
     @for (entry of entries(); track entry.task.id) {
       <button type="button" class="result" (click)="taskOpened.emit(entry)">
-        <span class="result__dot" [attr.data-status]="entry.task.status" aria-hidden="true"></span>
+        <span class="result__dot" [attr.data-dev]="entry.task.devStatus" aria-hidden="true"></span>
         <span class="min-w-0 flex-1">
           <span class="result__id">
             <span class="result__project">{{ entry.project.slug }}/</span>{{ entry.task.name }}
@@ -62,17 +62,16 @@ import { FleetTask } from '../../model/search-tasks.store';
       background: var(--tui-status-neutral);
     }
 
-    .result__dot[data-status='running'] {
-      background: var(--tui-status-positive);
+    .result__dot[data-dev='in_progress'] {
+      background: var(--tui-status-warning);
     }
 
-    .result__dot[data-status='error'] {
+    .result__dot[data-dev='blocked'] {
       background: var(--tui-status-negative);
     }
 
-    .result__dot[data-status='creating'],
-    .result__dot[data-status='starting'] {
-      background: var(--tui-status-warning);
+    .result__dot[data-dev='ready'] {
+      background: var(--tui-status-positive);
     }
 
     .result__id {

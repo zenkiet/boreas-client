@@ -160,3 +160,16 @@ token-guarded and nests tasks under projects.
   the stat tiles.
 - BE nice-to-have noted: a global /metrics/stream with a project field would
   collapse N connections into one once fleets grow.
+
+## Dev status (v1.6, 2026-08-24)
+
+- Task.devStatus wired through entity/dto/mapper; list dots (project tasks,
+  home per-task rows, search results) now show dev status, sorted
+  blocked > in_progress > ready via one stable-sort helper. Container state
+  moved into words (sub-line "· stopped", existing notes, Container row).
+- Change UX = option A of the mockup deck: "Status" row in task Info opens
+  DevStatusSheet (responsive sheet/dialog) with described options; PATCH via
+  ControlTaskStore.setDevStatus, optimistic per RBAC precedent, fleet cache
+  invalidated on success.
+- Verified live: create defaults in_progress, old tasks backfilled, PATCH is
+  metadata-only, bad value 400, full change flow (sheet -> toast -> dot).
