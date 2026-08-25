@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.7.0](https://github.com/zenkiet/boreas-client/compare/aaab2a93b231941f6a81d72c16415ed8e3c50d6e..v0.7.0) - 2026-08-25
+#### 🚀 Features
+- ✨implement dev status - ([aaab2a9](https://github.com/zenkiet/boreas-client/commit/aaab2a93b231941f6a81d72c16415ed8e3c50d6e)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.6.2](https://github.com/zenkiet/boreas-client/compare/0a160822ddfc8af1d96d67c5fffc6fc06be09320..v0.6.2) - 2026-08-25
 #### 👷 Continuous Integration
 - 👷 update conflict CI/CD - ([0a16082](https://github.com/zenkiet/boreas-client/commit/0a160822ddfc8af1d96d67c5fffc6fc06be09320)) - [@zenkiet](https://github.com/zenkiet)
