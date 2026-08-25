@@ -18,9 +18,8 @@ const HOUR_MS = 3_600_000;
     @for (group of groups(); track group.label) {
       <app-inset-group [label]="group.label" [trailing]="failedLabel(group)">
         @for (alert of group.items; track alert.id) {
-          <div class="alert row-divider relative">
-            <div class="alert__row">
-              <span class="alert__dot" [attr.data-status]="alert.status" aria-hidden="true"></span>
+          <div class="alert row-divider relative" [attr.data-status]="alert.status">
+            <div class="alert__head">
               <span
                 class="alert__title"
                 [class.alert__title--new]="alert.createdAt.getTime() > boundary()"
@@ -30,8 +29,7 @@ const HOUR_MS = 3_600_000;
               <span class="alert__time tabular">{{ timeLabel(alert.createdAt) }}</span>
             </div>
 
-            <!-- A success carries only the digest it shipped; a failure carries the reason. -->
-            @if (alert.status === 'failure' && alert.body) {
+            @if (alert.body) {
               <pre class="alert__body">{{ alert.body }}</pre>
             }
           </div>
@@ -45,28 +43,21 @@ const HOUR_MS = 3_600_000;
       gap: 0.875rem;
     }
 
-    .alert__row {
+    .alert {
+      display: grid;
+      gap: 0.3125rem;
+      padding: 0.6875rem 1rem 0.8125rem;
+    }
+
+    /* The title already says "failed" in words, so the tint is reinforcement, not the message. */
+    .alert[data-status='failure'] {
+      background: var(--tui-status-negative-pale);
+    }
+
+    .alert__head {
       display: flex;
-      align-items: flex-start;
+      align-items: baseline;
       gap: 0.625rem;
-      padding: 0.75rem 1rem;
-    }
-
-    /* Optically centered against the first text line. */
-    .alert__dot {
-      inline-size: 0.4375rem;
-      block-size: 0.4375rem;
-      margin-block-start: 0.4375rem;
-      border-radius: 999px;
-      flex: none;
-    }
-
-    .alert__dot[data-status='success'] {
-      background: var(--tui-status-positive);
-    }
-
-    .alert__dot[data-status='failure'] {
-      background: var(--tui-status-negative);
     }
 
     .alert__title {
@@ -89,20 +80,16 @@ const HOUR_MS = 3_600_000;
 
     .alert__time {
       flex: none;
-      padding-block-start: 0.0625rem;
       font-size: 0.8125rem;
       color: var(--tui-text-tertiary);
     }
 
     .alert__body {
-      margin: 0 1rem 0.75rem 1.9375rem;
-      border-radius: var(--tui-radius-m);
-      padding: 0.5rem 0.625rem;
-      background: var(--tui-background-neutral-1);
+      margin: 0;
       font-family: var(--app-font-mono);
       font-size: 0.75rem;
       line-height: 1.55;
-      color: var(--tui-text-negative);
+      color: var(--tui-text-secondary);
       white-space: pre-wrap;
       word-break: break-word;
     }
