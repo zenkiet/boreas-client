@@ -3,6 +3,7 @@ import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { Observable, Subscription, catchError, map, of } from 'rxjs';
 
 import { LogEntry, TaskLogApi, toLogEntry } from '@entities/task-log';
+import { createLogger } from '@shared/lib/logging/logger';
 
 const RECONNECT_DELAY_MS = 3000;
 
@@ -16,6 +17,7 @@ interface StreamTarget {
 
 @Injectable()
 export class LogStreamStore {
+  private readonly logger = createLogger('log-stream');
   private readonly api = inject(TaskLogApi);
   private readonly document = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
@@ -74,7 +76,8 @@ export class LogStreamStore {
         this.downloadingState.set(false);
         return true;
       }),
-      catchError(() => {
+      catchError((error: unknown) => {
+        this.logger.error('Log download failed', { ...target, error });
         this.downloadingState.set(false);
         return of(false);
       }),
@@ -97,7 +100,8 @@ export class LogStreamStore {
           this.scheduleReconnect(0);
         }
       },
-      error: () => {
+      error: (error: unknown) => {
+        this.logger.warn('Log stream failed; reconnecting', { ...target, error });
         this.connectingState.set(false);
         this.scheduleReconnect(RECONNECT_DELAY_MS);
       },
