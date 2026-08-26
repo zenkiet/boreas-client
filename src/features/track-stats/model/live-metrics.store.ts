@@ -3,6 +3,7 @@ import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 
 import { ProjectApi } from '@entities/project';
+import { createLogger } from '@shared/lib/logging/logger';
 
 /** One per-project bucket: summed cpu %, memory bytes, and network bytes/s (rx+tx). */
 export interface MetricPoint {
@@ -41,6 +42,7 @@ const SNAPSHOT_FRESH_MS = 120_000;
 /** Fans out one metrics stream per project and folds tasks into per-project 1s buckets. */
 @Injectable()
 export class LiveMetricsStore {
+  private readonly logger = createLogger('live-metrics');
   private readonly api = inject(ProjectApi);
   private readonly document = inject(DOCUMENT);
 
@@ -93,7 +95,10 @@ export class LiveMetricsStore {
         this.consume(stream, text);
         if (text.length > MAX_BUFFER_CHARS) this.scheduleReopen(slug, 0);
       },
-      error: () => this.scheduleReopen(slug, RECONNECT_DELAY_MS),
+      error: (error: unknown) => {
+        this.logger.warn('Metrics stream failed; reconnecting', { project: slug, error });
+        this.scheduleReopen(slug, RECONNECT_DELAY_MS);
+      },
       complete: () => this.scheduleReopen(slug, RECONNECT_DELAY_MS),
     });
   }

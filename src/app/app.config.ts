@@ -1,5 +1,10 @@
 import { DOCUMENT } from '@angular/common';
-import { ApplicationConfig, inject, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  ErrorHandler,
+  inject,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { WA_IS_MOBILE } from '@ng-web-apis/platform';
 import { TUI_PLATFORM } from '@taiga-ui/cdk';
@@ -9,12 +14,14 @@ import { provideAppHttpClient } from '@shared/api/http';
 import { providePushNotifications } from '@shared/lib/push';
 import { provideAndroidBackButton } from './android-back-button';
 import { routes } from './app.routes';
+import { AppErrorHandler } from './error-handler';
 
 const MOBILE_QUERY = '(max-width: 768px)';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: ErrorHandler, useClass: AppErrorHandler },
     provideAppHttpClient(),
     provideAndroidBackButton(),
     providePushNotifications({
@@ -24,7 +31,8 @@ export const appConfig: ApplicationConfig = {
       storageBucket: 'zen-boreas.firebasestorage.app',
       messagingSenderId: '407388055368',
       appId: '1:407388055368:web:662aa7e373bd8d57d6357d',
-      vapidKey: 'BNxruyU5YFKqLZKtgOLcozHpF7Y9eNiaY-ajytpZv3wYBu-Y4p7zIHiZ5fvK65dhNyoi9vhC-7yCDM73kQDzLmY',
+      vapidKey:
+        'BNxruyU5YFKqLZKtgOLcozHpF7Y9eNiaY-ajytpZv3wYBu-Y4p7zIHiZ5fvK65dhNyoi9vhC-7yCDM73kQDzLmY',
     }),
     provideRouter(routes, withComponentInputBinding()),
     provideTaiga({ apis: { liquidGlass: true } }),
