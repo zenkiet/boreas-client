@@ -23,10 +23,3 @@ export function toByteSize(bytes: number): ByteSize {
     unit: UNITS[unit],
   };
 }
-
-/** Docker reports "no limit" as zero, which is not the same as 0 bytes. */
-export function formatBytes(bytes: number | undefined): string {
-  if (!bytes) return 'Unlimited';
-  const { value, unit } = toByteSize(bytes);
-  return `${value} ${unit}`;
-}

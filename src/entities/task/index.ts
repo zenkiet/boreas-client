@@ -1,6 +1,6 @@
 export { TaskApi } from './api/task.api';
 export type { CreateTaskInput, UpdateTaskInput } from './model/create-task-input';
-export { DEV_STATUS_LABEL, isTransitioningTask, sortByDevStatus } from './model/task';
+export { DEV_STATUSES, DEV_STATUS_LABEL, isTransitioningTask, sortByDevStatus } from './model/task';
 export type { DevStatus, Task } from './model/task';
 export { describeCompletedAction } from './model/task-state-action';
 export type { TaskStateAction } from './model/task-state-action';

@@ -84,7 +84,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
         <div class="grid grid-cols-1 gap-4">
           @if (overview.stats(); as stats) {
             <app-live-monitor [projects]="slugs()" [hostMemoryMb]="stats.totalMemoryMb" />
-            <app-stat-tiles [stats]="stats" />
+            <app-stat-tiles [tasks]="allTasks()" />
           }
 
           @if (overview.error()) {
@@ -183,10 +183,14 @@ export class ProjectsPage {
   protected readonly mobile = computed(() => this.breakpoint() === 'mobile');
 
   /* Must match StatTiles so the redacted grid swaps in place. */
-  protected readonly tileLabels = ['Projects', 'Stopped', 'Host memory'] as const;
+  protected readonly tileLabels = ['Blocked', 'In progress', 'Ready'] as const;
 
   protected readonly slugs = computed(() =>
     this.overview.summaries().map((summary) => summary.project.slug),
+  );
+
+  protected readonly allTasks = computed(() =>
+    this.overview.summaries().flatMap((summary) => summary.tasks),
   );
 
   protected readonly summary = computed(() => {

@@ -22,9 +22,9 @@ import { TuiButton, TuiIcon, TuiTextfield } from '@taiga-ui/core';
           tuiInput
           type="search"
           autocomplete="off"
-          aria-label="Search tasks by ID or image"
+          aria-label="Search tasks"
           aria-keyshortcuts="/"
-          placeholder="Search task ID or image"
+          placeholder="Search tasks"
           [formField]="field"
           (keydown.escape)="clear()"
         />

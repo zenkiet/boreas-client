@@ -7,7 +7,7 @@ import { TuiAppBar } from '@taiga-ui/layout';
 import { filter, switchMap, take } from 'rxjs';
 
 import { AddMemberInput, Member, Project, TaskDefaultsInput } from '@entities/project';
-import { Task, TaskActionRequest } from '@entities/task';
+import { DEV_STATUSES, DEV_STATUS_LABEL, Task, TaskActionRequest } from '@entities/task';
 import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects';
 import { TaskList } from '@features/list-tasks';
@@ -410,8 +410,14 @@ export class ProjectDetailPage {
   ]);
 
   protected readonly taskSummary = computed(() => {
-    const total = this.detail.tasks().length;
-    return `${total} ${total === 1 ? 'task' : 'tasks'}`;
+    const tasks = this.detail.tasks();
+    const parts = DEV_STATUSES.map((status) => ({
+      status,
+      count: tasks.filter((task) => task.devStatus === status).length,
+    }))
+      .filter(({ count }) => count > 0)
+      .map(({ status, count }) => `${count} ${DEV_STATUS_LABEL[status].toLowerCase()}`);
+    return parts.length > 0 ? parts.join(' · ') : '0 tasks';
   });
 
   protected readonly memberSummary = computed(() => {

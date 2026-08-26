@@ -42,8 +42,8 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                     {{ task.name }}
                     <span class="sr-only">, {{ task.status }}</span>
                   </span>
-                  <span class="row__sub tabular">
-                    Port {{ task.port }} · {{ environmentCount(task) }} variables
+                  <span class="row__sub">
+                    {{ task.description || '—' }}
                     @if (task.status !== 'running') {
                       · {{ task.status }}
                     }
@@ -106,8 +106,8 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
                 {{ task.name }}
                 <span class="sr-only">, {{ task.status }}</span>
               </a>
-              <span class="row__sub" [attr.title]="task.image">
-                {{ task.image }}
+              <span class="row__sub">
+                {{ task.description || '—' }}
                 @if (task.status !== 'running') {
                   · {{ task.status }}
                 }
@@ -120,10 +120,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
               }
             </span>
 
-            <span class="row__meta tabular">
-              Port {{ task.port }} · {{ environmentCount(task) }} vars ·
-              {{ task.updatedAt | date: 'MMM d' }}
-            </span>
+            <span class="row__meta tabular">{{ task.updatedAt | date: 'MMM d, y, h:mm a' }}</span>
             <span class="row__actions">
               <app-task-actions
                 [task]="task"
@@ -282,10 +279,6 @@ export class TaskList {
   readonly taskOpened = output<Task>();
 
   private menuArmed = false;
-
-  protected environmentCount(task: Task): number {
-    return Object.keys(task.env).length;
-  }
 
   protected armMenu(): void {
     this.menuArmed = true;

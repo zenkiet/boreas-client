@@ -15,13 +15,13 @@ import { FleetTask } from '../../model/search-tasks.store';
             <span class="result__project">{{ entry.project.slug }}/</span>{{ entry.task.name }}
             <span class="sr-only">, {{ entry.task.status }}</span>
           </span>
-          <span class="result__sub">{{ entry.task.image }}</span>
+          <span class="result__sub">{{ entry.task.description || '—' }}</span>
         </span>
         <tui-icon class="result__chevron" icon="@tui.chevron-right" aria-hidden="true" />
       </button>
     } @empty {
       <p class="result__empty">
-        {{ query() ? 'No project, task or image matches "' + query() + '".' : 'No tasks yet.' }}
+        {{ query() ? 'No results for "' + query() + '".' : 'No tasks yet.' }}
       </p>
     }
   `,
@@ -93,7 +93,6 @@ import { FleetTask } from '../../model/search-tasks.store';
     .result__sub {
       display: block;
       overflow: hidden;
-      font-family: var(--app-font-mono);
       font-size: 0.8125rem;
       color: var(--tui-text-tertiary);
       text-overflow: ellipsis;

@@ -23,6 +23,7 @@ export class SearchTasksStore {
       ({ project, task }) =>
         task.name.toLowerCase().includes(query) ||
         task.image.toLowerCase().includes(query) ||
+        (task.description ?? '').toLowerCase().includes(query) ||
         project.slug.toLowerCase().includes(query),
     );
   }

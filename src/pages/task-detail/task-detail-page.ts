@@ -19,6 +19,7 @@ import {
   isTransitioningTask,
 } from '@entities/task';
 import { ControlTaskStore } from '@features/control-task';
+import { ListAlertsStore } from '@features/list-alerts';
 import { ListProjectsStore } from '@features/list-projects';
 import { ManageGrantsStore, MemberList } from '@features/manage-project';
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
@@ -116,15 +117,8 @@ type View = (typeof VIEWS)[number];
       <header class="hidden md:block">
         <app-back-link [link]="projectPath()" [label]="project()" />
         <h1 class="detail__title mt-1.5">{{ name() }}</h1>
-        @if (detail.task(); as task) {
-          <p class="detail__subtitle">{{ task.image }} · port {{ task.port }}</p>
-          @if (task.description) {
-            <p class="detail__description">{{ task.description }}</p>
-          }
-        } @else {
-          <p class="detail__subtitle skeleton-defer" aria-hidden="true">
-            <span class="skeleton skeleton--sub inline-block w-44 max-w-full"></span>
-          </p>
+        @if (detail.task()?.description; as description) {
+          <p class="detail__description">{{ description }}</p>
         }
       </header>
 
@@ -312,7 +306,9 @@ type View = (typeof VIEWS)[number];
             <app-task-overview
               [task]="task"
               [proxyUrl]="detail.proxyUrl()"
+              [lastDeploy]="lastDeploy()"
               (copyFailed)="reportCopyFailure()"
+              (imageCopyFailed)="reportImageCopyFailure()"
               (statusClicked)="changeDevStatus(task)"
             />
 
@@ -363,14 +359,6 @@ type View = (typeof VIEWS)[number];
       font-weight: 700;
       letter-spacing: -0.02em;
       color: var(--tui-text-primary);
-      overflow-wrap: anywhere;
-    }
-
-    .detail__subtitle {
-      margin: 0.375rem 0 0;
-      font-family: var(--app-font-mono);
-      font-size: 0.9375rem;
-      color: var(--tui-text-tertiary);
       overflow-wrap: anywhere;
     }
 
@@ -438,6 +426,7 @@ export class TaskDetailPage {
   private readonly toasts = inject(TuiToastService);
   private readonly router = inject(Router);
   private readonly fleet = inject(ListProjectsStore);
+  private readonly deploys = inject(ListAlertsStore);
   protected readonly logs = inject(LogStreamStore);
 
   readonly slug = input('');
@@ -453,6 +442,14 @@ export class TaskDetailPage {
   ]);
   protected readonly projectLink = computed(() => ['/projects', this.slug()]);
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
+
+  /* Alerts arrive newest-first, so find() is the latest deploy of this task. */
+  protected readonly lastDeploy = computed(() => {
+    const alert = this.deploys
+      .alerts()
+      .find((entry) => entry.project === this.slug() && entry.taskName === this.name());
+    return alert ? { at: alert.createdAt, failed: alert.status === 'failure' } : null;
+  });
 
   protected readonly view = signal<View>('info');
   protected readonly viewIndex = computed(() => VIEWS.indexOf(this.view()));
@@ -632,6 +629,10 @@ export class TaskDetailPage {
 
   protected reportCopyFailure(): void {
     this.notify('The proxy URL could not be copied to the clipboard.', false);
+  }
+
+  protected reportImageCopyFailure(): void {
+    this.notify('The image reference could not be copied to the clipboard.', false);
   }
 
   protected grantSummary(count: number): string {

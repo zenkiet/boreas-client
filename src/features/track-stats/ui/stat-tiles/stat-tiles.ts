@@ -1,27 +1,18 @@
 import { Component, computed, input } from '@angular/core';
 
-import { SystemStats } from '@entities/system-stats';
-import { MEGABYTE, formatBytes } from '@shared/lib/format/bytes';
+import { DEV_STATUSES, DEV_STATUS_LABEL, Task } from '@entities/task';
 
 @Component({
   selector: 'app-stat-tiles',
   template: `
-    <div class="tile">
-      <span class="tile__label">Projects</span>
-      <span class="tile__value tabular">{{ stats().totalProjects }}</span>
-    </div>
-
-    <div class="tile">
-      <span class="tile__label">Stopped</span>
-      <span class="tile__value tabular" [class.tile__value--negative]="stats().stoppedTasks > 0">
-        {{ stats().stoppedTasks }}
-      </span>
-    </div>
-
-    <div class="tile">
-      <span class="tile__label">Host memory</span>
-      <span class="tile__value tabular">{{ hostMemory() }}</span>
-    </div>
+    @for (tile of tiles(); track tile.label) {
+      <div class="tile">
+        <span class="tile__label">{{ tile.label }}</span>
+        <span class="tile__value tabular" [class.tile__value--negative]="tile.alarming">
+          {{ tile.count }}
+        </span>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -53,18 +44,19 @@ import { MEGABYTE, formatBytes } from '@shared/lib/format/bytes';
     .tile__value--negative {
       color: var(--tui-status-negative);
     }
-
-    .tile__note {
-      font-size: 0.8125rem;
-      font-weight: 400;
-      color: var(--tui-text-tertiary);
-    }
   `,
 })
 export class StatTiles {
-  readonly stats = input.required<SystemStats>();
+  readonly tasks = input.required<readonly Task[]>();
 
-  protected readonly hostMemory = computed(() =>
-    this.stats().totalMemoryMb > 0 ? formatBytes(this.stats().totalMemoryMb * MEGABYTE) : 'Unknown',
+  protected readonly tiles = computed(() =>
+    DEV_STATUSES.map((status) => {
+      const count = this.tasks().filter((task) => task.devStatus === status).length;
+      return {
+        label: DEV_STATUS_LABEL[status],
+        count,
+        alarming: status === 'blocked' && count > 0,
+      };
+    }),
   );
 }

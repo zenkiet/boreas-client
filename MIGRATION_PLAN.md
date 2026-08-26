@@ -173,3 +173,16 @@ token-guarded and nests tasks under projects.
   invalidated on success.
 - Verified live: create defaults in_progress, old tasks backfilled, PATCH is
   metadata-only, bad value 400, full change flow (sheet -> toast -> dot).
+
+## Leader-lens info pass (2026-08-26)
+
+- Home tiles now count Blocked / In progress / Ready across the fleet
+  (blocked red when > 0); Projects/Stopped/Host memory tiles retired.
+- Project page "Tasks" trailing shows per-status counts ("1 blocked · 2
+  ready"); task rows show description (fallback image) instead of port/vars.
+- Task Info: dropped Internal port, Container IP, Container ID, Variables;
+  image digest shortened to 12 chars with a copy-full button; added "Last
+  deploy" from the alerts feed (per-task, client-side). formatBytes util
+  removed (orphaned).
+- Title dots on task detail removed earlier the same pass; container state
+  lives in words (Container row, list sub-lines).
