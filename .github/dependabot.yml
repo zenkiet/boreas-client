@@ -1,0 +1,107 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    commit-message:
+      prefix: 'chore(deps): 🔖 '
+      prefix-development: 'chore(deps-dev): 🔖 '
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+      - dependency-name: '@angular/*'
+        update-types:
+          - version-update:semver-major
+    groups:
+      angular:
+        patterns:
+          - '@angular/*'
+        update-types:
+          - minor
+          - patch
+      taiga-ui:
+        patterns:
+          - '@taiga-ui/*'
+        update-types:
+          - minor
+          - patch
+      capacitor:
+        patterns:
+          - '@capacitor/*'
+        update-types:
+          - minor
+          - patch
+      lint-tooling:
+        patterns:
+          - eslint
+          - eslint-*
+          - '@eslint/*'
+          - typescript-eslint
+          - '@typescript-eslint/*'
+          - angular-eslint
+          - '@angular-eslint/*'
+          - prettier
+          - prettier-*
+        update-types:
+          - minor
+          - patch
+      styling:
+        patterns:
+          - tailwindcss
+          - '@tailwindcss/*'
+          - postcss
+          - postcss-*
+          - less
+        update-types:
+          - minor
+          - patch
+      # Anything left over. Majors stay ungrouped so each one gets its own review.
+      production:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Asia/Ho_Chi_Minh
+    commit-message:
+      prefix: 'build(docker): 📦 '
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Asia/Ho_Chi_Minh
+    commit-message:
+      prefix: 'ci(actions): 👷 '
+    cooldown:
+      default-days: 7
+    groups:
+      docker-actions:
+        patterns:
+          - docker/*

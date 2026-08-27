@@ -1,7 +1,4 @@
-ARG NODE_VERSION=lts-alpine
-ARG NGINX_VERSION=1.31.3-alpine
-
-FROM node:${NODE_VERSION} AS build
+FROM node:24.19.0-alpine AS build
 
 ARG PNPM_VERSION=11.24.0
 
@@ -26,7 +23,7 @@ COPY src ./src
 
 RUN pnpm build --configuration production
 
-FROM nginx:${NGINX_VERSION} AS runtime
+FROM nginx:1.31.3-alpine AS runtime
 
 ENV NGINX_ENTRYPOINT_QUIET_LOGS=1
 
