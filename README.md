@@ -1,59 +1,42 @@
-# BoreasClient
+# Boreas Client
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.3.
+Angular web and mobile client (Capacitor) for the Boreas container platform.
 
-## Development server
+## Quick start
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Requires Node.js 24+ and [pnpm](https://pnpm.io) (one-time: `corepack enable pnpm`).
 
 ```bash
-ng generate component component-name
+pnpm install && pnpm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+That is the whole setup: the dev server comes up at `http://localhost:4200/` with live reload, and the app talks to the default Boreas server out of the box — there is no proxy or environment file to configure. Point it at another backend from the app's own Settings → server address.
+
+## Commands
+
+| Command          | What it does                                            |
+| ---------------- | ------------------------------------------------------- |
+| `pnpm start`     | Dev server on `http://localhost:4200/` with live reload |
+| `pnpm build`     | Production build into `dist/boreas-client`              |
+| `pnpm typecheck` | `tsc --noEmit` over the app project                     |
+| `pnpm lint`      | ESLint (includes the FSD layer-boundary rules)          |
+| `pnpm verify`    | typecheck + lint + build — what pre-push runs           |
+
+There is no unit-test target yet; `pnpm verify` is the gate a change must pass.
+
+Run `pnpm build` after template changes — `pnpm typecheck` does not type-check templates.
+
+## Mobile (Capacitor)
+
+The iOS and Android shells live in `ios/` and `android/` and load the built web app:
 
 ```bash
-ng generate --help
+pnpm build && pnpm exec cap sync
+pnpm exec cap open ios      # or: android
 ```
 
-## Building
+App icons and splash screens are generated, never hand-edited — see the brand pipeline notes in `AGENTS.md`.
 
-To build the project run:
+## Architecture
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+`src/` is layered Feature-Sliced Design (`app > pages > widgets > features > entities > shared`); imports only point downward and ESLint enforces the graph. `AGENTS.md` carries the full coding guidelines and hard-won platform notes; `MIGRATION_PLAN.md` records the decisions and the old-to-new file map.
