@@ -4,6 +4,7 @@ import { TuiButton, TuiError, TuiLoader } from '@taiga-ui/core';
 
 import { EnvironmentEditor } from '@entities/environment';
 import { TaskDefaults, TaskDefaultsInput } from '@entities/project';
+import { fieldError } from '@shared/lib/forms/field-error';
 
 let instances = 0;
 
@@ -146,11 +147,7 @@ export class ProjectDefaultsForm {
     port: `${this.uid}-port`,
   };
 
-  protected readonly portError = computed(() => {
-    const state = this.draft.port();
-    if (!state.touched()) return null;
-    return state.errors()[0]?.message ?? null;
-  });
+  protected readonly portError = computed(() => fieldError(this.draft.port()));
 
   protected readonly dirty = computed(() => {
     const draft = this.model();

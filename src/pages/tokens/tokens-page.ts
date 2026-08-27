@@ -1,9 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
-import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
-import { filter, switchMap, take } from 'rxjs';
+import { filter, switchMap } from 'rxjs';
 
 import { ApiToken, isRevocable } from '@entities/api-token';
 import { ManageTokensStore } from '@features/manage-tokens';
@@ -17,6 +16,7 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NotifyService } from '@shared/ui/notify/notify';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 @Component({
@@ -147,7 +147,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 export class TokensPage {
   protected readonly tokens = inject(ManageTokensStore);
   private readonly confirmations = inject(ConfirmActionService);
-  private readonly toasts = inject(TuiToastService);
+  private readonly notifications = inject(NotifyService);
 
   /* The API has no hard delete, so history is hidden rather than removed. */
   protected readonly showHistory = signal(false);
@@ -185,11 +185,7 @@ export class TokensPage {
         switchMap(() => this.tokens.revoke(token)),
       )
       .subscribe((result) => {
-        this.toasts
-          .open(result.message, { appearance: result.success ? 'positive' : 'negative' })
-          .pipe(take(1))
-          .subscribe();
-
+        this.notifications.result(result);
         if (result.success) this.tokens.load();
       });
   }

@@ -9,9 +9,10 @@ import {
   RESERVED_PROJECT_SLUGS,
   TaskDefaultsInput,
 } from '@entities/project';
-import { RegistryCredential } from '@entities/registry-credential';
+import { RegistryCredential, toCredentialOptions } from '@entities/registry-credential';
+import { fieldError } from '@shared/lib/forms/field-error';
 import { Callout } from '@shared/ui/callout/callout';
-import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
+import { GlassSelect } from '@shared/ui/glass-select/glass-select';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -232,18 +233,7 @@ export class ProjectForm {
     port: `${this.uid}-port`,
   };
 
-  protected readonly credentialOptions = computed<readonly GlassSelectOption[] | null>(() => {
-    const credentials = this.credentials();
-    if (!credentials || credentials.length === 0) return null;
-
-    return [
-      { value: '', label: 'None' },
-      ...credentials.map((credential) => ({
-        value: credential.id,
-        label: `${credential.name} (${credential.registry})`,
-      })),
-    ];
-  });
+  protected readonly credentialOptions = computed(() => toCredentialOptions(this.credentials()));
 
   protected readonly slugError = computed(() => {
     const state = this.draft.slug();
@@ -251,11 +241,7 @@ export class ProjectForm {
     return state.errors()[0]?.message ?? this.reservedError();
   });
 
-  protected readonly portError = computed(() => {
-    const state = this.draft.port();
-    if (!state.touched()) return null;
-    return state.errors()[0]?.message ?? null;
-  });
+  protected readonly portError = computed(() => fieldError(this.draft.port()));
 
   protected onSubmit(event: Event): void {
     event.preventDefault();

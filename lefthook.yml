@@ -26,6 +26,12 @@ pre-commit:
         - '**/*.ts'
       run: pnpm typecheck
 
+    - name: duplication
+      glob:
+        - '*.{ts,css,html}'
+        - '**/*.{ts,css,html}'
+      run: pnpm dup
+
 pre-push:
   commands:
     verify:

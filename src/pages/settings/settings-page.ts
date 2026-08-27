@@ -1,11 +1,9 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiIcon } from '@taiga-ui/core';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 
 import { SessionStore } from '@features/auth';
-import { ChangeServerSheet } from '@features/connect-server';
+import { ChangeServerService } from '@features/connect-server';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
@@ -276,7 +274,7 @@ export class SettingsPage {
   private readonly theme = inject(ThemeStore);
   private readonly config = inject(ServerConfigStore);
   private readonly router = inject(Router);
-  private readonly dialogs = inject(TuiResponsiveDialogService);
+  private readonly server = inject(ChangeServerService);
   private readonly tokens = inject(AuthTokenStore);
   protected readonly session = inject(SessionStore);
   protected readonly push = inject(PushStore);
@@ -311,19 +309,14 @@ export class SettingsPage {
     (next ? this.push.enable() : this.push.disable()).subscribe();
   }
 
-  /* Sheet on mobile, dialog on desktop; a dismissal completes without emitting. */
   protected changeServer(): void {
-    const before = this.config.baseUrl();
-
-    this.dialogs
-      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
-      .subscribe((url) => {
-        /* A different server means a different session; the old token is meaningless there. */
-        if (url !== before) {
-          this.tokens.clear();
-          void this.router.navigate(['/login']);
-        }
-      });
+    this.server.open().subscribe((changed) => {
+      /* A different server means a different session; the old token is meaningless there. */
+      if (changed) {
+        this.tokens.clear();
+        void this.router.navigate(['/login']);
+      }
+    });
   }
 
   protected signOut(): void {

@@ -1,7 +1,8 @@
-import { HttpClient, HttpDownloadProgressEvent, HttpEventType } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
-import { Observable, filter, map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
+import { streamSse } from '@shared/api/sse';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { AddMemberInput, Member } from '../model/member';
 import { CreateProjectInput, Project, UpdateProjectInput } from '../model/project';
@@ -100,19 +101,8 @@ export class ProjectApi {
       .pipe(map(() => undefined));
   }
 
-  /** Cumulative SSE body; EventSource cannot send the auth header, so this rides progressive download. */
   metricsStream(slug: string): Observable<string> {
-    return this.http
-      .get(`${this.projectUrl(slug)}/metrics/stream`, {
-        headers: { Accept: 'text/event-stream' },
-        observe: 'events',
-        responseType: 'text',
-        reportProgress: true,
-      })
-      .pipe(
-        filter((event) => event.type === HttpEventType.DownloadProgress),
-        map((event) => (event as HttpDownloadProgressEvent).partialText ?? ''),
-      );
+    return streamSse(this.http, `${this.projectUrl(slug)}/metrics/stream`);
   }
 
   private grantsUrl(slug: string, task: string): string {

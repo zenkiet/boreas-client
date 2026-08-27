@@ -2,10 +2,9 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { Router, RouterLink } from '@angular/router';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButton, TuiDropdown, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { filter, map, switchMap, take } from 'rxjs';
+import { filter, map, switchMap } from 'rxjs';
 
 import { EnvironmentEditor, EnvironmentList } from '@entities/environment';
 import { AddMemberInput, GRANTABLE_ROLES, Member } from '@entities/project';
@@ -33,6 +32,7 @@ import { ErrorState } from '@shared/ui/error-state/error-state';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NotifyService } from '@shared/ui/notify/notify';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 import { TaskOverview } from '@widgets/task-overview';
 
@@ -423,7 +423,7 @@ export class TaskDetailPage {
   private readonly commands = inject(ControlTaskStore);
   private readonly confirmations = inject(ConfirmActionService);
   private readonly dialogs = inject(TuiResponsiveDialogService);
-  private readonly toasts = inject(TuiToastService);
+  private readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly fleet = inject(ListProjectsStore);
   private readonly deploys = inject(ListAlertsStore);
@@ -665,9 +665,6 @@ export class TaskDetailPage {
   }
 
   private notify(message: string, success: boolean): void {
-    this.toasts
-      .open(message, { appearance: success ? 'positive' : 'negative' })
-      .pipe(take(1))
-      .subscribe();
+    this.notifications.result({ message, success });
   }
 }

@@ -35,3 +35,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm verify
+      - name: Upload duplication report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: jscpd-report
+          path: reports/jscpd
+          if-no-files-found: ignore
+          retention-days: 7

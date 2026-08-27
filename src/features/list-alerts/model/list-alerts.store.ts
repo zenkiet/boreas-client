@@ -1,12 +1,12 @@
 import { DOCUMENT } from '@angular/common';
-import { Service, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import { Service, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { Notification, NotificationApi } from '@entities/notification';
 import { ProjectApi } from '@entities/project';
-import { mapApiError } from '@shared/api/api-error';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 import { PushStore } from '@shared/lib/push';
 
 /** A notification tagged with its project; the API payload has no project field. */
@@ -64,28 +64,15 @@ export class ListAlertsStore {
   });
 
   /* Keep the last good snapshot across reloads and routes, but never across tokens. */
-  private readonly current = linkedSignal<
-    { readonly token: string; readonly value: AlertsSnapshot | undefined },
-    AlertsSnapshot | undefined
-  >({
-    source: () => ({
-      token: this.tokens.token(),
-      value: this.snapshot.hasValue() ? this.snapshot.value() : undefined,
-    }),
-    computation: (source, previous) =>
-      source.value ??
-      (previous && previous.source.token === source.token ? previous.value : undefined),
-  });
+  private readonly current = keepLastValue<AlertsSnapshot>(this.snapshot, () =>
+    this.tokens.token(),
+  );
 
   readonly alerts = computed(() => this.current()?.alerts ?? []);
   readonly projects = computed(() => this.current()?.projects ?? []);
   readonly loading = this.snapshot.isLoading;
   readonly hasLoaded = computed(() => this.current() !== undefined);
-
-  readonly error = computed(() => {
-    const error = this.snapshot.error();
-    return error ? mapApiError(error).message : undefined;
-  });
+  readonly error = resourceError(this.snapshot);
 
   /** Millisecond timestamp of the last Alerts visit; rows newer than it are unseen. */
   readonly lastSeen = this.seenState.asReadonly();

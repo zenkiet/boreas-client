@@ -1,22 +1,20 @@
-import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { catchError, defer, finalize, map, Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
 
 import { ApiToken, ApiTokenApi, CreateApiTokenInput, CreatedApiToken } from '@entities/api-token';
 import { mapApiError } from '@shared/api/api-error';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { CommandGate, CommandResult } from '@shared/api/command';
+import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 
-export interface TokenCommandResult {
-  readonly success: boolean;
-  readonly message: string;
-}
+export type TokenCommandResult = CommandResult;
 
 @Injectable()
 export class ManageTokensStore {
   private readonly api = inject(ApiTokenApi);
   private readonly session = inject(AuthTokenStore);
-  private readonly busyState = signal(false);
-  private readonly createErrorState = signal<string | undefined>(undefined);
+  private readonly gate = new CommandGate('Another token action is already running.');
 
   private readonly listResource = rxResource({
     params: () => this.session.token() || undefined,
@@ -24,33 +22,18 @@ export class ManageTokensStore {
   });
 
   /* Keep the last good list when a reload fails, but never across sessions. */
-  private readonly current = linkedSignal<
-    { readonly token: string; readonly value: readonly ApiToken[] | undefined },
-    readonly ApiToken[] | undefined
-  >({
-    source: () => ({
-      token: this.session.token(),
-      value: this.listResource.hasValue() ? this.listResource.value() : undefined,
-    }),
-    computation: (source, previous) =>
-      source.value ??
-      (previous && previous.source.token === source.token ? previous.value : undefined),
-  });
+  private readonly current = keepLastValue(this.listResource, () => this.session.token());
 
   readonly tokens = computed(() => this.current() ?? []);
   readonly loading = this.listResource.isLoading;
   readonly hasLoaded = computed(() => this.current() !== undefined);
-  readonly busy = this.busyState.asReadonly();
-  readonly createError = this.createErrorState.asReadonly();
+  readonly busy = this.gate.busy;
+  readonly createError = this.gate.error;
+  readonly error = resourceError(this.listResource);
 
   readonly activeCount = computed(
     () => this.tokens().filter((token) => token.status === 'active').length,
   );
-
-  readonly error = computed(() => {
-    const error = this.listResource.error();
-    return error ? mapApiError(error).message : undefined;
-  });
 
   /** 403 here means the caller authenticated with an API token, not a login session. */
   readonly sessionRequired = computed(() => {
@@ -63,35 +46,10 @@ export class ManageTokensStore {
   }
 
   create(input: CreateApiTokenInput): Observable<CreatedApiToken | undefined> {
-    return defer(() => {
-      if (this.busyState()) return of(undefined);
-
-      this.busyState.set(true);
-      this.createErrorState.set(undefined);
-
-      return this.api.create(input).pipe(
-        catchError((error: unknown) => {
-          this.createErrorState.set(mapApiError(error).message);
-          return of(undefined);
-        }),
-        finalize(() => this.busyState.set(false)),
-      );
-    });
+    return this.gate.attempt(this.api.create(input));
   }
 
   revoke(token: ApiToken): Observable<TokenCommandResult> {
-    return defer(() => {
-      if (this.busyState()) {
-        return of({ success: false, message: 'Another token action is already running.' });
-      }
-
-      this.busyState.set(true);
-
-      return this.api.revoke(token.id).pipe(
-        map(() => ({ success: true, message: `Token ${token.name} revoked.` })),
-        catchError((error: unknown) => of({ success: false, message: mapApiError(error).message })),
-        finalize(() => this.busyState.set(false)),
-      );
-    });
+    return this.gate.run(this.api.revoke(token.id), `Token ${token.name} revoked.`);
   }
 }

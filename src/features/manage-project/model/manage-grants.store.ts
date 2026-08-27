@@ -1,10 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Observable, catchError, defer, finalize, map, of } from 'rxjs';
+import { Observable, catchError, of } from 'rxjs';
 
 import { AddMemberInput, Member, ProjectApi } from '@entities/project';
 import { User, UserApi } from '@entities/user';
-import { mapApiError } from '@shared/api/api-error';
+import { CommandGate } from '@shared/api/command';
 import { ProjectCommandResult } from './manage-project.store';
 
 interface GrantTarget {
@@ -17,9 +17,9 @@ export class ManageGrantsStore {
   private readonly projectApi = inject(ProjectApi);
   private readonly userApi = inject(UserApi);
   private readonly target = signal<GrantTarget | null>(null);
-  private readonly busyState = signal(false);
+  private readonly gate = new CommandGate('Another access change is already running.');
 
-  readonly busy = this.busyState.asReadonly();
+  readonly busy = this.gate.busy;
 
   /* Listing grants is owner-only, so a 403/404 doubles as the "hide the panel" signal. */
   private readonly grantsResource = rxResource({
@@ -56,7 +56,7 @@ export class ManageGrantsStore {
     const target = this.target();
     if (!target) return of({ success: false, message: 'No task selected.' });
 
-    return this.execute(
+    return this.gate.run(
       this.projectApi.addGrant(target.slug, target.task, input),
       'Access granted.',
     );
@@ -66,28 +66,9 @@ export class ManageGrantsStore {
     const target = this.target();
     if (!target) return of({ success: false, message: 'No task selected.' });
 
-    return this.execute(
+    return this.gate.run(
       this.projectApi.removeGrant(target.slug, target.task, userId),
       `Access revoked for ${username}.`,
     );
-  }
-
-  private execute(
-    command: Observable<unknown>,
-    successMessage: string,
-  ): Observable<ProjectCommandResult> {
-    return defer(() => {
-      if (this.busyState()) {
-        return of({ success: false, message: 'Another access change is already running.' });
-      }
-
-      this.busyState.set(true);
-
-      return command.pipe(
-        map(() => ({ success: true, message: successMessage })),
-        catchError((error: unknown) => of({ success: false, message: mapApiError(error).message })),
-        finalize(() => this.busyState.set(false)),
-      );
-    });
   }
 }

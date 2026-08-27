@@ -10,11 +10,9 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { gsap } from 'gsap';
 
-import { ChangeServerSheet } from '@features/connect-server';
+import { ChangeServerService } from '@features/connect-server';
 import { OnboardingHero } from '@features/onboarding';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { WelcomeSeenStore } from '@shared/api/welcome-seen.store';
@@ -362,7 +360,7 @@ curl -X POST …/tasks/web/deploy \\
 export class WelcomePage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly dialogs = inject(TuiResponsiveDialogService);
+  private readonly server = inject(ChangeServerService);
   private readonly welcome = inject(WelcomeSeenStore);
   private readonly tokens = inject(AuthTokenStore);
   private readonly config = inject(ServerConfigStore);
@@ -447,15 +445,10 @@ export class WelcomePage {
   }
 
   protected changeServer(): void {
-    const before = this.config.baseUrl();
-    this.dialogs
-      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
-      .subscribe((url) => {
-        /* A leftover token belongs to the previous server. */
-        if (url !== before) {
-          this.tokens.clear();
-        }
-      });
+    /* A leftover token belongs to the previous server. */
+    this.server.open().subscribe((changed) => {
+      if (changed) this.tokens.clear();
+    });
   }
 
   // Query state lets back, forward, and deep links address each onboarding step.

@@ -5,6 +5,7 @@ import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
 import { EnvironmentEditor } from '@entities/environment';
 import { TaskDefaults } from '@entities/project';
 import { CreateTaskInput } from '@entities/task';
+import { fieldError } from '@shared/lib/forms/field-error';
 import { Callout } from '@shared/ui/callout/callout';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
@@ -238,9 +239,9 @@ export class TaskForm {
     });
   }
 
-  protected readonly nameError = computed(() => this.firstError(this.draft.name()));
-  protected readonly imageError = computed(() => this.firstError(this.draft.image()));
-  protected readonly portError = computed(() => this.firstError(this.draft.port()));
+  protected readonly nameError = computed(() => fieldError(this.draft.name()));
+  protected readonly imageError = computed(() => fieldError(this.draft.image()));
+  protected readonly portError = computed(() => fieldError(this.draft.port()));
 
   protected onSubmit(event: Event): void {
     event.preventDefault();
@@ -274,14 +275,5 @@ export class TaskForm {
     this.model.set({ ...draft, image, port });
     if (seedEnv) this.environment.set({ ...defaults.env });
     this.prefilled.set(image !== draft.image || port !== draft.port || seedEnv);
-  }
-
-  /* tui-error renders a generic fallback for any non-null empty value. */
-  private firstError(state: {
-    touched: () => boolean;
-    errors: () => readonly { readonly message?: string }[];
-  }): string | null {
-    if (!state.touched()) return null;
-    return state.errors()[0]?.message ?? null;
   }
 }
