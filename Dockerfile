@@ -23,7 +23,7 @@ COPY src ./src
 
 RUN pnpm build --configuration production
 
-FROM nginx:1.31.3-alpine AS runtime
+FROM nginx:1.31.4-alpine AS runtime
 
 ENV NGINX_ENTRYPOINT_QUIET_LOGS=1
 
