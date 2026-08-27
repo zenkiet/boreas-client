@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.8.0](https://github.com/zenkiet/boreas-client/compare/cb6eb2e749059ff975b21327a31ef0bfe3ab0ce7..v0.8.0) - 2026-08-27
+#### 🚀 Features
+- (**logging**) ✨ add structured scoped logger - ([cb6eb2e](https://github.com/zenkiet/boreas-client/commit/cb6eb2e749059ff975b21327a31ef0bfe3ab0ce7)) - [@zenkiet](https://github.com/zenkiet), factory-droid[bot]
+#### 📦 Build System
+- (**devcontainer**) 📦 add dev container configuration - ([a8d163d](https://github.com/zenkiet/boreas-client/commit/a8d163d8508c4c71f3ed86013e3e137c8a54995e)) - [@zenkiet](https://github.com/zenkiet)
+#### 👷 Continuous Integration
+- 👷 automate dependency updates with Dependabot - ([336ecf6](https://github.com/zenkiet/boreas-client/commit/336ecf6b36ef493b253aab3be377852fccd00e98)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.7.1](https://github.com/zenkiet/boreas-client/compare/d77675045a9aaa08bd4aab2dbd56501f50a621ad..v0.7.1) - 2026-08-26
 #### ♻️ Code Refactoring
 - ♻️ improve UX look better - ([d776750](https://github.com/zenkiet/boreas-client/commit/d77675045a9aaa08bd4aab2dbd56501f50a621ad)) - [@zenkiet](https://github.com/zenkiet)
