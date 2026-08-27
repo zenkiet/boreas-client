@@ -1,12 +1,12 @@
-import { Service, computed, inject, linkedSignal } from '@angular/core';
+import { Service, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { Project, ProjectApi } from '@entities/project';
 import { SystemStats, SystemStatsApi } from '@entities/system-stats';
 import { Task, TaskApi } from '@entities/task';
-import { mapApiError } from '@shared/api/api-error';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 
 export interface ProjectSummary {
   readonly project: Project;
@@ -54,28 +54,15 @@ export class ListProjectsStore {
   });
 
   /* Keep the last good snapshot across reloads and routes, but never across tokens. */
-  private readonly current = linkedSignal<
-    { readonly token: string; readonly value: OverviewSnapshot | undefined },
-    OverviewSnapshot | undefined
-  >({
-    source: () => ({
-      token: this.tokens.token(),
-      value: this.snapshot.hasValue() ? this.snapshot.value() : undefined,
-    }),
-    computation: (source, previous) =>
-      source.value ??
-      (previous && previous.source.token === source.token ? previous.value : undefined),
-  });
+  private readonly current = keepLastValue<OverviewSnapshot>(this.snapshot, () =>
+    this.tokens.token(),
+  );
 
   readonly summaries = computed(() => this.current()?.summaries ?? []);
   readonly stats = computed(() => this.current()?.stats);
   readonly loading = this.snapshot.isLoading;
   readonly hasLoaded = computed(() => this.current() !== undefined);
-
-  readonly error = computed(() => {
-    const error = this.snapshot.error();
-    return error ? mapApiError(error).message : undefined;
-  });
+  readonly error = resourceError(this.snapshot);
 
   /** Pages call this on entry: serves the cache, refetching only once it is stale. */
   ensureFresh(): void {

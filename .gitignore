@@ -42,6 +42,9 @@ testem.log
 /typings
 __screenshots__/
 
+# jscpd duplication reports
+/reports
+
 # Native build artifacts — archives carry the signed binary and provisioning profile
 *.xcarchive
 

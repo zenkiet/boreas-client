@@ -1,8 +1,6 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
-import { take } from 'rxjs';
 
 import { UpdateTaskInput } from '@entities/task';
 import { EditTaskStore, TaskEditForm } from '@features/edit-task';
@@ -13,6 +11,7 @@ import { BackLink } from '@shared/ui/back-link/back-link';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NotifyService } from '@shared/ui/notify/notify';
 import { PageHeader } from '@shared/ui/page-header/page-header';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
@@ -89,7 +88,7 @@ export class TaskEditPage {
   protected readonly detail = inject(ViewTaskStore);
   protected readonly edit = inject(EditTaskStore);
   private readonly fleet = inject(ListProjectsStore);
-  private readonly toasts = inject(TuiToastService);
+  private readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
 
   readonly slug = input('');
@@ -115,10 +114,7 @@ export class TaskEditPage {
       if (!task) return;
 
       this.fleet.invalidate();
-      this.toasts
-        .open(`Task ${task.name} updated.`, { appearance: 'positive' })
-        .pipe(take(1))
-        .subscribe();
+      this.notifications.success(`Task ${task.name} updated.`);
       void this.router.navigate(['/projects', this.slug(), 'tasks', this.name()]);
     });
   }

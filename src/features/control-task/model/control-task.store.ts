@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, catchError, defer, finalize, map, of } from 'rxjs';
+import { Observable, defer, finalize, of } from 'rxjs';
 
 import {
   DEV_STATUS_LABEL,
@@ -9,12 +9,9 @@ import {
   TaskStateAction,
   describeCompletedAction,
 } from '@entities/task';
-import { mapApiError } from '@shared/api/api-error';
+import { CommandResult, toCommandResult } from '@shared/api/command';
 
-export interface TaskCommandResult {
-  readonly success: boolean;
-  readonly message: string;
-}
+export type TaskCommandResult = CommandResult;
 
 /** Commands for one project's tasks; pending state is keyed by task name. */
 @Injectable()
@@ -69,9 +66,7 @@ export class ControlTaskStore {
 
       this.setPending(name, true);
 
-      return command.pipe(
-        map(() => ({ success: true, message: successMessage })),
-        catchError((error: unknown) => of({ success: false, message: mapApiError(error).message })),
+      return toCommandResult(command, successMessage).pipe(
         finalize(() => this.setPending(name, false)),
       );
     });

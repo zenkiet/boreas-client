@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/jscpd@5/schema.json",
+
+  "// why": "Copy-paste detection. The FSD layers forbid sideways imports, so the same shape is easy to re-type in two slices instead of hoisting it into the layer below; this is the check that catches that.",
+
+  "path": ["src"],
+  "format": ["typescript", "css", "html"],
+
+  "// threshold": "Measured 0.52% after the first pass. 1.5% leaves room for an honest clone without letting a second copy-paste habit establish itself.",
+  "threshold": 1.5,
+
+  "// tokens": "50 tokens / 5 lines is above an import block or a signal-field run, and below any real duplicated function body.",
+  "minTokens": 50,
+  "minLines": 5,
+
+  "// mode": "weak skips comment tokens, so two blocks are clones only when the code matches, not the prose above it.",
+  "mode": "weak",
+
+  "ignore": ["**/*.spec.ts", "**/*.dto.ts", "**/*.mapper.ts"],
+
+  "// ignore-notes": "DTOs mirror the wire format and mappers are field-by-field assignments; both are legitimately repetitive and deduping them would couple unrelated endpoints.",
+
+  "ignoreCase": false,
+  "absolute": false,
+  "gitignore": true,
+  "reporters": ["console", "html"],
+  "output": "reports/jscpd"
+}

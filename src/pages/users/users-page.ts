@@ -3,13 +3,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, minLength, pattern, required, submit } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { TuiButton, TuiDataList, TuiDropdown, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
-import { filter, switchMap, take } from 'rxjs';
+import { filter, switchMap } from 'rxjs';
 
 import { User, UserRole } from '@entities/user';
 import { SessionStore } from '@features/auth';
 import { ManageUsersStore, UserCommandResult } from '@features/manage-users';
+import { fieldError } from '@shared/lib/forms/field-error';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { BackLink } from '@shared/ui/back-link/back-link';
@@ -18,6 +18,7 @@ import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NotifyService } from '@shared/ui/notify/notify';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 /* Matches common backend username constraints; the server has the final say. */
@@ -343,7 +344,7 @@ export class UsersPage {
   protected readonly users = inject(ManageUsersStore);
   protected readonly session = inject(SessionStore);
   private readonly confirmations = inject(ConfirmActionService);
-  private readonly toasts = inject(TuiToastService);
+  private readonly notifications = inject(NotifyService);
 
   private readonly model = signal<UserDraft>({ username: '', email: '', password: '' });
   protected readonly draftRole = signal<UserRole>('user');
@@ -392,7 +393,7 @@ export class UsersPage {
         })
         .subscribe((user) => {
           if (!user) return;
-          this.notify(`${user.username} created.`, true);
+          this.notifications.success(`${user.username} created.`);
           /* reset() clears touched and dirty too; setting the model alone would leave the
              emptied fields flagged as touched and light up every required error. */
           this.draft().reset({ username: '', email: '', password: '' });
@@ -455,23 +456,9 @@ export class UsersPage {
   }
 
   private complete(result: UserCommandResult): void {
-    this.notify(result.message, result.success);
+    this.notifications.result(result);
     if (result.success) this.users.load();
   }
 
-  /* tui-error renders a generic fallback for any non-null empty value. */
-  protected fieldError(state: {
-    touched: () => boolean;
-    errors: () => readonly { readonly message?: string }[];
-  }): string | null {
-    if (!state.touched()) return null;
-    return state.errors()[0]?.message ?? null;
-  }
-
-  private notify(message: string, success: boolean): void {
-    this.toasts
-      .open(message, { appearance: success ? 'positive' : 'negative' })
-      .pipe(take(1))
-      .subscribe();
-  }
+  protected readonly fieldError = fieldError;
 }

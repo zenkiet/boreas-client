@@ -2,9 +2,8 @@ import { DOCUMENT } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
-import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
-import { defer, from, take } from 'rxjs';
+import { defer, from } from 'rxjs';
 
 import { CreateApiTokenInput, CreatedApiToken } from '@entities/api-token';
 import { ManageTokensStore, TokenForm } from '@features/manage-tokens';
@@ -13,6 +12,7 @@ import { BackLink } from '@shared/ui/back-link/back-link';
 import { Callout } from '@shared/ui/callout/callout';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NotifyService } from '@shared/ui/notify/notify';
 import { PageHeader } from '@shared/ui/page-header/page-header';
 
 @Component({
@@ -152,7 +152,7 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
 export class TokenCreatePage {
   protected readonly tokens = inject(ManageTokensStore);
   private readonly document = inject(DOCUMENT);
-  private readonly toasts = inject(TuiToastService);
+  private readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
 
   protected readonly created = signal<CreatedApiToken | undefined>(undefined);
@@ -180,7 +180,8 @@ export class TokenCreatePage {
   protected copy(token: string): void {
     defer(() => from(this.document.defaultView!.navigator.clipboard.writeText(token))).subscribe({
       next: () => this.copied.set(true),
-      error: () => this.notify('The token could not be copied. Select it and copy manually.'),
+      error: () =>
+        this.notifications.failure('The token could not be copied. Select it and copy manually.'),
     });
   }
 
@@ -188,7 +189,4 @@ export class TokenCreatePage {
     void this.router.navigate(['/settings/tokens']);
   }
 
-  private notify(message: string): void {
-    this.toasts.open(message, { appearance: 'negative' }).pipe(take(1)).subscribe();
-  }
 }

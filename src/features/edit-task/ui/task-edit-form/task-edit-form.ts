@@ -3,6 +3,7 @@ import { FormField, form, max, min, required, submit } from '@angular/forms/sign
 import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
 
 import { Task, UpdateTaskInput } from '@entities/task';
+import { fieldError } from '@shared/lib/forms/field-error';
 import { Callout } from '@shared/ui/callout/callout';
 import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
@@ -188,8 +189,8 @@ export class TaskEditForm {
     port: `${this.uid}-port`,
   };
 
-  protected readonly imageError = computed(() => this.firstError(this.draft.image()));
-  protected readonly portError = computed(() => this.firstError(this.draft.port()));
+  protected readonly imageError = computed(() => fieldError(this.draft.image()));
+  protected readonly portError = computed(() => fieldError(this.draft.port()));
 
   protected readonly dirty = computed(() => {
     const draft = this.model();
@@ -248,14 +249,5 @@ export class TaskEditForm {
 
       this.submitted.emit(input);
     });
-  }
-
-  /* tui-error renders a generic fallback for any non-null empty value. */
-  private firstError(state: {
-    touched: () => boolean;
-    errors: () => readonly { readonly message?: string }[];
-  }): string | null {
-    if (!state.touched()) return null;
-    return state.errors()[0]?.message ?? null;
   }
 }

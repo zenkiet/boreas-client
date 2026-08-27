@@ -1,10 +1,10 @@
-import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { Member, Project, ProjectApi } from '@entities/project';
 import { Task, TaskApi } from '@entities/task';
-import { mapApiError } from '@shared/api/api-error';
+import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 
 interface ProjectSnapshot {
   readonly project: Project;
@@ -32,17 +32,7 @@ export class ViewProjectStore {
   });
 
   /* Keep stale data after reload failures, but never across slugs. */
-  private readonly current = linkedSignal<
-    { readonly slug: string; readonly value: ProjectSnapshot | undefined },
-    ProjectSnapshot | undefined
-  >({
-    source: () => ({
-      slug: this.slugState(),
-      value: this.snapshot.hasValue() ? this.snapshot.value() : undefined,
-    }),
-    computation: (source, previous) =>
-      source.value ?? (previous && previous.source.slug === source.slug ? previous.value : undefined),
-  });
+  private readonly current = keepLastValue<ProjectSnapshot>(this.snapshot, () => this.slugState());
 
   readonly slug = this.slugState.asReadonly();
   readonly project = computed(() => this.current()?.project);
@@ -50,11 +40,7 @@ export class ViewProjectStore {
   readonly members = computed(() => this.current()?.members ?? null);
   readonly loading = this.snapshot.isLoading;
   readonly hasLoaded = computed(() => this.current() !== undefined);
-
-  readonly error = computed(() => {
-    const error = this.snapshot.error();
-    return error ? mapApiError(error).message : undefined;
-  });
+  readonly error = resourceError(this.snapshot);
 
   refresh(slug: string): void {
     if (slug === this.slugState()) {

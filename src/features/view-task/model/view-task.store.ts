@@ -1,9 +1,10 @@
-import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, catchError, finalize, map, of } from 'rxjs';
 
 import { Task, TaskApi } from '@entities/task';
 import { mapApiError } from '@shared/api/api-error';
+import { keepLastValue } from '@shared/api/resource-cache';
 
 interface TaskRef {
   readonly project: string;
@@ -23,20 +24,10 @@ export class ViewTaskStore {
   });
 
   /* Keep stale data after reload failures, but never across task refs. */
-  private readonly current = linkedSignal<
-    { readonly key: string; readonly value: Task | undefined },
-    Task | undefined
-  >({
-    source: () => ({
-      key: this.key(),
-      value: this.snapshot.hasValue() ? this.snapshot.value() : undefined,
-    }),
-    computation: (source, previous) =>
-      source.value ?? (previous && previous.source.key === source.key ? previous.value : undefined),
-  });
+  private readonly current = keepLastValue<Task>(this.snapshot, () => this.key());
 
   readonly project = computed(() => this.ref()?.project ?? '');
-  readonly task = this.current.asReadonly();
+  readonly task = this.current;
   readonly environment = computed(() => this.current()?.env ?? {});
   readonly loading = this.snapshot.isLoading;
   readonly savingEnvironment = this.savingEnvironmentState.asReadonly();

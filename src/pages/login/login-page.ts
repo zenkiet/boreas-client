@@ -1,14 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, required, submit } from '@angular/forms/signals';
 import { Router } from '@angular/router';
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButton, TuiError, TuiLoader, TuiTextfield } from '@taiga-ui/core';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 
 import { LoginStore } from '@features/auth';
-import { ChangeServerSheet } from '@features/connect-server';
+import { ChangeServerService } from '@features/connect-server';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
+import { fieldError } from '@shared/lib/forms/field-error';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { Callout } from '@shared/ui/callout/callout';
 
@@ -159,7 +158,7 @@ interface LoginDraft {
   `,
 })
 export class LoginPage {
-  private readonly dialogs = inject(TuiResponsiveDialogService);
+  private readonly server = inject(ChangeServerService);
   protected readonly login = inject(LoginStore);
   private readonly config = inject(ServerConfigStore);
   private readonly tokens = inject(AuthTokenStore);
@@ -183,14 +182,12 @@ export class LoginPage {
     }
   }
 
-  protected readonly usernameError = computed(() => this.firstError(this.draft.username()));
-  protected readonly passwordError = computed(() => this.firstError(this.draft.password()));
+  protected readonly usernameError = computed(() => fieldError(this.draft.username()));
+  protected readonly passwordError = computed(() => fieldError(this.draft.password()));
 
   /* No result handling needed: a signed-out page only shows the (already updated) host. */
   protected changeServer(): void {
-    this.dialogs
-      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
-      .subscribe();
+    this.server.open().subscribe();
   }
 
   protected onSubmit(event: Event): void {
@@ -207,12 +204,4 @@ export class LoginPage {
     });
   }
 
-  /* tui-error renders a generic fallback for any non-null empty value. */
-  private firstError(state: {
-    touched: () => boolean;
-    errors: () => readonly { readonly message?: string }[];
-  }): string | null {
-    if (!state.touched()) return null;
-    return state.errors()[0]?.message ?? null;
-  }
 }

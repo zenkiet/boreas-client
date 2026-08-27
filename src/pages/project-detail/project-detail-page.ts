@@ -2,11 +2,11 @@ import { DOCUMENT, DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiButton, TuiIcon } from '@taiga-ui/core';
-import { TuiToastService } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
-import { filter, switchMap, take } from 'rxjs';
+import { filter, switchMap } from 'rxjs';
 
 import { AddMemberInput, Member, Project, TaskDefaultsInput } from '@entities/project';
+import { toCredentialOptions } from '@entities/registry-credential';
 import { DEV_STATUSES, DEV_STATUS_LABEL, Task, TaskActionRequest } from '@entities/task';
 import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects';
@@ -28,8 +28,9 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
-import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
+import { GlassSelect } from '@shared/ui/glass-select/glass-select';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NotifyService } from '@shared/ui/notify/notify';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 import { TUI_BREAKPOINT } from '@taiga-ui/core';
 
@@ -377,7 +378,7 @@ export class ProjectDetailPage {
   protected readonly manage = inject(ManageProjectStore);
   private readonly config = inject(ServerConfigStore);
   private readonly confirmations = inject(ConfirmActionService);
-  private readonly toasts = inject(TuiToastService);
+  private readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly breakpoint = inject(TUI_BREAKPOINT);
   private readonly fleet = inject(ListProjectsStore);
@@ -429,19 +430,9 @@ export class ProjectDetailPage {
     () => `${this.config.baseUrl()}/${this.detail.slug()}/`,
   );
 
-  /* null while the viewer may not list credentials, or nothing exists to attach. */
-  protected readonly credentialOptions = computed<readonly GlassSelectOption[] | null>(() => {
-    const credentials = this.manage.credentials();
-    if (!credentials || credentials.length === 0) return null;
-
-    return [
-      { value: '', label: 'None' },
-      ...credentials.map((credential) => ({
-        value: credential.id,
-        label: `${credential.name} (${credential.registry})`,
-      })),
-    ];
-  });
+  protected readonly credentialOptions = computed(() =>
+    toCredentialOptions(this.manage.credentials()),
+  );
 
   /* Stable identities avoid rebinding row inputs in the OnPush list. */
   protected readonly accessUrlFor = computed(() => {
@@ -579,7 +570,7 @@ export class ProjectDetailPage {
         switchMap(() => this.manage.delete(project.slug)),
       )
       .subscribe((result) => {
-        this.notify(result.message, result.success);
+        this.notifications.result(result);
         if (result.success) {
           this.fleet.invalidate();
           void this.router.navigate(['/projects']);
@@ -589,19 +580,12 @@ export class ProjectDetailPage {
 
   /* Every command here — lifecycle, delete, rename, members — changes what Home shows. */
   private completeCommand(result: TaskCommandResult | ProjectCommandResult): void {
-    this.notify(result.message, result.success);
+    this.notifications.result(result);
 
     if (result.success) {
       this.fleet.invalidate();
       this.reload();
     }
-  }
-
-  private notify(message: string, success: boolean): void {
-    this.toasts
-      .open(message, { appearance: success ? 'positive' : 'negative' })
-      .pipe(take(1))
-      .subscribe();
   }
 }
 
