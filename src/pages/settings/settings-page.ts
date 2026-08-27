@@ -7,12 +7,12 @@ import { ChangeServerService } from '@features/connect-server';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
+import { PushStore } from '@shared/lib/push';
 import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
 import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
 import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { PageHeader } from '@shared/ui/page-header/page-header';
-import { PushStore } from '@shared/lib/push';
 
 interface NavLink {
   readonly label: string;
@@ -124,7 +124,14 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
               ></button>
             </div>
           </app-inset-group>
+          @if (push.hint(); as hint) {
+            <p class="footnote" role="status">{{ hint }}</p>
+          }
         </div>
+      } @else if (push.hint(); as hint) {
+        <app-inset-group label="Notifications">
+          <p class="notice" role="status">{{ hint }}</p>
+        </app-inset-group>
       }
 
       <div>
@@ -265,6 +272,14 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
       padding: 0.625rem 1rem;
     }
 
+    .notice {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      color: var(--tui-text-secondary);
+    }
+
     .theme-row app-glass-segmented {
       inline-size: 100%;
     }
@@ -304,7 +319,7 @@ export class SettingsPage {
     if (option) this.theme.setMode(option.mode);
   }
 
-  /* The knob renders from enabled() alone, so a denied prompt simply leaves it off. */
+  /* The knob renders from enabled() alone; a refused prompt leaves it off and hint() says why. */
   protected togglePush(next: boolean): void {
     (next ? this.push.enable() : this.push.disable()).subscribe();
   }

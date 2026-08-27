@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { effect, inject, InjectionToken, Service, signal } from '@angular/core';
+import { computed, effect, inject, InjectionToken, Service, signal } from '@angular/core';
 import { Capacitor, type PermissionState } from '@capacitor/core';
 import { PushNotifications, type PushNotificationSchema } from '@capacitor/push-notifications';
 import type { FirebaseOptions } from 'firebase/app';
@@ -21,6 +21,7 @@ import {
 
 // eslint-disable-next-line boundaries/dependencies -- push keeps its whole stack in one folder; deliberate crossing
 import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { createLogger } from '@shared/lib/logging/logger';
 import { PushSubscriptionApi } from '../api/push-subscription.api';
 
 /** Firebase web-app options plus the Web Push certificate key that getToken() requires. */
@@ -34,6 +35,18 @@ export const FCM_CONFIG = new InjectionToken<FcmConfig>('FCM_CONFIG');
 const STORAGE_KEY = 'boreas-push';
 /* The server INSERTs without upsert, so only a changed token may be posted again. */
 const REGISTERED_KEY = 'boreas-push-registered';
+
+/* A knob that snaps back explains nothing, so every refusal names its next step. */
+const BLOCKED_WEB =
+  'Notifications are blocked for this site. Allow them in the browser settings, then try again.';
+const BLOCKED_NATIVE =
+  'Notifications are blocked for Boreas. Allow them in the system settings, then try again.';
+const DISMISSED = 'The permission request closed without an answer. Try again to decide.';
+const UNSUPPORTED_MESSAGE = 'This browser cannot receive push notifications.';
+const REGISTER_FAILED =
+  'The server did not accept this device. Boreas retries the registration at the next launch.';
+
+const blockedMessage = (): string => (Capacitor.isNativePlatform() ? BLOCKED_NATIVE : BLOCKED_WEB);
 
 export type PushPermission = NotificationPermission | 'unsupported';
 
@@ -66,6 +79,7 @@ export class PushStore {
   private readonly document = inject(DOCUMENT);
   private readonly api = inject(PushSubscriptionApi);
   private readonly auth = inject(AuthTokenStore);
+  private readonly logger = createLogger('push');
 
   private readonly permissionState = signal<PushPermission>('default');
   private readonly tokenState = signal('');
@@ -82,6 +96,9 @@ export class PushStore {
   readonly enabled = this.enabledState.asReadonly();
   readonly busy = this.busyState.asReadonly();
   readonly error = this.errorState.asReadonly();
+  readonly hint = computed(() =>
+    this.permissionState() === 'denied' ? blockedMessage() : this.errorState(),
+  );
 
   private messaging: Messaging | undefined;
 
@@ -98,17 +115,30 @@ export class PushStore {
           .subscribe(token)
           .pipe(
             /* 409 means the token already sits on the server; adopt it instead of failing. */
-            catchError((error: unknown) =>
-              error instanceof HttpErrorResponse && error.status === 409 ? of(undefined) : EMPTY,
-            ),
+            catchError((error: unknown) => {
+              if (error instanceof HttpErrorResponse && error.status === 409) {
+                return of(undefined);
+              }
+              this.errorState.set(REGISTER_FAILED);
+              this.logger.error('device registration rejected', {
+                status: error instanceof HttpErrorResponse ? error.status : undefined,
+              });
+              return EMPTY;
+            }),
           )
-          .subscribe(() => this.setRegisteredToken(token));
+          .subscribe(() => {
+            this.setRegisteredToken(token);
+            this.logger.info('device registered');
+          });
       } else if (!token && registered) {
         /* Best effort: the row may belong to another user or be gone already. */
         this.api
           .unsubscribe(registered)
           .pipe(catchError(() => of(undefined)))
-          .subscribe(() => this.setRegisteredToken(''));
+          .subscribe(() => {
+            this.setRegisteredToken('');
+            this.logger.debug('device unregistered');
+          });
       }
     });
   }
@@ -124,15 +154,21 @@ export class PushStore {
 
   /** Must run inside a user gesture: browsers only honor the first permission prompt in one. */
   enable(): Observable<void> {
+    const native = Capacitor.isNativePlatform();
+
     this.errorState.set('');
     this.busyState.set(true);
+    this.logger.debug('enable requested', { native, permission: this.permissionState() });
 
-    const flow = Capacitor.isNativePlatform() ? this.enableNative() : this.enableWeb();
+    const flow = native ? this.enableNative() : this.enableWeb();
 
     return flow.pipe(
       tap(() => this.setOptedIn(true)),
       catchError((error: unknown) => {
-        this.errorState.set(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+
+        this.errorState.set(message);
+        this.logger.error('enable failed', { message });
         return EMPTY;
       }),
       finalize(() => this.busyState.set(false)),
@@ -146,6 +182,8 @@ export class PushStore {
     this.tokenState.set('');
     this.enabledState.set(false);
     this.busyState.set(true);
+    /* A stale failure must not outlive the switch it explained. */
+    this.errorState.set('');
 
     const revoke: Observable<unknown> = Capacitor.isNativePlatform()
       ? defer(() => PushNotifications.unregister())
@@ -163,23 +201,46 @@ export class PushStore {
   private initWeb(): void {
     const view = this.document.defaultView;
 
-    if (
-      !view ||
-      !this.config?.vapidKey ||
-      !('Notification' in view) ||
-      !('serviceWorker' in view.navigator) ||
-      !('PushManager' in view)
-    ) {
+    if (!view) {
       this.permissionState.set('unsupported');
+      this.logger.warn('web push unsupported', { missing: ['window'] });
+      return;
+    }
+
+    /* Listed by name so one production console line says which capability is absent. */
+    const missing = (
+      [
+        ['vapidKey', Boolean(this.config?.vapidKey)],
+        ['Notification', 'Notification' in view],
+        ['serviceWorker', 'serviceWorker' in view.navigator],
+        ['PushManager', 'PushManager' in view],
+        ['secureContext', view.isSecureContext],
+      ] as const
+    ).filter(([, present]) => !present);
+
+    if (missing.length) {
+      this.permissionState.set('unsupported');
+      this.logger.warn('web push unsupported', { missing: missing.map(([name]) => name) });
       return;
     }
 
     this.permissionState.set(view.Notification.permission);
+    this.logger.debug('web init', {
+      permission: view.Notification.permission,
+      optedIn: this.optedIn(),
+    });
 
     if (this.optedIn() && view.Notification.permission === 'granted') {
       /* Offline at boot is not an error state; the next toggle attempt surfaces real failures. */
       this.connectWeb()
-        .pipe(catchError(() => EMPTY))
+        .pipe(
+          catchError((error: unknown) => {
+            this.logger.warn('boot reconnect failed', {
+              message: error instanceof Error ? error.message : String(error),
+            });
+            return EMPTY;
+          }),
+        )
         .subscribe();
     }
   }
@@ -189,10 +250,13 @@ export class PushStore {
     void PushNotifications.addListener('registration', ({ value }) => {
       this.tokenState.set(value);
       this.enabledState.set(true);
+      this.logger.debug('native registration token received');
     });
     void PushNotifications.addListener('registrationError', ({ error }) => {
       this.errorState.set(error);
       this.enabledState.set(false);
+      /* Missing google-services.json / GoogleService-Info.plist lands here, silently until now. */
+      this.logger.error('native registration failed', { error });
     });
     void PushNotifications.addListener('pushNotificationReceived', (notification) => {
       this.messageState.set(toNativeMessage(notification));
@@ -200,6 +264,7 @@ export class PushStore {
 
     defer(() => PushNotifications.checkPermissions()).subscribe(({ receive }) => {
       this.permissionState.set(toPushPermission(receive));
+      this.logger.debug('native init', { receive, optedIn: this.optedIn() });
       if (this.optedIn() && receive === 'granted') {
         void PushNotifications.register();
       }
@@ -209,6 +274,8 @@ export class PushStore {
   private enableWeb(): Observable<void> {
     const view = this.document.defaultView;
     if (!view) {
+      this.errorState.set(UNSUPPORTED_MESSAGE);
+      this.logger.error('no window to request permission from');
       return EMPTY;
     }
 
@@ -216,7 +283,14 @@ export class PushStore {
     return defer(() => view.Notification.requestPermission()).pipe(
       switchMap((permission) => {
         this.permissionState.set(permission);
-        return permission === 'granted' ? this.connectWeb() : EMPTY;
+        if (permission === 'granted') {
+          return this.connectWeb();
+        }
+
+        /* Chrome answers "denied" with no prompt once a site is blocked; that must not read as a no-op. */
+        this.errorState.set(permission === 'denied' ? blockedMessage() : DISMISSED);
+        this.logger.warn('web permission refused', { permission });
+        return EMPTY;
       }),
     );
   }
@@ -226,6 +300,8 @@ export class PushStore {
       switchMap(({ receive }) => {
         this.permissionState.set(toPushPermission(receive));
         if (receive !== 'granted') {
+          this.errorState.set(receive === 'denied' ? blockedMessage() : DISMISSED);
+          this.logger.warn('native permission refused', { receive });
           return EMPTY;
         }
         return from(PushNotifications.register()).pipe(tap(() => this.enabledState.set(true)));
@@ -242,6 +318,11 @@ export class PushStore {
           switchMap((supported) => {
             if (!supported || !this.config) {
               this.permissionState.set('unsupported');
+              this.errorState.set(UNSUPPORTED_MESSAGE);
+              this.logger.warn('firebase messaging unsupported', {
+                supported,
+                configured: Boolean(this.config),
+              });
               return EMPTY;
             }
             if (!this.messaging) {
@@ -255,6 +336,7 @@ export class PushStore {
           tap((token) => {
             this.tokenState.set(token);
             this.enabledState.set(true);
+            this.logger.debug('web token acquired');
           }),
           map(() => undefined),
         ),
