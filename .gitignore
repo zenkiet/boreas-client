@@ -11,6 +11,9 @@
 npm-debug.log
 yarn-error.log
 
+# Dev container pnpm-store volume mountpoint (empty dir on the host)
+/.pnpm-store
+
 # IDEs and editors
 .idea/
 .project
