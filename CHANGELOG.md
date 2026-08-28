@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.10.0](https://github.com/zenkiet/boreas-client/compare/5962468db5ed11fc4ee876ef93cd65ba40886c29..v0.10.0) - 2026-08-28
+#### 🚀 Features
+- ✨ implement legal docs - ([5962468](https://github.com/zenkiet/boreas-client/commit/5962468db5ed11fc4ee876ef93cd65ba40886c29)) - [@zenkiet](https://github.com/zenkiet)
+#### 🎨 Styles & Formatting
+- 💄 improve UI/UX for logo - ([c7caf70](https://github.com/zenkiet/boreas-client/commit/c7caf704d22b311a0273bb65a6d19b896b727fe6)) - Zen Kiet
+
+- - -
+
 ## [v0.9.0](https://github.com/zenkiet/boreas-client/compare/771935779347ca81293314166c022f1fb763cec2..v0.9.0) - 2026-08-28
 #### 🚀 Features
 - ✨implement note for task - ([769adf2](https://github.com/zenkiet/boreas-client/commit/769adf2ac8636339bc2d331fb2a35a424fd1fe7e)) - [@zenkiet](https://github.com/zenkiet)
