@@ -35,7 +35,7 @@ pnpm build && pnpm exec cap sync
 pnpm exec cap open ios      # or: android
 ```
 
-App icons and splash screens are generated, never hand-edited — see the brand pipeline notes in `AGENTS.md`.
+App icons and splash screens are hand-authored from `public/icon.svg` — never run `capacitor-assets generate`, which would flatten the Android adaptive icon. See the brand notes in `AGENTS.md`.
 
 ## Architecture
 

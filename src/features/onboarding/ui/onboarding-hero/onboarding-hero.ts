@@ -9,6 +9,9 @@ import {
 } from '@angular/core';
 import { DotLottie } from '@lottiefiles/dotlottie-web';
 
+const DRIFT_IN_FRAME = 42;
+const LAST_FRAME = 221;
+
 @Component({
   selector: 'app-onboarding-hero',
   template: `
@@ -80,7 +83,7 @@ export class OnboardingHero {
         canvas: this.canvas().nativeElement,
         src: '/animations/boreas-welcome.json',
         autoplay: !reducedMotion,
-        loop: !reducedMotion,
+        loop: false,
         layout: { fit: 'contain', align: [0.5, 0.5] },
         renderConfig: {
           autoResize: true,
@@ -89,6 +92,16 @@ export class OnboardingHero {
           quality: 90,
         },
       });
+
+      if (reducedMotion) {
+        player.addEventListener('load', () => player.setFrame(LAST_FRAME));
+      } else {
+        player.addEventListener('complete', () => {
+          player.setSegment(DRIFT_IN_FRAME, LAST_FRAME);
+          player.setLoop(true);
+          player.play();
+        });
+      }
 
       this.destroyRef.onDestroy(() => player.destroy());
     });
