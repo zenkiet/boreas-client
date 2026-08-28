@@ -45,6 +45,14 @@ export class ControlTaskStore {
     );
   }
 
+  setNote(project: string, task: Task, note: string): Observable<TaskCommandResult> {
+    return this.execute(
+      task.name,
+      this.api.update(project, task.name, { note }),
+      note ? `Note saved for ${task.name}.` : `Note cleared for ${task.name}.`,
+    );
+  }
+
   delete(project: string, task: Task): Observable<TaskCommandResult> {
     return this.execute(
       task.name,

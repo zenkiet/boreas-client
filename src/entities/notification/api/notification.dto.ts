@@ -1,4 +1,4 @@
-export type NotificationStatusDto = 'success' | 'failure';
+export type NotificationStatusDto = 'success' | 'failure' | 'info';
 
 export interface NotificationDto {
   id: string;
@@ -6,6 +6,7 @@ export interface NotificationDto {
   status: NotificationStatusDto;
   title: string;
   body?: string;
+  seen?: boolean;
   created_at: string;
 }
 

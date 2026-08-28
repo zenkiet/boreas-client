@@ -7,6 +7,7 @@ export interface TaskDto {
   project_id: string;
   name: string;
   description?: string;
+  note?: string;
   image: string;
   status: TaskStatusDto;
   dev_status?: DevStatusDto | null;
@@ -41,6 +42,7 @@ export interface DeleteTaskResponseDto {
 
 export interface UpdateTaskRequestDto {
   description?: string;
+  note?: string;
   dev_status?: DevStatusDto;
   image?: string;
   port?: number;

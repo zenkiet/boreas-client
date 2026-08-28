@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { Router, RouterLink } from '@angular/router';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButton, TuiDropdown, TuiIcon, TuiLoader } from '@taiga-ui/core';
+import { TuiTab, TuiTabsHorizontal } from '@taiga-ui/kit';
 import { TuiAppBar } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { filter, map, switchMap } from 'rxjs';
@@ -23,6 +24,7 @@ import { ListProjectsStore } from '@features/list-projects';
 import { ManageGrantsStore, MemberList } from '@features/manage-project';
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
 import { ViewTaskStore } from '@features/view-task';
+import { noteToPlainText } from '@shared/lib/markdown/note-markdown';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { BackLink } from '@shared/ui/back-link/back-link';
@@ -63,6 +65,8 @@ type View = (typeof VIEWS)[number];
     TuiDropdown,
     TuiIcon,
     TuiLoader,
+    TuiTab,
+    TuiTabsHorizontal,
   ],
   providers: [ViewTaskStore, ControlTaskStore, LogStreamStore, ManageGrantsStore],
   template: `
@@ -215,21 +219,11 @@ type View = (typeof VIEWS)[number];
         }
       }
 
-      <div class="hidden md:block">
-        <app-glass-segmented
-          [items]="viewItems()"
-          [activeIndex]="viewIndex()"
-          (activeIndexChange)="setView($event)"
-        />
-      </div>
-
-      <div class="detail__nav md:hidden">
-        <app-glass-segmented
-          [items]="viewItems()"
-          [activeIndex]="viewIndex()"
-          (activeIndexChange)="setView($event)"
-        />
-      </div>
+      <app-glass-segmented
+        [items]="viewItems()"
+        [activeIndex]="viewIndex()"
+        (activeIndexChange)="setView($event)"
+      />
 
       @if (detail.error() && !detail.hasLoaded()) {
         <app-error-state
@@ -251,11 +245,20 @@ type View = (typeof VIEWS)[number];
 
         @if (detail.task(); as task) {
           <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'environment'">
-            <app-glass-segmented
-              [items]="envItems()"
-              [activeIndex]="envModeIndex()"
-              (activeIndexChange)="setEnvMode($event)"
-            />
+            <!-- Tabs, not a second pill: the mode switch must not read as page navigation. -->
+            <tui-tabs
+              class="env-tabs"
+              [activeItemIndex]="envModeIndex()"
+              (activeItemIndexChange)="setEnvMode($event)"
+            >
+              <button tuiTab>List</button>
+              <button tuiTab>
+                Raw
+                @if (environmentDirty()) {
+                  <span class="env-tabs__dot" aria-label="Unsaved changes"></span>
+                }
+              </button>
+            </tui-tabs>
 
             <div [class.hidden]="envMode() !== 'list'">
               <app-inset-group>
@@ -311,6 +314,19 @@ type View = (typeof VIEWS)[number];
               (imageCopyFailed)="reportImageCopyFailure()"
               (statusClicked)="changeDevStatus(task)"
             />
+
+            <app-inset-group label="Note">
+              <a class="note-row row-divider relative" [routerLink]="noteLink()">
+                <span class="min-w-0 flex-1">
+                  @if (notePreview(); as preview) {
+                    <span class="note-row__text">{{ preview }}</span>
+                  } @else {
+                    <span class="note-row__add">Add note</span>
+                  }
+                </span>
+                <tui-icon class="note-row__chevron icon-sm" icon="@tui.chevron-right" />
+              </a>
+            </app-inset-group>
 
             <!-- Listing grants is owner-only, so a null list self-gates the whole panel. -->
             @if (grants.grants(); as grantList) {
@@ -371,31 +387,37 @@ type View = (typeof VIEWS)[number];
 
     /* Fixed console bounds prevent streaming lines from shifting page layout. */
     .detail__console {
-      --console-min: clamp(16rem, calc(100dvh - 19rem), 48rem);
-      --console-max: clamp(16rem, calc(100dvh - 19rem), 48rem);
+      --console-min: clamp(16rem, calc(100dvh - 22.5rem), 48rem);
+      --console-max: clamp(16rem, calc(100dvh - 22.5rem), 48rem);
     }
 
-    /* Split pointer events keep the fixed control's side bands scrollable. */
-    /* Unlayered display wins over md:hidden, so the desktop override must also be unlayered. */
-    .detail__nav {
-      position: fixed;
-      z-index: 10;
-      inset-inline: 0;
-      inset-block-end: max(env(safe-area-inset-bottom), 1.25rem);
-      display: flex;
+    /* Taiga sizes tabs for a desktop toolbar; iOS wants the app's own text size and a rounded rail. */
+    .env-tabs {
+      font-size: 0.9375rem;
+    }
+
+    /* Halves, so the underline reads as a rail rather than a mostly empty hairline. */
+    .env-tabs [tuiTab] {
+      flex: 1;
       justify-content: center;
-      pointer-events: none;
+      gap: 0.375rem;
+      margin-inline-start: 0;
     }
 
-    .detail__nav app-glass-segmented {
-      pointer-events: auto;
-      inline-size: min(21rem, calc(100vw - 2rem));
+    .env-tabs [tuiTab]._active {
+      font-weight: 600;
     }
 
-    @media (min-width: 48rem) {
-      .detail__nav {
-        display: none;
-      }
+    .env-tabs::before {
+      block-size: 0.1875rem;
+      border-radius: 999px;
+    }
+
+    .env-tabs__dot {
+      inline-size: 0.375rem;
+      block-size: 0.375rem;
+      border-radius: 999px;
+      background: var(--tui-background-accent-1);
     }
 
     @media (min-width: 48rem) {
@@ -403,6 +425,35 @@ type View = (typeof VIEWS)[number];
         --console-min: clamp(18rem, calc(100dvh - 26.5rem), 48rem);
         --console-max: clamp(18rem, calc(100dvh - 26.5rem), 48rem);
       }
+    }
+
+    .note-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      text-decoration: none;
+    }
+
+    /* Two lines of plain text: no markdown is ever rendered outside the editor. */
+    .note-row__text {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      font-size: 0.9375rem;
+      line-height: 1.45;
+      color: var(--tui-text-primary);
+    }
+
+    .note-row__add {
+      font-size: 0.9375rem;
+      color: var(--tui-text-action);
+    }
+
+    .note-row__chevron {
+      flex: none;
+      color: var(--tui-text-tertiary);
     }
 
     .detail__pad {
@@ -441,6 +492,15 @@ export class TaskDetailPage {
     'edit',
   ]);
   protected readonly projectLink = computed(() => ['/projects', this.slug()]);
+  protected readonly noteLink = computed(() => [
+    '/projects',
+    this.slug(),
+    'tasks',
+    this.name(),
+    'note',
+  ]);
+
+  protected readonly notePreview = computed(() => noteToPlainText(this.detail.task()?.note ?? ''));
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
   /* Alerts arrive newest-first, so find() is the latest deploy of this task. */
@@ -456,17 +516,12 @@ export class TaskDetailPage {
   protected readonly menuOpen = signal(false);
 
   protected readonly envMode = signal<'raw' | 'list'>('list');
-  protected readonly envModeIndex = computed(() => (this.envMode() === 'raw' ? 0 : 1));
+  protected readonly envModeIndex = computed(() => (this.envMode() === 'raw' ? 1 : 0));
 
   protected readonly viewItems = computed<readonly GlassSegmentedItem[]>(() => [
     { label: 'Info' },
     { label: 'Environment', dot: this.environmentDirty() },
     { label: 'Logs' },
-  ]);
-
-  protected readonly envItems = computed<readonly GlassSegmentedItem[]>(() => [
-    { label: 'Raw', dot: this.environmentDirty() },
-    { label: 'List' },
   ]);
 
   protected readonly draftEnvironment = signal<Record<string, string>>({});
@@ -620,7 +675,7 @@ export class TaskDetailPage {
   }
 
   protected setEnvMode(index: number): void {
-    this.envMode.set(index === 0 ? 'raw' : 'list');
+    this.envMode.set(index === 1 ? 'raw' : 'list');
   }
 
   protected reportValueCopyFailure(): void {

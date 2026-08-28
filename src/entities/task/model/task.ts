@@ -26,6 +26,7 @@ export interface Task {
   readonly projectId: string;
   readonly name: string;
   readonly description?: string;
+  readonly note?: string;
   readonly image: string;
   readonly status: TaskStatus;
   readonly devStatus: DevStatus;

@@ -14,6 +14,12 @@ export const tasksRoutes: Routes = [
       import('@pages/task-detail/task-detail-page').then(({ TaskDetailPage }) => TaskDetailPage),
   },
   {
+    path: ':name/note',
+    title: 'Note | Boreas',
+    loadComponent: () =>
+      import('@pages/task-note/task-note-page').then(({ TaskNotePage }) => TaskNotePage),
+  },
+  {
     path: ':name/edit',
     title: 'Edit task | Boreas',
     loadComponent: () =>

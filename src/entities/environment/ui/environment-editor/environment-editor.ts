@@ -29,7 +29,7 @@ import { ParsedEnvironment, parseEnvText, toEnvText } from '../../model/env-file
 
       <textarea
         class="glass-field env__input"
-        rows="8"
+        rows="12"
         spellcheck="false"
         autocomplete="off"
         autocapitalize="off"

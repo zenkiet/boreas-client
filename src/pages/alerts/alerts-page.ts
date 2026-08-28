@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiIcon } from '@taiga-ui/core';
@@ -105,7 +105,7 @@ interface FilterChip {
             <button type="button" class="empty-link" (click)="clearFilters()">Clear filters</button>
           </app-empty-state>
         } @else {
-          <app-alert-list [alerts]="filtered()" [boundary]="boundary" />
+          <app-alert-list [alerts]="filtered()" />
         }
       }
     </div>
@@ -176,9 +176,6 @@ export class AlertsPage {
   protected readonly alerts = inject(ListAlertsStore);
   private readonly dialogs = inject(TuiResponsiveDialogService);
 
-  /* Captured before markSeen so this visit still shows which rows are new. */
-  protected readonly boundary = this.alerts.lastSeen();
-
   protected readonly filter = signal<AlertFilter>(EMPTY_ALERT_FILTER);
 
   protected readonly filtered = computed(() =>
@@ -200,7 +197,9 @@ export class AlertsPage {
 
   constructor() {
     this.alerts.ensureFresh();
-    this.alerts.markSeen();
+    effect(() => {
+      if (this.alerts.hasLoaded()) this.alerts.markSeen();
+    });
 
     registerPullRefresh({
       busy: this.alerts.loading,

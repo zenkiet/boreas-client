@@ -8,6 +8,7 @@ export function toTask(dto: TaskDto): Task {
     projectId: dto.project_id,
     name: dto.name,
     description: dto.description || undefined,
+    note: dto.note || undefined,
     image: dto.image,
     status: dto.status,
     devStatus: dto.dev_status ?? 'in_progress',
@@ -40,6 +41,7 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
 export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskRequestDto {
   return {
     description: input.description,
+    note: input.note,
     dev_status: input.devStatus,
     image: input.image,
     port: input.port,

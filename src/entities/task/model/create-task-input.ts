@@ -11,6 +11,7 @@ export interface CreateTaskInput {
 /** Only present fields are sent; image, port, labels or env changes recreate the container. */
 export interface UpdateTaskInput {
   readonly description?: string;
+  readonly note?: string;
   readonly devStatus?: DevStatus;
   readonly image?: string;
   readonly port?: number;

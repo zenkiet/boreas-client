@@ -20,17 +20,14 @@ const HOUR_MS = 3_600_000;
         @for (alert of group.items; track alert.id) {
           <div class="alert row-divider relative" [attr.data-status]="alert.status">
             <div class="alert__head">
-              <span
-                class="alert__title"
-                [class.alert__title--new]="alert.createdAt.getTime() > boundary()"
-              >
+              <span class="alert__title" [class.alert__title--new]="!alert.seen">
                 {{ alert.title }}
               </span>
               <span class="alert__time tabular">{{ timeLabel(alert.createdAt) }}</span>
             </div>
 
             @if (alert.body) {
-              <pre class="alert__body">{{ alert.body }}</pre>
+              <p class="alert__body">{{ alert.body }}</p>
             }
           </div>
         }
@@ -64,7 +61,6 @@ const HOUR_MS = 3_600_000;
       flex: 1;
       min-inline-size: 0;
       overflow: hidden;
-      font-family: var(--app-font-mono);
       font-size: 0.875rem;
       line-height: 1.3;
       color: var(--tui-text-secondary);
@@ -84,21 +80,22 @@ const HOUR_MS = 3_600_000;
       color: var(--tui-text-tertiary);
     }
 
+    /* Clamped so a long failure reason can never flood the feed. */
     .alert__body {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
       margin: 0;
-      font-family: var(--app-font-mono);
-      font-size: 0.75rem;
-      line-height: 1.55;
+      overflow: hidden;
+      font-size: 0.8125rem;
+      line-height: 1.5;
       color: var(--tui-text-secondary);
-      white-space: pre-wrap;
       word-break: break-word;
     }
   `,
 })
 export class AlertList {
   readonly alerts = input.required<readonly ProjectAlert[]>();
-  /** Rows created after this timestamp render as unseen. */
-  readonly boundary = input(0);
 
   protected readonly groups = computed<readonly AlertGroup[]>(() => {
     const groups: AlertGroup[] = [];

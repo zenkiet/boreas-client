@@ -1,12 +1,12 @@
-export type NotificationStatus = 'success' | 'failure';
+export type NotificationStatus = 'success' | 'failure' | 'info';
 
-/** One recorded deploy outcome; the server only writes these from /deploy calls. */
+/** Deploy outcomes plus lifecycle events (created / assigned / status changed). */
 export interface Notification {
   readonly id: string;
   readonly taskName: string;
   readonly status: NotificationStatus;
   readonly title: string;
-  /** Digest on success, the raw docker error on failure; may be empty. */
   readonly body: string;
+  readonly seen: boolean;
   readonly createdAt: Date;
 }

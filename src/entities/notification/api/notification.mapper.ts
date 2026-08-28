@@ -8,6 +8,7 @@ export function toNotification(dto: NotificationDto): Notification {
     status: dto.status,
     title: dto.title,
     body: dto.body ?? '',
+    seen: dto.seen ?? true,
     createdAt: new Date(dto.created_at),
   };
 }

@@ -1,7 +1,6 @@
-import { DOCUMENT } from '@angular/common';
 import { Service, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
+import { EMPTY, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { Notification, NotificationApi } from '@entities/notification';
 import { ProjectApi } from '@entities/project';
@@ -20,18 +19,16 @@ interface AlertsSnapshot {
 }
 
 const STALE_AFTER_MS = 30_000;
-const SEEN_KEY = 'boreas-alerts-seen';
 
 @Service()
 export class ListAlertsStore {
   private readonly projectApi = inject(ProjectApi);
   private readonly notificationApi = inject(NotificationApi);
   private readonly tokens = inject(AuthTokenStore);
-  private readonly document = inject(DOCUMENT);
   private readonly push = inject(PushStore);
 
   private loadedAt = 0;
-  private readonly seenState = signal(this.readSeen());
+  private readonly sessionSeenIds = signal<ReadonlySet<string>>(new Set());
 
   /* No cross-project endpoint, so the feed fans out one list per reachable project. */
   private readonly snapshot = rxResource({
@@ -74,11 +71,9 @@ export class ListAlertsStore {
   readonly hasLoaded = computed(() => this.current() !== undefined);
   readonly error = resourceError(this.snapshot);
 
-  /** Millisecond timestamp of the last Alerts visit; rows newer than it are unseen. */
-  readonly lastSeen = this.seenState.asReadonly();
-
   readonly unseenCount = computed(
-    () => this.alerts().filter((alert) => alert.createdAt.getTime() > this.seenState()).length,
+    () =>
+      this.alerts().filter((alert) => !alert.seen && !this.sessionSeenIds().has(alert.id)).length,
   );
 
   constructor() {
@@ -102,22 +97,18 @@ export class ListAlertsStore {
     this.snapshot.reload();
   }
 
-  /** Clears the dock badge; callers snapshot lastSeen first to keep row dots for the visit. */
+  /** No bulk endpoint yet, so one idempotent fire-and-forget POST per unseen row. */
   markSeen(): void {
-    const now = Date.now();
-    this.seenState.set(now);
-    try {
-      this.document.defaultView?.localStorage.setItem(SEEN_KEY, String(now));
-    } catch {
-      return;
-    }
-  }
+    const posted = this.sessionSeenIds();
+    const unseen = this.alerts().filter((alert) => !alert.seen && !posted.has(alert.id));
+    if (unseen.length === 0) return;
 
-  private readSeen(): number {
-    try {
-      return Number(this.document.defaultView?.localStorage.getItem(SEEN_KEY)) || 0;
-    } catch {
-      return 0;
+    this.sessionSeenIds.set(new Set([...posted, ...unseen.map((alert) => alert.id)]));
+    for (const alert of unseen) {
+      this.notificationApi
+        .markSeen(alert.project, alert.id)
+        .pipe(catchError(() => EMPTY))
+        .subscribe();
     }
   }
 }

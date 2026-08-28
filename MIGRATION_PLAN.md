@@ -186,3 +186,16 @@ token-guarded and nests tasks under projects.
   removed (orphaned).
 - Title dots on task detail removed earlier the same pass; container state
   lives in words (Container row, list sub-lines).
+
+## Task note editor (v1.9, 2026-08-28)
+
+- Option C shipped: WYSIWYG note editor on bare tiptap 3 (own toolbar, own
+  CSS), markdown stored in Task.note. @taiga-ui/editor rejected — its value is
+  HTML only, and it measured +267.7 kB gz / 49 chunks against bare tiptap's
+  +103 kB brotli in one lazy chunk.
+- New: shared/lib/markdown/note-markdown.ts (html/markdown/plain-text),
+  pages/task-note (pushed screen, Cancel/Done, glass accessory bar),
+  ControlTaskStore.setNote, note through the task entity, Note row with a
+  plain-text preview on the Info tab, scripts/check-note-markdown.ts.
+- No HTML rendering outside the editor: the tiptap schema is the allowlist, so
+  the app still has zero innerHTML/DomSanitizer usage.

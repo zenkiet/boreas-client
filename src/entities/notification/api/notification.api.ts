@@ -15,11 +15,21 @@ export class NotificationApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);
 
-  /** Newest first; only deploy outcomes are recorded. */
+  /** Newest first. */
   list(project: string, limit = DEFAULT_LIMIT): Observable<readonly Notification[]> {
-    const url = `${this.config.baseUrl()}/api/v1/projects/${encodeURIComponent(project)}/notifications?limit=${limit}`;
     return this.http
-      .get<NotificationsResponseDto>(url)
+      .get<NotificationsResponseDto>(`${this.root(project)}?limit=${limit}`)
       .pipe(map((response) => (response.notifications ?? []).map(toNotification)));
+  }
+
+  /** Idempotent; ids outside the caller's visibility are a server-side no-op. */
+  markSeen(project: string, id: string): Observable<void> {
+    return this.http
+      .post(`${this.root(project)}/${encodeURIComponent(id)}/seen`, null)
+      .pipe(map(() => undefined));
+  }
+
+  private root(project: string): string {
+    return `${this.config.baseUrl()}/api/v1/projects/${encodeURIComponent(project)}/notifications`;
   }
 }

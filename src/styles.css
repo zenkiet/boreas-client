@@ -452,6 +452,19 @@ select {
   background: var(--app-scrollbar-thumb-hover);
 }
 
+/* Touch platforms draw no scrollbar chrome and give up no width to it; dragging is the affordance.
+   Taiga already zeroes the document's own bar, so this is about every surface inside the app. */
+@media (max-width: 47.9375rem) {
+  * {
+    scrollbar-width: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
 /* Box shadow preserves Taiga states because textfield pseudo-elements are reserved for icons. */
 tui-textfield,
 .glass-field {
