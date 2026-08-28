@@ -8,6 +8,11 @@ export const settingsRoutes: Routes = [
       import('@pages/settings/settings-page').then(({ SettingsPage }) => SettingsPage),
   },
   {
+    path: 'about',
+    title: 'About | Boreas',
+    loadComponent: () => import('@pages/about/about-page').then(({ AboutPage }) => AboutPage),
+  },
+  {
     path: 'users',
     title: 'Users | Boreas',
     loadComponent: () => import('@pages/users/users-page').then(({ UsersPage }) => UsersPage),

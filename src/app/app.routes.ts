@@ -46,6 +46,11 @@ export const routes: Routes = [
     canActivate: guards,
     loadChildren: () => import('./routes/settings.routes').then((m) => m.settingsRoutes),
   },
+  {
+    path: 'legal',
+    data: { pullToRefresh: false },
+    loadChildren: () => import('./routes/legal.routes').then((m) => m.legalRoutes),
+  },
   /* Pre-projects bookmarks land on the new home. */
   {
     path: 'dashboard',

@@ -691,6 +691,45 @@ tui-pull-to-refresh > tui-mobile-ios-loader {
   overflow-wrap: anywhere;
 }
 
+/* The tappable variant of .lrow: pushes a screen, so it carries a chevron. */
+.nav-row {
+  font-size: 1rem;
+  color: var(--tui-text-primary);
+  text-decoration: none;
+  transition: background-color var(--tui-duration);
+}
+
+/* Tailwind has no preflight, and a button does not stretch the way an anchor does. */
+button.nav-row,
+button.action-row {
+  inline-size: 100%;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.nav-row:hover,
+.action-row:hover {
+  background: var(--tui-background-neutral-1);
+}
+
+.nav-row__icon,
+.nav-row__chevron {
+  color: var(--tui-text-tertiary);
+}
+
+/* A row that is itself the action: no chevron, the label carries the colour. */
+.action-row {
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--tui-text-negative);
+  transition: background-color var(--tui-duration);
+}
+
+
 /* One hint under a group, never one per field. */
 .footnote {
   margin: 0;

@@ -5,11 +5,11 @@ import { TuiIcon } from '@taiga-ui/core';
 import { SessionStore } from '@features/auth';
 import { ChangeServerService } from '@features/connect-server';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
+import { APP_VERSION } from '@shared/config/app-info';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { PushStore } from '@shared/lib/push';
-import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
-import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
+import { Theme, ThemeStore } from '@shared/lib/theme/theme.store';
 import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { PageHeader } from '@shared/ui/page-header/page-header';
@@ -25,14 +25,10 @@ interface NavGroup {
   readonly links: readonly NavLink[];
 }
 
-const THEME_MODES: readonly {
-  readonly mode: ThemeMode;
-  readonly label: string;
-  readonly icon: string;
-}[] = [
-  { mode: 'system', label: 'System', icon: '@tui.monitor' },
-  { mode: 'light', label: 'Light', icon: '@tui.sun' },
-  { mode: 'dark', label: 'Dark', icon: '@tui.moon' },
+/* Only the two real appearances: 'system' is the Automatic switch, not a third thumbnail. */
+const THEME_CHOICES: readonly { readonly theme: Theme; readonly label: string }[] = [
+  { theme: 'light', label: 'Light' },
+  { theme: 'dark', label: 'Dark' },
 ];
 
 /* Tokens belong to the person, not the admin role, so they sit above Administration. */
@@ -49,16 +45,9 @@ const ADMIN: NavGroup = {
   ],
 };
 
-const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
-  { label: 'Frontend', value: 'Angular 22 · Signal Forms' },
-  { label: 'Interface', value: 'Taiga UI 5 · Tailwind CSS 4' },
-  { label: 'Typography', value: 'System · JetBrains Mono' },
-  { label: 'Navigation', value: 'Liquid Glass dock on touch devices' },
-];
-
 @Component({
   selector: 'app-settings-page',
-  imports: [GlassSegmented, GlassSwitch, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
+  imports: [GlassSwitch, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
   template: `
     <div appReveal class="mx-auto grid max-w-176 grid-cols-1 gap-3.5 md:gap-4">
       <app-page-header title="Settings" />
@@ -99,12 +88,38 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
 
       <div>
         <app-inset-group label="Appearance">
-          <div class="theme-row row-divider relative">
-            <app-glass-segmented
-              [items]="themeItems"
-              [activeIndex]="themeIndex()"
-              (activeIndexChange)="setThemeByIndex($event)"
-            />
+          <div class="themes row-divider relative" role="radiogroup" aria-label="Appearance">
+            @for (option of themeChoices; track option.theme) {
+              <button
+                type="button"
+                role="radio"
+                class="theme"
+                [attr.aria-checked]="theme.theme() === option.theme"
+                (click)="theme.setMode(option.theme)"
+              >
+                <span class="theme__preview" [attr.data-theme]="option.theme" aria-hidden="true">
+                  <span class="theme__title"></span>
+                  <span class="theme__card"></span>
+                  <span class="theme__card"></span>
+                  <span class="theme__card theme__card--short"></span>
+                </span>
+                <span class="theme__label">
+                  @if (theme.theme() === option.theme) {
+                    <tui-icon class="theme__check" icon="@tui.circle-check" aria-hidden="true" />
+                  }
+                  {{ option.label }}
+                </span>
+              </button>
+            }
+          </div>
+          <div class="lrow row-divider relative">
+            <span class="lrow__label">Automatic</span>
+            <button
+              appGlassSwitch
+              aria-label="Match the system appearance"
+              [checked]="theme.mode() === 'system'"
+              (checkedChange)="setAutomatic($event)"
+            ></button>
           </div>
         </app-inset-group>
       </div>
@@ -155,13 +170,12 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
         </app-inset-group>
       </div>
 
-      <app-inset-group label="About Boreas">
-        @for (item of about; track item.label) {
-          <div class="lrow row-divider relative">
-            <span class="lrow__label">{{ item.label }}</span>
-            <span class="lrow__value">{{ item.value }}</span>
-          </div>
-        }
+      <app-inset-group label="About">
+        <a class="lrow nav-row row-divider relative" routerLink="/settings/about">
+          <span class="flex-1">About Boreas</span>
+          <span class="lrow__value tabular">{{ version }}</span>
+          <tui-icon class="icon-sm nav-row__chevron" icon="@tui.chevron-right" aria-hidden="true" />
+        </a>
       </app-inset-group>
     </div>
   `,
@@ -222,54 +236,105 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
       white-space: nowrap;
     }
 
-    .nav-row {
-      font-size: 1rem;
-      color: var(--tui-text-primary);
-      text-decoration: none;
-      transition: background-color var(--tui-duration);
+    .themes {
+      display: flex;
+      justify-content: center;
+      gap: 1.375rem;
+      padding: 1rem;
     }
 
-    button.nav-row {
-      inline-size: 100%;
+    .theme {
+      display: grid;
+      justify-items: center;
+      gap: 0.5rem;
       margin: 0;
       border: 0;
+      padding: 0;
       background: none;
       font: inherit;
-      font-size: 1rem;
-      text-align: start;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .nav-row:hover {
-      background: var(--tui-background-neutral-1);
+    /* Literal colours, not tokens: a light preview has to stay light on a dark screen. */
+    .theme__preview {
+      display: grid;
+      align-content: start;
+      gap: 0.3125rem;
+      inline-size: 5.75rem;
+      block-size: 7.5rem;
+      border-radius: 0.625rem;
+      padding: 0.5rem;
+      box-shadow: inset 0 0 0 1px var(--tui-border-normal);
+      transition: box-shadow var(--tui-duration);
     }
 
-    .nav-row__icon,
-    .nav-row__chevron {
+    .theme__preview[data-theme='light'] {
+      background: #f4f6fa;
+    }
+
+    .theme__preview[data-theme='dark'] {
+      background: #000;
+    }
+
+    .theme[aria-checked='true'] .theme__preview {
+      box-shadow: inset 0 0 0 2px var(--tui-background-accent-1);
+    }
+
+    .theme__title {
+      block-size: 0.4375rem;
+      inline-size: 60%;
+      border-radius: 0.1875rem;
+      margin-block-end: 0.1875rem;
+    }
+
+    .theme__card {
+      block-size: 1.625rem;
+      border-radius: 0.3125rem;
+    }
+
+    .theme__card--short {
+      block-size: 1.125rem;
+    }
+
+    [data-theme='light'] .theme__title {
+      background: #0f172a;
+    }
+
+    [data-theme='light'] .theme__card {
+      background: #fff;
+    }
+
+    [data-theme='dark'] .theme__title {
+      background: #fff;
+    }
+
+    [data-theme='dark'] .theme__card {
+      background: #1c1c1e;
+    }
+
+    .theme__label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3125rem;
+      font-size: 0.8125rem;
       color: var(--tui-text-tertiary);
     }
 
-    /* Tailwind has no preflight, so reset the native button explicitly. */
-    .action-row {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      background: none;
-      font: inherit;
-      font-size: 1.0625rem;
-      font-weight: 500;
-      color: var(--tui-text-negative);
-      text-align: start;
-      cursor: pointer;
-      transition: background-color var(--tui-duration);
+    .theme[aria-checked='true'] .theme__label {
+      color: var(--tui-text-primary);
     }
 
-    .action-row:hover {
-      background: var(--tui-background-neutral-1);
+    .theme__check {
+      inline-size: 0.9375rem;
+      block-size: 0.9375rem;
+      font-size: 0.9375rem;
+      color: var(--tui-background-accent-1);
     }
 
-    .theme-row {
-      padding: 0.625rem 1rem;
+    .theme:focus-visible .theme__preview {
+      outline: 2px solid var(--tui-border-focus);
+      outline-offset: 2px;
     }
 
     .notice {
@@ -280,13 +345,10 @@ const ABOUT: readonly { readonly label: string; readonly value: string }[] = [
       color: var(--tui-text-secondary);
     }
 
-    .theme-row app-glass-segmented {
-      inline-size: 100%;
-    }
   `,
 })
 export class SettingsPage {
-  private readonly theme = inject(ThemeStore);
+  protected readonly theme = inject(ThemeStore);
   private readonly config = inject(ServerConfigStore);
   private readonly router = inject(Router);
   private readonly server = inject(ChangeServerService);
@@ -296,27 +358,17 @@ export class SettingsPage {
 
   protected readonly serverUrl = computed(() => this.config.baseUrl());
 
-  protected readonly about = ABOUT;
+  protected readonly version = APP_VERSION;
 
   protected readonly navGroups = computed<readonly NavGroup[]>(() =>
     this.session.isAdmin() ? [PERSONAL, ADMIN] : [PERSONAL],
   );
 
-  protected readonly themeItems: readonly GlassSegmentedItem[] = THEME_MODES.map((option) => ({
-    label: option.label,
-    icon: option.icon,
-  }));
+  protected readonly themeChoices = THEME_CHOICES;
 
-  protected readonly themeIndex = computed(() =>
-    Math.max(
-      0,
-      THEME_MODES.findIndex((option) => option.mode === this.theme.mode()),
-    ),
-  );
-
-  protected setThemeByIndex(index: number): void {
-    const option = THEME_MODES[index];
-    if (option) this.theme.setMode(option.mode);
+  /* Off pins whatever is on screen right now, so the appearance never jumps on toggle. */
+  protected setAutomatic(automatic: boolean): void {
+    this.theme.setMode(automatic ? 'system' : this.theme.theme());
   }
 
   /* The knob renders from enabled() alone; a refused prompt leaves it off and hint() says why. */

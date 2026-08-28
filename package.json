@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "lint": "ng lint",
     "dup": "jscpd",
+    "licenses": "node scripts/licenses.ts",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "verify": "pnpm typecheck && pnpm lint && pnpm dup && pnpm build",
     "release": "cog bump --auto"

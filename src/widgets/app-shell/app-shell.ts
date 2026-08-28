@@ -264,7 +264,7 @@ export class AppShell {
 
   protected readonly pushedPage = computed(() => {
     const url = this.url();
-    return /^\/projects\/./.test(url) || /^\/settings\/./.test(url);
+    return /^\/projects\/./.test(url) || /^\/settings\/./.test(url) || /^\/legal\//.test(url);
   });
 
   protected readonly mainClass = computed(() => {
