@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.9.0](https://github.com/zenkiet/boreas-client/compare/771935779347ca81293314166c022f1fb763cec2..v0.9.0) - 2026-08-28
+#### 🚀 Features
+- ✨implement note for task - ([769adf2](https://github.com/zenkiet/boreas-client/commit/769adf2ac8636339bc2d331fb2a35a424fd1fe7e)) - [@zenkiet](https://github.com/zenkiet)
+#### 📝 Documentation
+- 📝 document single-command setup in README - ([7719357](https://github.com/zenkiet/boreas-client/commit/771935779347ca81293314166c022f1fb763cec2)) - [@zenkiet](https://github.com/zenkiet)
+#### 👷 Continuous Integration
+- 👷 add jscpd duplicate code detection - ([6a03ea3](https://github.com/zenkiet/boreas-client/commit/6a03ea3c3134ffbd50e3e2acd4826c56caa9081f)) - [@zenkiet](https://github.com/zenkiet)
+#### 🎨 Styles & Formatting
+- 💄 improve UI/UX for setting page - ([5c23c56](https://github.com/zenkiet/boreas-client/commit/5c23c56bfb70b8ddb2aa038e7c917e6666cdfc96)) - Zen Kiet
+
+- - -
+
 ## [v0.8.0](https://github.com/zenkiet/boreas-client/compare/cb6eb2e749059ff975b21327a31ef0bfe3ab0ce7..v0.8.0) - 2026-08-27
 #### 🚀 Features
 - (**logging**) ✨ add structured scoped logger - ([cb6eb2e](https://github.com/zenkiet/boreas-client/commit/cb6eb2e749059ff975b21327a31ef0bfe3ab0ce7)) - [@zenkiet](https://github.com/zenkiet), factory-droid[bot]
