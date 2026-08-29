@@ -14,79 +14,103 @@ import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { PageHeader } from '@shared/ui/page-header/page-header';
 
-interface NavLink {
-  readonly label: string;
-  readonly icon: string;
-  readonly route: string;
-}
-
-interface NavGroup {
-  readonly label: string;
-  readonly links: readonly NavLink[];
-}
-
 /* Only the two real appearances: 'system' is the Automatic switch, not a third thumbnail. */
 const THEME_CHOICES: readonly { readonly theme: Theme; readonly label: string }[] = [
   { theme: 'light', label: 'Light' },
   { theme: 'dark', label: 'Dark' },
 ];
 
-/* Tokens belong to the person, not the admin role, so they sit above Administration. */
-const PERSONAL: NavGroup = {
-  label: 'API tokens',
-  links: [{ label: 'Your API tokens', icon: '@tui.key-round', route: '/settings/tokens' }],
-};
-
-const ADMIN: NavGroup = {
-  label: 'Administration',
-  links: [
+const ADMIN_LINKS: readonly { readonly label: string; readonly icon: string; readonly route: string }[] =
+  [
     { label: 'Users', icon: '@tui.users', route: '/settings/users' },
     { label: 'Registry credentials', icon: '@tui.key-round', route: '/settings/registries' },
-  ],
-};
+  ];
 
 @Component({
   selector: 'app-settings-page',
   imports: [GlassSwitch, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
   template: `
-    <div appReveal class="mx-auto grid max-w-176 grid-cols-1 gap-3.5 md:gap-4">
+    <div appReveal class="mx-auto w-full max-w-176">
       <app-page-header title="Settings" />
 
-      @if (session.user(); as user) {
-        <app-inset-group label="Account">
-          <div class="account row-divider relative">
-            <span class="account__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
-            <span class="min-w-0 flex-1">
-              <span class="account__name">
-                {{ user.username }}
-                <span class="account__role" [attr.data-role]="user.role">{{ user.role }}</span>
+      <div class="groups">
+        @if (session.user(); as user) {
+          <app-inset-group label="Account">
+            <a class="account nav-row row-divider relative" routerLink="/settings/account">
+              <span class="account__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
+              <span class="min-w-0 flex-1">
+                <span class="account__name">
+                  {{ user.username }}
+                  <span class="account__role" [attr.data-role]="user.role">{{ user.role }}</span>
+                </span>
+                <span class="account__email">{{ user.email }}</span>
               </span>
-              <span class="account__email">{{ user.email }}</span>
-            </span>
-          </div>
-          <button type="button" class="lrow action-row row-divider relative" (click)="signOut()">
-            Sign out
-          </button>
-        </app-inset-group>
-      }
-
-      @for (group of navGroups(); track group.label) {
-        <app-inset-group [label]="group.label">
-          @for (link of group.links; track link.route) {
-            <a class="lrow nav-row row-divider relative" [routerLink]="link.route">
-              <tui-icon class="icon-sm nav-row__icon" [icon]="link.icon" aria-hidden="true" />
-              <span class="flex-1">{{ link.label }}</span>
               <tui-icon
                 class="icon-sm nav-row__chevron"
                 icon="@tui.chevron-right"
                 aria-hidden="true"
               />
             </a>
-          }
-        </app-inset-group>
-      }
+          </app-inset-group>
+        }
 
-      <div>
+        <app-inset-group label="General">
+          <a class="lrow nav-row row-divider relative" routerLink="/settings/tokens">
+            <tui-icon class="icon-sm nav-row__icon" icon="@tui.key-round" aria-hidden="true" />
+            <span class="flex-1">API tokens</span>
+            <tui-icon
+              class="icon-sm nav-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
+          </a>
+          <button type="button" class="lrow nav-row row-divider relative" (click)="changeServer()">
+            <tui-icon class="icon-sm nav-row__icon" icon="@tui.server" aria-hidden="true" />
+            <span class="flex-none">Server</span>
+            <span class="lrow__value font-mono min-w-0 flex-1 truncate">{{ serverUrl() }}</span>
+            <tui-icon
+              class="icon-sm nav-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
+          </button>
+          <a class="lrow nav-row row-divider relative" routerLink="/settings/about">
+            <tui-icon class="icon-sm nav-row__icon" icon="@tui.info" aria-hidden="true" />
+            <span class="flex-1">About Boreas</span>
+            <span class="lrow__value tabular">{{ version }}</span>
+            <tui-icon
+              class="icon-sm nav-row__chevron"
+              icon="@tui.chevron-right"
+              aria-hidden="true"
+            />
+          </a>
+        </app-inset-group>
+
+        @if (push.permission() !== 'unsupported') {
+          <div>
+            <app-inset-group label="Notifications">
+              <div class="lrow row-divider relative">
+                <span class="lrow__label">Push notifications</span>
+                <button
+                  appGlassSwitch
+                  aria-label="Push notifications"
+                  [checked]="push.enabled()"
+                  [busy]="push.busy()"
+                  [disabled]="push.permission() === 'denied'"
+                  (checkedChange)="togglePush($event)"
+                ></button>
+              </div>
+            </app-inset-group>
+            @if (push.hint(); as hint) {
+              <p class="footnote" role="status">{{ hint }}</p>
+            }
+          </div>
+        } @else if (push.hint(); as hint) {
+          <app-inset-group label="Notifications">
+            <p class="notice" role="status">{{ hint }}</p>
+          </app-inset-group>
+        }
+
         <app-inset-group label="Appearance">
           <div class="themes row-divider relative" role="radiogroup" aria-label="Appearance">
             @for (option of themeChoices; track option.theme) {
@@ -122,69 +146,54 @@ const ADMIN: NavGroup = {
             ></button>
           </div>
         </app-inset-group>
-      </div>
 
-      @if (push.permission() !== 'unsupported') {
-        <div>
-          <app-inset-group label="Notifications">
-            <div class="lrow row-divider relative">
-              <span class="lrow__label">Push notifications</span>
-              <button
-                appGlassSwitch
-                aria-label="Push notifications"
-                [checked]="push.enabled()"
-                [busy]="push.busy()"
-                [disabled]="push.permission() === 'denied'"
-                (checkedChange)="togglePush($event)"
-              ></button>
-            </div>
+        @if (session.isAdmin()) {
+          <app-inset-group label="Administration">
+            @for (link of adminLinks; track link.route) {
+              <a class="lrow nav-row row-divider relative" [routerLink]="link.route">
+                <tui-icon class="icon-sm nav-row__icon" [icon]="link.icon" aria-hidden="true" />
+                <span class="flex-1">{{ link.label }}</span>
+                <tui-icon
+                  class="icon-sm nav-row__chevron"
+                  icon="@tui.chevron-right"
+                  aria-hidden="true"
+                />
+              </a>
+            }
           </app-inset-group>
-          @if (push.hint(); as hint) {
-            <p class="footnote" role="status">{{ hint }}</p>
-          }
-        </div>
-      } @else if (push.hint(); as hint) {
-        <app-inset-group label="Notifications">
-          <p class="notice" role="status">{{ hint }}</p>
-        </app-inset-group>
-      }
-
-      <div>
-        <app-inset-group label="Server">
-          <div class="lrow row-divider relative">
-            <span class="lrow__label">Address</span>
-            <span class="lrow__value font-mono">{{ serverUrl() }}</span>
-          </div>
-          <button
-            type="button"
-            class="lrow nav-row action-like row-divider relative"
-            (click)="changeServer()"
-          >
-            <span class="flex-1">Change server</span>
-            <tui-icon
-              class="icon-sm nav-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </button>
-        </app-inset-group>
+        }
       </div>
-
-      <app-inset-group label="About">
-        <a class="lrow nav-row row-divider relative" routerLink="/settings/about">
-          <span class="flex-1">About Boreas</span>
-          <span class="lrow__value tabular">{{ version }}</span>
-          <tui-icon class="icon-sm nav-row__chevron" icon="@tui.chevron-right" aria-hidden="true" />
-        </a>
-      </app-inset-group>
     </div>
   `,
   styles: `
+    .groups {
+      display: grid;
+      gap: 0.875rem;
+      margin-block-start: 1.25rem;
+    }
+
+    /* Columns, not a grid: settings groups differ wildly in height and a grid row would
+       stretch every short card to match the Appearance block beside it. */
+    @media (min-width: 48rem) {
+      .groups {
+        display: block;
+        columns: 2;
+        column-gap: 1rem;
+        margin-block-start: 1.5rem;
+      }
+
+      .groups > * {
+        break-inside: avoid;
+        margin-block-end: 1rem;
+      }
+    }
+
     .account {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       padding: 0.75rem 1rem;
+      text-decoration: none;
     }
 
     .account__avatar {
@@ -360,9 +369,7 @@ export class SettingsPage {
 
   protected readonly version = APP_VERSION;
 
-  protected readonly navGroups = computed<readonly NavGroup[]>(() =>
-    this.session.isAdmin() ? [PERSONAL, ADMIN] : [PERSONAL],
-  );
+  protected readonly adminLinks = ADMIN_LINKS;
 
   protected readonly themeChoices = THEME_CHOICES;
 
@@ -384,9 +391,5 @@ export class SettingsPage {
         void this.router.navigate(['/login']);
       }
     });
-  }
-
-  protected signOut(): void {
-    this.session.signOut().subscribe(() => void this.router.navigate(['/login']));
   }
 }

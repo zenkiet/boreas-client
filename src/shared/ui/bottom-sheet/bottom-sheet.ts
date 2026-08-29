@@ -1,15 +1,8 @@
-import {
-  Component,
-  DestroyRef,
-  ElementRef,
-  afterNextRender,
-  inject,
-  input,
-  model,
-  viewChild,
-} from '@angular/core';
+import { Component, ElementRef, input, model, viewChild } from '@angular/core';
 import { TuiBottomSheet } from '@taiga-ui/addon-mobile';
 import { gsap } from 'gsap';
+
+import { motionFlag } from '../motion/motion-flag';
 
 const DISMISS_VELOCITY = 0.6;
 const RUBBER_BAND_MAX = 24;
@@ -82,7 +75,7 @@ export class BottomSheet {
   readonly open = model(false);
   readonly stops = input<readonly string[]>(['18rem']);
 
-  private motion = false;
+  private readonly motion = motionFlag();
   private dragging = false;
   private pointerId: number | null = null;
   private startY = 0;
@@ -91,20 +84,6 @@ export class BottomSheet {
   private velocity = 0;
   private offset = 0;
   private quickY: ((value: number) => gsap.core.Tween) | null = null;
-
-  constructor() {
-    const destroyRef = inject(DestroyRef);
-    afterNextRender(() => {
-      const media = gsap.matchMedia();
-      media.add('(prefers-reduced-motion: no-preference)', () => {
-        this.motion = true;
-        return () => {
-          this.motion = false;
-        };
-      });
-      destroyRef.onDestroy(() => media.revert());
-    });
-  }
 
   protected close(): void {
     if (this.open()) {
@@ -159,7 +138,7 @@ export class BottomSheet {
     if (!panel) {
       return;
     }
-    if (this.motion && this.quickY) {
+    if (this.motion.enabled && this.quickY) {
       this.quickY(this.offset);
     } else {
       gsap.set(panel, { y: this.offset });
@@ -182,7 +161,7 @@ export class BottomSheet {
     const flick = this.velocity > DISMISS_VELOCITY && this.offset > RUBBER_BAND_MAX;
 
     if (this.offset > threshold || flick) {
-      if (this.motion) {
+      if (this.motion.enabled) {
         gsap.to(panel, {
           y: panel.clientHeight,
           duration: 0.2,
@@ -196,7 +175,7 @@ export class BottomSheet {
       return;
     }
 
-    if (this.motion) {
+    if (this.motion.enabled) {
       gsap.to(panel, { y: 0, duration: 0.4, ease: 'back.out(1.6)', overwrite: 'auto' });
     } else {
       gsap.set(panel, { y: 0 });

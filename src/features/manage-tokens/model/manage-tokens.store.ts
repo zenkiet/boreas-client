@@ -6,7 +6,7 @@ import { ApiToken, ApiTokenApi, CreateApiTokenInput, CreatedApiToken } from '@en
 import { mapApiError } from '@shared/api/api-error';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { CommandGate, CommandResult } from '@shared/api/command';
-import { keepLastValue, resourceError } from '@shared/api/resource-cache';
+import { listView } from '@shared/api/resource-cache';
 
 export type TokenCommandResult = CommandResult;
 
@@ -21,15 +21,15 @@ export class ManageTokensStore {
     stream: () => this.api.list(),
   });
 
-  /* Keep the last good list when a reload fails, but never across sessions. */
-  private readonly current = keepLastValue(this.listResource, () => this.session.token());
+  /* Keyed on the session: one account's tokens must never flash on another's screen. */
+  private readonly list = listView<ApiToken>(this.listResource, () => this.session.token());
 
-  readonly tokens = computed(() => this.current() ?? []);
-  readonly loading = this.listResource.isLoading;
-  readonly hasLoaded = computed(() => this.current() !== undefined);
+  readonly tokens = this.list.items;
+  readonly loading = this.list.loading;
+  readonly hasLoaded = this.list.hasLoaded;
+  readonly error = this.list.error;
   readonly busy = this.gate.busy;
   readonly createError = this.gate.error;
-  readonly error = resourceError(this.listResource);
 
   readonly activeCount = computed(
     () => this.tokens().filter((token) => token.status === 'active').length,

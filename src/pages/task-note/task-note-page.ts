@@ -416,11 +416,7 @@ export class TaskNotePage {
   constructor() {
     const destroyRef = inject(DestroyRef);
 
-    effect(() => {
-      const slug = this.slug();
-      const name = this.name();
-      if (slug && name) this.detail.refresh(slug, name);
-    });
+    this.detail.track(this.slug, this.name);
 
     /* The editor mounts once; the fetched note seeds it as soon as it lands. */
     effect(() => {

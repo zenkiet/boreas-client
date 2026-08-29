@@ -56,26 +56,19 @@ const DOC_LINKS: readonly { readonly label: string; readonly doc: string }[] = [
         }
       </app-inset-group>
 
-      <div>
-        <app-inset-group label="Support">
-          <a class="lrow nav-row row-divider relative" routerLink="/legal/help">
-            <span class="flex-1">Help</span>
-            <tui-icon class="icon-sm nav-row__chevron" icon="@tui.chevron-right" />
-          </a>
-          <a class="lrow nav-row row-divider relative" [href]="reportLink()">
-            <span class="flex-1">Report a problem</span>
-            <tui-icon class="icon-sm nav-row__chevron" icon="@tui.external-link" />
-          </a>
-        </app-inset-group>
-        <p class="footnote">
-          The draft is prefilled with the app version, this server, and your device details so the
-          report can be traced. It never carries your session token or password.
-        </p>
-      </div>
+      <app-inset-group label="Support">
+        <a class="lrow nav-row row-divider relative" routerLink="/legal/help">
+          <span class="flex-1">Help</span>
+          <tui-icon class="icon-sm nav-row__chevron" icon="@tui.chevron-right" />
+        </a>
+        <a class="lrow nav-row row-divider relative" [href]="reportLink()">
+          <span class="flex-1">Report a problem</span>
+          <tui-icon class="icon-sm nav-row__chevron" icon="@tui.external-link" />
+        </a>
+      </app-inset-group>
 
       <p class="about__foot">
-        © 2026 Kiet Le · Docker is a trademark of Docker, Inc. Boreas is not affiliated with Docker,
-        Inc.
+        © 2026 Zen Le in collaboration with Blogic Systems. All rights reserved.
       </p>
     </div>
   `,

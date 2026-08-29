@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Signal, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, catchError, finalize, map, of } from 'rxjs';
 
@@ -42,6 +42,20 @@ export class ViewTaskStore {
     const ref = this.ref();
     return ref ? this.api.accessUrl(ref.project, ref.name) : '';
   });
+
+  /**
+   * Follows the two route inputs every task screen binds.
+   *
+   * Call from a page constructor: the effect belongs to that page's injection context,
+   * not the store's, so it dies with the screen that opened it.
+   */
+  track(project: Signal<string>, name: Signal<string>): void {
+    effect(() => {
+      const slug = project();
+      const task = name();
+      if (slug && task) this.refresh(slug, task);
+    });
+  }
 
   refresh(project: string, name: string): void {
     const ref = this.ref();

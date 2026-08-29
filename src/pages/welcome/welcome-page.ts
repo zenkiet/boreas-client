@@ -12,6 +12,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { gsap } from 'gsap';
 
+import { motionFlag } from '@shared/ui/motion/motion-flag';
+
 import { ChangeServerService } from '@features/connect-server';
 import { OnboardingHero } from '@features/onboarding';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
@@ -382,7 +384,7 @@ export class WelcomePage {
     return Number.isInteger(raw) ? Math.min(Math.max(raw, 0), LAST) : 0;
   });
 
-  private motion = false;
+  private readonly motion = motionFlag();
   private ready = false;
   private width = 0;
   private shrunk = false;
@@ -409,13 +411,6 @@ export class WelcomePage {
     });
 
     afterNextRender(() => {
-      const media = gsap.matchMedia();
-      media.add('(prefers-reduced-motion: no-preference)', () => {
-        this.motion = true;
-        return () => {
-          this.motion = false;
-        };
-      });
 
       const viewport = this.viewport().nativeElement;
       const observer = new ResizeObserver(() => this.layout());
@@ -429,7 +424,6 @@ export class WelcomePage {
       destroyRef.onDestroy(() => {
         viewport.removeEventListener('pointermove', onMove);
         observer.disconnect();
-        media.revert();
       });
     });
   }
@@ -481,7 +475,7 @@ export class WelcomePage {
 
   private settle(step: number): void {
     const x = -step * this.width;
-    if (this.motion) {
+    if (this.motion.enabled) {
       gsap.to(this.track().nativeElement, {
         x,
         duration: 0.55,
@@ -504,7 +498,7 @@ export class WelcomePage {
     const heroVars = { scale: shrunk ? HERO_SCALE : 1, y: shrunk ? 0 : this.heroY() };
     const taglineVars = { autoAlpha: shrunk ? 0 : 1 };
 
-    if (this.motion) {
+    if (this.motion.enabled) {
       gsap.to(hero, { ...heroVars, duration: 0.55, ease: 'power3.inOut', overwrite: 'auto' });
       gsap.to(tagline, {
         ...taglineVars,
@@ -567,7 +561,7 @@ export class WelcomePage {
       x = min + Math.max((x - min) / 3, -48);
     }
 
-    if (this.motion && this.quickX) {
+    if (this.motion.enabled && this.quickX) {
       this.quickX(x);
     } else {
       gsap.set(this.track().nativeElement, { x });

@@ -12,6 +12,8 @@ import {
 import { TuiIcon } from '@taiga-ui/core';
 import { gsap } from 'gsap';
 
+import { motionFlag } from '../motion/motion-flag';
+
 export interface GlassSegmentedItem {
   readonly label: string;
   readonly icon?: string;
@@ -211,7 +213,7 @@ export class GlassSegmented {
   readonly activeIndex = model.required<number>();
   readonly stacked = input(false);
 
-  private motion = false;
+  private readonly motion = motionFlag();
   private itemWidth = 0;
   private quickX: ((value: number) => gsap.core.Tween) | null = null;
   private dragging = false;
@@ -231,13 +233,6 @@ export class GlassSegmented {
     });
 
     afterNextRender(() => {
-      const media = gsap.matchMedia();
-      media.add('(prefers-reduced-motion: no-preference)', () => {
-        this.motion = true;
-        return () => {
-          this.motion = false;
-        };
-      });
 
       const observer = new ResizeObserver(() => this.layout());
       observer.observe(this.host.nativeElement);
@@ -250,7 +245,6 @@ export class GlassSegmented {
       destroyRef.onDestroy(() => {
         host.removeEventListener('pointermove', onMove);
         observer.disconnect();
-        media.revert();
       });
     });
   }
@@ -315,7 +309,7 @@ export class GlassSegmented {
     const max = rect.width - 3 - this.itemWidth;
     const x = Math.min(Math.max(event.clientX - rect.left - this.itemWidth / 2, min), max);
 
-    if (this.motion && this.quickX) {
+    if (this.motion.enabled && this.quickX) {
       this.quickX(x);
       const lag = Math.min(Math.abs(event.movementX) / 40, 0.18);
       gsap.to(this.thumb().nativeElement, {
@@ -354,7 +348,7 @@ export class GlassSegmented {
     const thumb = this.thumb().nativeElement;
     const x = this.targetX(index);
 
-    if (!this.motion) {
+    if (!this.motion.enabled) {
       gsap.set(thumb, { x, scaleX: 1, scaleY: 1 });
       return;
     }

@@ -13,6 +13,18 @@
       "skillPath": "angular-new-app/SKILL.md",
       "computedHash": "49bd84ab08bd3498c52f476bed48fbb942dc6dbc0925607e84549adbed34bccf"
     },
+    "dry-refactoring": {
+      "source": "kucherenko/jscpd",
+      "sourceType": "github",
+      "skillPath": "skills/dry-refactoring/SKILL.md",
+      "computedHash": "2d234ed9be80b55e6c39cd7606951c4411e735dbd7e08e0faa68f10d83e0c85e"
+    },
+    "jscpd": {
+      "source": "kucherenko/jscpd",
+      "sourceType": "github",
+      "skillPath": "skills/jscpd/SKILL.md",
+      "computedHash": "144192b939ae66499216c0047c68c8b6512370eca9d33f8ad84370b62ff75060"
+    },
     "karpathy-guidelines": {
       "source": "forrestchang/andrej-karpathy-skills",
       "sourceType": "github",

@@ -38,3 +38,24 @@ export function resourceError(
     return error ? mapApiError(error).message : undefined;
   });
 }
+
+export interface ListView<T> {
+  readonly items: Signal<readonly T[]>;
+  readonly loading: Signal<boolean>;
+  readonly hasLoaded: Signal<boolean>;
+  readonly error: Signal<string | undefined>;
+}
+
+export function listView<T>(
+  resource: ReadableResource<readonly T[] | undefined> & { readonly isLoading: Signal<boolean> },
+  key?: () => string,
+): ListView<T> {
+  const current = key ? keepLastValue(resource, key) : keepLastValue(resource);
+
+  return {
+    items: computed(() => current() ?? []),
+    loading: resource.isLoading,
+    hasLoaded: computed(() => current() !== undefined),
+    error: resourceError(resource),
+  };
+}

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiAppBar } from '@taiga-ui/layout';
 
@@ -98,11 +98,7 @@ export class TaskEditPage {
   protected readonly taskPath = computed(() => `/projects/${this.slug()}/tasks/${this.name()}`);
 
   constructor() {
-    effect(() => {
-      const slug = this.slug();
-      const name = this.name();
-      if (slug && name) this.detail.refresh(slug, name);
-    });
+    this.detail.track(this.slug, this.name);
   }
 
   protected reload(): void {

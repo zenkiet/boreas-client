@@ -1,4 +1,4 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 
@@ -8,7 +8,7 @@ import {
   RegistryCredentialApi,
 } from '@entities/registry-credential';
 import { CommandGate, CommandResult } from '@shared/api/command';
-import { keepLastValue, resourceError } from '@shared/api/resource-cache';
+import { listView } from '@shared/api/resource-cache';
 
 export type CredentialCommandResult = CommandResult;
 
@@ -21,15 +21,14 @@ export class ManageCredentialsStore {
     stream: () => this.api.list(),
   });
 
-  /* Keep the last good list when a reload fails. */
-  private readonly current = keepLastValue(this.listResource);
+  private readonly list = listView<RegistryCredential>(this.listResource);
 
-  readonly credentials = computed(() => this.current() ?? []);
-  readonly loading = this.listResource.isLoading;
-  readonly hasLoaded = computed(() => this.current() !== undefined);
+  readonly credentials = this.list.items;
+  readonly loading = this.list.loading;
+  readonly hasLoaded = this.list.hasLoaded;
+  readonly error = this.list.error;
   readonly busy = this.gate.busy;
   readonly createError = this.gate.error;
-  readonly error = resourceError(this.listResource);
 
   load(): void {
     this.listResource.reload();

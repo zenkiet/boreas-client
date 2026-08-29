@@ -535,11 +535,7 @@ export class TaskDetailPage {
       trigger: () => this.reload(),
     });
 
-    effect(() => {
-      const slug = this.slug();
-      const name = this.name();
-      if (slug && name) this.detail.refresh(slug, name);
-    });
+    this.detail.track(this.slug, this.name);
 
     effect(() => {
       const slug = this.slug();

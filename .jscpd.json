@@ -9,8 +9,8 @@
   "// threshold": "Measured 0.52% after the first pass. 1.5% leaves room for an honest clone without letting a second copy-paste habit establish itself.",
   "threshold": 1.5,
 
-  "// tokens": "50 tokens / 5 lines is above an import block or a signal-field run, and below any real duplicated function body.",
-  "minTokens": 50,
+  "// tokens": "Was 50 on the claim that it sat above an import block; it did not. Eight pages now share enough shared/ui imports that their alphabetised import runs matched each other, reporting three clones no refactor can remove — a barrel to dedupe them would cost the per-route chunking. 60 is measured: it drops all three import runs and keeps every real clone.",
+  "minTokens": 60,
   "minLines": 5,
 
   "// mode": "weak skips comment tokens, so two blocks are clones only when the code matches, not the prose above it.",
