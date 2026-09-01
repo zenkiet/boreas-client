@@ -37,6 +37,7 @@ interface NavItem {
   readonly label: string;
   readonly link: string;
   readonly icon: string;
+  readonly iconActive?: string;
 }
 
 const THEME_CYCLE: Record<ThemeMode, ThemeMode> = {
@@ -283,10 +284,15 @@ export class AppShell {
   protected readonly alertsUnseen = computed(() => this.alerts.unseenCount() > 0);
 
   protected readonly navItems: readonly NavItem[] = [
-    { label: 'Home', link: '/projects', icon: '@tui.house' },
+    { label: 'Home', link: '/projects', icon: '@tui.house', iconActive: '@tui.house-filled' },
     { label: 'Search', link: '/search', icon: '@tui.search' },
-    { label: 'Alerts', link: '/notifications', icon: '@tui.bell' },
-    { label: 'Settings', link: '/settings', icon: '@tui.settings-2' },
+    { label: 'Alerts', link: '/notifications', icon: '@tui.bell', iconActive: '@tui.bell-filled' },
+    {
+      label: 'Settings',
+      link: '/settings',
+      icon: '@tui.settings-2',
+      iconActive: '@tui.settings-2-filled',
+    },
   ];
 
   protected readonly dockItems = computed<readonly GlassSegmentedItem[]>(() => {
@@ -294,6 +300,7 @@ export class AppShell {
     return this.navItems.map((item) => ({
       label: item.label,
       icon: item.icon,
+      iconActive: item.iconActive,
       badge: item.link === '/notifications' ? unseen : 0,
       badgeLabel: `${unseen} new alert${unseen === 1 ? '' : 's'}`,
     }));

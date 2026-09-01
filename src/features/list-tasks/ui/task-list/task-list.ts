@@ -31,6 +31,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
               <button
                 type="button"
                 class="row row--tap"
+                [class.row--stopped]="task.status === 'stopped'"
                 [tuiDropdown]="menu"
                 tuiDropdownContext
                 (longtap)="armMenu()"
@@ -97,6 +98,7 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
             role="listitem"
             class="row row--pointer row-divider relative"
             [class.row--busy]="pendingTaskIds().has(task.name)"
+            [class.row--stopped]="task.status === 'stopped'"
             (click)="openTask($event, task)"
             (keydown.enter)="openTask($event, task)"
           >
@@ -249,6 +251,10 @@ import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button'
 
     .row--pointer:hover .row__meta,
     .row--pointer:focus-within .row__meta,
+    .row--stopped {
+      opacity: 0.5;
+    }
+
     .row--busy .row__meta {
       display: none;
     }

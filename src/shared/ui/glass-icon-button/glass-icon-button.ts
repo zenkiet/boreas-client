@@ -33,6 +33,10 @@ import { TuiIcon } from '@taiga-ui/core';
         filter calc(var(--tui-duration) / 2) ease;
     }
 
+    tui-icon {
+      --tui-stroke-width: 0.1875rem;
+    }
+
     :host(:active) {
       transform: scale(1.25);
       filter: brightness(3);
