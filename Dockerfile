@@ -1,6 +1,6 @@
 FROM node:24.19.0-alpine AS build
 
-ARG PNPM_VERSION=11.24.0
+ARG PNPM_VERSION=11.25.0
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:${PATH} \
@@ -8,8 +8,7 @@ ENV PNPM_HOME=/pnpm \
 
 WORKDIR /app
 
-RUN corepack enable \
-    && corepack prepare "pnpm@${PNPM_VERSION}" --activate
+RUN npm install --global "pnpm@${PNPM_VERSION}"
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 

@@ -1,4 +1,21 @@
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
 apply plugin: 'com.android.application'
+
+def pkgVersion = new groovy.json.JsonSlurper().parse(rootProject.file("../package.json")).version
+def versionMatch = pkgVersion =~ /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/
+if (!versionMatch.matches()) {
+    throw new GradleException("package.json version must use semantic versioning")
+}
+def versionParts = (1..3).collect { versionMatch[0][it] as int }
+if (versionParts.any { it > 999 }) {
+    throw new GradleException("Each version part must be between 0 and 999")
+}
+def pkgVersionCode = versionParts[0] * 1_000_000 + versionParts[1] * 1_000 + versionParts[2]
 
 android {
     namespace = "dev.zenkiet.boreas"
@@ -7,8 +24,8 @@ android {
         applicationId "dev.zenkiet.boreas"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode pkgVersionCode
+        versionName pkgVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,9 +33,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

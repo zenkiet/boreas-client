@@ -17,6 +17,7 @@ import { motionFlag } from '../motion/motion-flag';
 export interface GlassSegmentedItem {
   readonly label: string;
   readonly icon?: string;
+  readonly iconActive?: string;
   readonly dot?: boolean;
   readonly dotLabel?: string;
   readonly badge?: number;
@@ -31,6 +32,7 @@ export interface GlassSegmentedItem {
     '[class.stacked]': 'stacked()',
     '(keydown.arrowRight)': 'step(1)',
     '(keydown.arrowLeft)': 'step(-1)',
+    '(touchstart)': '$event.stopPropagation()',
   },
   template: `
     <div #thumb class="thumb" aria-hidden="true"></div>
@@ -47,8 +49,15 @@ export interface GlassSegmentedItem {
         (pointercancel)="onPointerUp($event)"
       >
         @if (item.icon) {
-          <span class="segment__glyph">
-            <tui-icon class="segment__icon" [icon]="item.icon" />
+          <span class="segment__glyph" [class.segment__glyph--swap]="!!item.iconActive">
+            <tui-icon class="segment__icon segment__icon--line" [icon]="item.icon" />
+            @if (item.iconActive) {
+              <tui-icon
+                class="segment__icon segment__icon--solid"
+                [icon]="item.iconActive"
+                aria-hidden="true"
+              />
+            }
             @if (item.badge) {
               <span class="segment__badge" [attr.aria-label]="item.badgeLabel">
                 {{ item.badge > 99 ? '99+' : item.badge }}
@@ -77,8 +86,7 @@ export interface GlassSegmentedItem {
       box-shadow:
         0 0.5rem 2rem rgba(0, 0, 0, 0.09),
         inset 0 0 0.75rem var(--app-chrome-glow);
-      /* Preserve vertical page scrolling while claiming horizontal thumb drags. */
-      touch-action: pan-y;
+      touch-action: none;
     }
 
     :host::after {
@@ -153,6 +161,26 @@ export interface GlassSegmentedItem {
       position: relative;
       display: inline-flex;
       flex: none;
+      transition: transform var(--tui-duration) cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .segment__icon--solid {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+    }
+
+    .segment__icon--line,
+    .segment__icon--solid {
+      transition: opacity var(--tui-duration);
+    }
+
+    .segment--active .segment__icon--solid {
+      opacity: 1;
+    }
+
+    .segment--active .segment__glyph--swap .segment__icon--line {
+      opacity: 0;
     }
 
     .segment__badge {
@@ -196,6 +224,11 @@ export interface GlassSegmentedItem {
       inline-size: 1.375rem;
       block-size: 1.375rem;
       font-size: 1.375rem;
+      --tui-stroke-width: 0.15625rem;
+    }
+
+    :host(.stacked) .segment--active .segment__glyph {
+      transform: scale(1.08);
     }
 
     :host(.stacked) .segment__label {

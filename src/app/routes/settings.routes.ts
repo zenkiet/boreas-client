@@ -6,16 +6,20 @@ export const settingsRoutes: Routes = [
     title: 'Settings | Boreas',
     loadComponent: () =>
       import('@pages/settings/settings-page').then(({ SettingsPage }) => SettingsPage),
+    data: { pullToRefresh: false },
   },
   {
     path: 'account',
     title: 'Account | Boreas',
-    loadComponent: () => import('@pages/account/account-page').then(({ AccountPage }) => AccountPage),
+    loadComponent: () =>
+      import('@pages/account/account-page').then(({ AccountPage }) => AccountPage),
+    data: { pullToRefresh: false },
   },
   {
     path: 'about',
     title: 'About | Boreas',
     loadComponent: () => import('@pages/about/about-page').then(({ AboutPage }) => AboutPage),
+    data: { pullToRefresh: false },
   },
   {
     path: 'users',
@@ -40,5 +44,6 @@ export const settingsRoutes: Routes = [
       import('@pages/token-create/token-create-page').then(
         ({ TokenCreatePage }) => TokenCreatePage,
       ),
+    data: { pullToRefresh: false },
   },
 ];
