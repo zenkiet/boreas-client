@@ -1,4 +1,4 @@
-FROM node:24.19.0-alpine AS build
+FROM node:26.8.1-alpine AS build
 
 ARG PNPM_VERSION=11.24.0
 
