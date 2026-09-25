@@ -1,6 +1,6 @@
-FROM node:24.19.0-alpine AS build
+FROM node:26-alpine AS build
 
-ARG PNPM_VERSION=11.25.0
+ARG PNPM_VERSION=latest
 
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:${PATH} \
@@ -22,7 +22,7 @@ COPY src ./src
 
 RUN pnpm build --configuration production
 
-FROM nginx:1.31.3-alpine AS runtime
+FROM nginx:alpine AS runtime
 
 ENV NGINX_ENTRYPOINT_QUIET_LOGS=1
 

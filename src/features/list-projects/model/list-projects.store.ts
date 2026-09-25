@@ -3,8 +3,10 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { Project, ProjectApi } from '@entities/project';
-import { SystemStats, SystemStatsApi } from '@entities/system-stats';
-import { Task, TaskApi } from '@entities/task';
+import type { SystemStats } from '@entities/system-stats';
+import { SystemStatsApi } from '@entities/system-stats/api';
+import type { Task } from '@entities/task';
+import { TaskApi } from '@entities/task/api';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 

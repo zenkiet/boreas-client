@@ -7,7 +7,7 @@ import { Notification } from '../model/notification';
 import { NotificationsResponseDto } from './notification.dto';
 import { toNotification } from './notification.mapper';
 
-/* The server accepts 1-200 and rejects anything outside. */
+/* The server rejects a limit outside 1-200. */
 const DEFAULT_LIMIT = 50;
 
 @Service()

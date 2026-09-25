@@ -18,7 +18,7 @@ export interface CreateApiTokenInput {
   readonly validTo: Date;
 }
 
-/** The plaintext token exists only in this response; the API never returns it again. */
+/** The plaintext token exists only in this response. */
 export interface CreatedApiToken {
   readonly token: string;
   readonly apiToken: ApiToken;
@@ -27,7 +27,6 @@ export interface CreatedApiToken {
 /* The API rejects a window wider than this. */
 export const MAX_TOKEN_DAYS = 90;
 
-/** Only live tokens can be revoked; expired and revoked rows are history. */
 export function isRevocable(token: ApiToken): boolean {
   return token.status === 'active' || token.status === 'scheduled';
 }

@@ -1,14 +1,14 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, defer, finalize, of } from 'rxjs';
 
+import { TaskApi } from '@entities/task/api';
 import {
   DEV_STATUS_LABEL,
   DevStatus,
   Task,
-  TaskApi,
   TaskStateAction,
   describeCompletedAction,
-} from '@entities/task';
+} from '@entities/task/model';
 import { CommandResult, toCommandResult } from '@shared/api/command';
 
 export type TaskCommandResult = CommandResult;
@@ -23,10 +23,6 @@ export class ControlTaskStore {
 
   isPending(name: string): boolean {
     return this.pendingTaskIdsState().has(name);
-  }
-
-  accessUrl(project: string, name: string): string {
-    return this.api.accessUrl(project, name);
   }
 
   changeState(project: string, task: Task, action: TaskStateAction): Observable<TaskCommandResult> {

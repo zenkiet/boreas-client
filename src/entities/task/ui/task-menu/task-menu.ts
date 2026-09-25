@@ -1,95 +1,115 @@
-import { Component, computed, inject, input, output } from '@angular/core';
-import { TuiDataList, TuiDropdownDriver, TuiOptGroup, TuiOption } from '@taiga-ui/core';
+import { Component, computed, input, output } from '@angular/core';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonList } from '@ionic/angular/ion-list';
 
 import { Task, isTransitioningTask } from '../../model/task';
-import { TaskAction, TaskActionRequest } from '../task-actions/task-actions';
 
+export type TaskAction = 'start' | 'stop' | 'restart' | 'edit' | 'delete';
+
+export interface TaskActionRequest {
+  readonly action: TaskAction;
+  readonly task: Task;
+}
+
+/** The popover dismisses itself on select, so a pick only has to emit. */
 @Component({
   selector: 'app-task-menu',
-  imports: [TuiDataList, TuiOptGroup, TuiOption],
+  imports: [IonItem, IonLabel, IonList],
   template: `
-    <tui-data-list [attr.aria-label]="'Actions for ' + task().name">
-      <tui-opt-group [label]="task().name">
-        @if (task().status === 'running') {
-          <a
-            tuiOption
-            iconEnd="@tui.external-link"
-            target="_blank"
-            rel="noopener"
-            [href]="accessUrl()"
-          >
-            Open task
-          </a>
-          <button
-            tuiOption
-            type="button"
-            iconEnd="@tui.square"
-            [disabled]="disabled()"
-            (click)="emit('stop')"
-          >
-            Stop
-          </button>
-        } @else {
-          <button
-            tuiOption
-            type="button"
-            iconEnd="@tui.play"
-            [disabled]="disabled()"
-            (click)="emit('start')"
-          >
-            Start
-          </button>
-        }
-
-        <button
-          tuiOption
-          type="button"
-          iconEnd="@tui.rotate-cw"
-          [disabled]="disabled()"
-          (click)="emit('restart')"
+    <ion-list [attr.aria-label]="'Actions for ' + task().name">
+      @if (task().status === 'running') {
+        <ion-item
+          lines="full"
+          class="narrow-only"
+          [detail]="false"
+          target="_blank"
+          rel="noopener"
+          [href]="accessUrl()"
         >
-          Restart
-        </button>
-
-        <!-- Editing is always allowed; only the recreate it may trigger waits for a settle. -->
-        <button tuiOption type="button" iconEnd="@tui.pencil" (click)="emit('edit')">
-          Edit task
-        </button>
-      </tui-opt-group>
-
-      <!-- Its own group, so the separator does the work a colour alone cannot. -->
-      <tui-opt-group>
-        <button
-          tuiOption
-          type="button"
-          class="menu__destructive"
-          iconEnd="@tui.trash-2"
+          <ion-label>Open task</ion-label>
+          <span
+            slot="end"
+            class="icon-[light--arrow-up-right-from-square]"
+            aria-hidden="true"
+          ></span>
+        </ion-item>
+        <ion-item
+          button
+          lines="full"
+          class="narrow-only"
+          [detail]="false"
           [disabled]="disabled()"
-          (click)="emit('delete')"
+          (click)="emit('stop')"
         >
-          Delete
-        </button>
-      </tui-opt-group>
-    </tui-data-list>
+          <ion-label>Stop</ion-label>
+          <span slot="end" class="icon-[light--stop]" aria-hidden="true"></span>
+        </ion-item>
+      } @else {
+        <ion-item
+          button
+          lines="full"
+          class="narrow-only"
+          [detail]="false"
+          [disabled]="disabled()"
+          (click)="emit('start')"
+        >
+          <ion-label>Start</ion-label>
+          <span slot="end" class="icon-[light--play]" aria-hidden="true"></span>
+        </ion-item>
+      }
+      <ion-item
+        button
+        lines="full"
+        class="narrow-only"
+        [detail]="false"
+        [disabled]="disabled()"
+        (click)="emit('restart')"
+      >
+        <ion-label>Restart</ion-label>
+        <span slot="end" class="icon-[light--arrow-rotate-right]" aria-hidden="true"></span>
+      </ion-item>
+      <!-- Editing is always allowed; only the recreate it may trigger waits for a settle. -->
+      <ion-item button lines="none" class="narrow-only" [detail]="false" (click)="emit('edit')">
+        <ion-label>Edit task</ion-label>
+        <span slot="end" class="icon-[light--pencil]" aria-hidden="true"></span>
+      </ion-item>
+      <ion-item
+        button
+        lines="none"
+        class="delete"
+        [detail]="false"
+        [disabled]="disabled()"
+        (click)="emit('delete')"
+      >
+        <ion-label color="danger">Delete</ion-label>
+        <span slot="end" class="text-danger icon-[light--trash]" aria-hidden="true"></span>
+      </ion-item>
+    </ion-list>
   `,
   styles: `
-    tui-data-list {
-      inline-size: 14rem;
+    ion-item {
+      --min-height: 3.125rem;
+      font-size: 1.0625rem;
     }
 
-    /* Match iOS trailing icons; Taiga packs labels and icons at the start. */
-    [tuiOption] {
-      justify-content: space-between;
+    [class*='icon-['] {
+      font-size: 1.25rem;
     }
 
-    .menu__destructive {
-      color: var(--tui-status-negative);
+    /* The destructive action sits apart, behind a band rather than a hairline. */
+    .delete {
+      border-block-start: 0.375rem solid rgba(120, 120, 128, 0.12);
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      .delete {
+        border-block-start: 0;
+      }
     }
   `,
 })
 export class TaskMenu {
-  private readonly dropdown = inject(TuiDropdownDriver, { optional: true });
-
   readonly task = input.required<Task>();
   readonly accessUrl = input.required<string>();
   readonly pending = input.required<boolean>();
@@ -99,6 +119,5 @@ export class TaskMenu {
 
   protected emit(action: TaskAction): void {
     this.actionRequested.emit({ action, task: this.task() });
-    this.dropdown?.next(false);
   }
 }

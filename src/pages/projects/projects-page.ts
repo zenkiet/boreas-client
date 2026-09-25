@@ -1,19 +1,31 @@
-import { Component, computed, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { TUI_BREAKPOINT, TuiButton, TuiIcon } from '@taiga-ui/core';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonRouterLink } from '@ionic/angular/ion-router-link';
+import { from, switchMap } from 'rxjs';
 
 import { Project } from '@entities/project';
+import { describeDevStatus } from '@entities/task';
 import { SessionStore } from '@features/auth';
+import { ListAlertsStore } from '@features/list-alerts/model';
 import { ListProjectsStore, ProjectList } from '@features/list-projects';
-import { LiveMonitor, StatTiles } from '@features/track-stats';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { LiveMetricsStore, LiveMonitor, ProjectSplit } from '@features/track-stats';
+import { MEGABYTE } from '@shared/lib/format/bytes';
+import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
-import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
+import { NEW_PROJECT_DIALOG, SheetService } from '@shared/ui/sheet/sheet.service';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
+import { CommandPaletteLauncher } from '@widgets/app-shell';
+
+const LIVE_FOLDED_KEY = 'boreas-live-folded';
+const SHORT_SCREEN = '(max-height: 47.5rem)';
 
 @Component({
   selector: 'app-projects-page',
@@ -21,79 +33,118 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     Callout,
     EmptyState,
     ErrorState,
-    GlassIconButton,
     InsetGroup,
+    IonButton,
+    IonButtons,
+    IonRouterLink,
+    LiveMonitor,
+    PAGE_CHROME,
     ProjectList,
-    Reveal,
+    ProjectSplit,
+    PULL_REFRESH,
     RouterLink,
     SkeletonRows,
-    StatTiles,
-    LiveMonitor,
-    TuiButton,
-    TuiIcon,
   ],
+  providers: [LiveMetricsStore],
+  host: { class: 'desk-wide' },
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-4">
-      <header class="flex items-center justify-between gap-3">
-        <h1 class="page-title">Projects</h1>
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-title>Home</ion-title>
         <!-- POST /projects is admin-only; a visible button would just collect 403s. -->
         @if (session.isAdmin()) {
-          @if (mobile()) {
-            <a
-              appGlassIconButton
-              icon="@tui.plus"
-              routerLink="/projects/new"
-              aria-label="New project"
-            ></a>
-          } @else {
-            <a tuiButton routerLink="/projects/new" size="s" appearance="primary">
-              <tui-icon class="icon-sm" icon="@tui.plus" />
-              New project
-            </a>
-          }
+          <ion-buttons slot="end" class="narrow-only">
+            <ion-button routerLink="/projects/new" aria-label="New project">
+              <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
+            </ion-button>
+          </ion-buttons>
         }
-      </header>
+        <ion-buttons slot="end" class="wide-only">
+          <button type="button" class="find desk-only" (click)="palette.open()">
+            <span class="icon-[regular--magnifying-glass]" aria-hidden="true"></span>
+            <span>Search or run a command</span>
+            <kbd aria-hidden="true">{{ palette.shortcut }}</kbd>
+          </button>
+          @if (session.isAdmin()) {
+            <ion-button
+              color="primary"
+              [fill]="desktop() ? 'solid' : 'clear'"
+              [class.act]="desktop()"
+              [class.act--primary]="desktop()"
+              (click)="newProject()"
+            >
+              <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+              New project
+            </ion-button>
+          }
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
 
-      @if (overview.loading() && !overview.hasLoaded()) {
-        <!-- The real layout, redacted: chrome and known labels stay, only values wait. -->
-        <div class="grid grid-cols-1 gap-4">
-          <div class="sk-trend skeleton-defer" aria-hidden="true">
-            <div class="flex items-center justify-between gap-4">
-              <span class="sk-label">Running tasks</span>
-              <span class="skeleton skeleton--num"></span>
-            </div>
-            <span class="skeleton skeleton--chart"></span>
-          </div>
+    <ion-content [fullscreen]="true">
+      <ion-refresher [appRefresh]="pull"><ion-refresher-content /></ion-refresher>
+      <div class="mx-auto max-w-(--app-column)">
+        <ion-header collapse="condense">
+          <ion-toolbar><ion-title size="large">Home</ion-title></ion-toolbar>
+        </ion-header>
 
-          <div class="sk-tiles skeleton-defer" aria-hidden="true">
-            @for (label of tileLabels; track label) {
-              <div class="sk-tile">
-                <span class="sk-tile__label">{{ label }}</span>
-                <span class="skeleton skeleton--num"></span>
+        @if (overview.loading() && !overview.hasLoaded()) {
+          <div class="mx-5 skeleton-defer" aria-hidden="true">
+            <div class="head"><h2>Live</h2></div>
+            <div class="rounded-card bg-cell px-4 py-3.5">
+              <div class="grid grid-cols-3 gap-1">
+                @for (label of metricLabels; track label) {
+                  <div class="grid gap-1.5 px-2.5 pt-2 pb-[9px]">
+                    <span class="text-xs font-semibold tracking-[0.04em] text-label-3 uppercase">
+                      {{ label }}
+                    </span>
+                    <span class="skeleton skeleton--num"></span>
+                  </div>
+                }
               </div>
-            }
+              <div class="skeleton mx-1 mt-3 h-[150px] md:h-[190px] xl:h-[200px]"></div>
+            </div>
           </div>
 
           <app-inset-group label="Projects">
             <app-skeleton-rows variant="project" label="Loading projects" />
           </app-inset-group>
-        </div>
-      } @else if (overview.error() && !overview.hasLoaded()) {
-        <app-error-state [message]="overview.error()!" (retry)="overview.load()" />
-      } @else {
-        <div class="grid grid-cols-1 gap-4">
-          @if (overview.stats(); as stats) {
-            <app-live-monitor [projects]="slugs()" [hostMemoryMb]="stats.totalMemoryMb" />
-            <app-stat-tiles [tasks]="allTasks()" />
-          }
+        } @else if (overview.error() && !overview.hasLoaded()) {
+          <app-error-state class="m-5" [message]="overview.error()!" (retry)="overview.load()" />
+        } @else {
+          <section class="live mx-5" aria-labelledby="live-h">
+            <div class="head">
+              <h2 id="live-h" aria-live="polite">{{ metrics.stale() ? 'Waiting' : 'Live' }}</h2>
+              <button
+                type="button"
+                class="toggle"
+                aria-controls="live-card"
+                [attr.aria-expanded]="!liveCollapsed()"
+                (click)="toggleLive()"
+              >
+                {{ liveCollapsed() ? 'Show' : 'Hide' }}<span class="sr-only"> chart</span>
+              </button>
+            </div>
+            <app-live-monitor
+              id="live-card"
+              [series]="metrics.series()"
+              [hostBytes]="hostBytes()"
+              [stale]="metrics.stale()"
+              [collapsed]="liveCollapsed()"
+            >
+              <div class="split mx-1 mt-4 border-t border-sep pt-3">
+                <app-project-split [loads]="metrics.loads()" />
+              </div>
+            </app-live-monitor>
+          </section>
 
           @if (overview.error()) {
-            <app-callout tone="negative" role="alert">
+            <app-callout class="m-5" tone="negative" role="alert">
               {{ overview.error() }} Existing data is still shown.
             </app-callout>
           }
 
-          <app-inset-group label="Projects" [trailing]="summary()">
+          <app-inset-group label="Projects" [trailing]="projectsTrailing()">
             @if (overview.summaries().length === 0) {
               <app-empty-state
                 title="No projects yet"
@@ -107,106 +158,198 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
             } @else {
               <app-project-list
                 [summaries]="overview.summaries()"
+                [deploys]="alerts.lastDeploys()"
+                [loads]="loadsBySlug()"
+                [summary]="!ipad()"
                 (projectOpened)="openProject($event)"
               />
             }
-
-            @if (session.isAdmin()) {
-              <a class="add-row row-divider relative" routerLink="/projects/new">
-                <tui-icon class="icon-sm" icon="@tui.plus" />
-                New project
-              </a>
-            }
           </app-inset-group>
-        </div>
-      }
-    </div>
+        }
+      </div>
+    </ion-content>
   `,
   styles: `
-    /* Mirrors the trend card and stat tiles so content lands without layout shift. */
-    .sk-trend {
-      display: grid;
-      gap: 0.625rem;
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-base);
-      padding: 0.875rem 1rem 0.75rem;
-    }
-
-    .sk-label {
-      font-size: 0.8125rem;
-      color: var(--tui-text-secondary);
-    }
-
-    .sk-tiles {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.5rem;
-    }
-
-    .sk-tile {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4375rem;
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-base);
-      padding: 0.75rem 1rem;
-    }
-
-    .sk-tile__label {
-      font-size: 0.8125rem;
-      color: var(--tui-text-secondary);
-    }
-
-    .add-row {
+    .find {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.6875rem 1rem;
-      font-size: 1.0625rem;
-      font-weight: 500;
-      color: var(--tui-text-action);
-      text-decoration: none;
-      transition: background-color var(--tui-duration);
+      inline-size: 16.25rem;
+      block-size: 2.5rem;
+      margin-inline-end: 0.625rem;
+      padding: 0 0.5rem 0 0.875rem;
+      border: 0;
+      border-radius: 1.25rem;
+      background: var(--ion-item-background);
+      box-shadow: 0 0 0 0.5px var(--app-border-normal);
+      font: inherit;
+      font-size: 0.9375rem;
+      color: var(--app-text-tertiary);
+      cursor: pointer;
     }
 
-    .add-row:hover {
-      background: var(--tui-background-neutral-1);
+    .find [class*='icon-['] {
+      flex: none;
+      font-size: 1rem;
+    }
+
+    .find span {
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-align: start;
+    }
+
+    .find kbd {
+      display: inline-flex;
+      align-items: center;
+      min-inline-size: 1.375rem;
+      block-size: 1.375rem;
+      padding: 0 0.375rem;
+      border-radius: 0.375rem;
+      background: var(--app-fill);
+      font-family: var(--app-font-mono);
+      font-size: 0.75rem;
+      color: var(--app-text-secondary);
+    }
+
+    /* Outside a list, so it matches the inset groups' headers by hand. */
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin: 1.75rem 0 0.5rem;
+      padding: 0 1rem;
+      font-size: 0.75rem;
+      color: var(--color-label-3);
+    }
+
+    .head h2 {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.25rem;
+      font-weight: 600;
+    }
+
+    /* From 56rem the Projects table grows CPU and Memory, so the split would repeat it. */
+    .live {
+      display: block;
+      container-type: inline-size;
+    }
+
+    @container (min-width: 56rem) {
+      .split {
+        display: none;
+      }
+    }
+
+    .toggle {
+      min-block-size: 1.5rem;
+      padding: 0 0.25rem;
+      border: 0;
+      background: none;
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--ion-color-primary);
+      cursor: pointer;
+    }
+
+    @media (min-width: 80rem) {
+      .head h2 {
+        font-size: 0.9375rem;
+      }
     }
   `,
 })
 export class ProjectsPage {
   protected readonly session = inject(SessionStore);
+  protected readonly palette = inject(CommandPaletteLauncher);
   protected readonly overview = inject(ListProjectsStore);
+  protected readonly alerts = inject(ListAlertsStore);
+  protected readonly metrics = inject(LiveMetricsStore);
   private readonly router = inject(Router);
-  private readonly breakpoint = inject(TUI_BREAKPOINT);
+  private readonly view = inject(DOCUMENT).defaultView;
+  private readonly sheets = inject(SheetService);
+  private readonly newProjectDialog = inject(NEW_PROJECT_DIALOG);
+  private readonly wide = wideScreen();
+  protected readonly desktop = desktopScreen();
+  protected readonly ipad = computed(() => this.wide() && !this.desktop());
 
-  protected readonly mobile = computed(() => this.breakpoint() === 'mobile');
+  protected readonly metricLabels = ['CPU', 'Memory', 'Network'] as const;
 
-  /* Must match StatTiles so the redacted grid swaps in place. */
-  protected readonly tileLabels = ['Blocked', 'In progress', 'Ready'] as const;
+  protected readonly liveCollapsed = signal(this.readLiveFolded());
 
-  protected readonly slugs = computed(() =>
-    this.overview.summaries().map((summary) => summary.project.slug),
+  protected readonly pull: PullRefreshSource = {
+    busy: computed(() => this.overview.loading() || this.alerts.loading()),
+    trigger: () => {
+      this.overview.load();
+      this.alerts.load();
+    },
+  };
+
+  protected readonly loadsBySlug = computed(() => {
+    const { rows, rest } = this.metrics.loads();
+    return new Map([...rows, ...(rest?.loads ?? [])].map((load) => [load.slug, load]));
+  });
+
+  protected readonly hostBytes = computed(
+    () => (this.overview.stats()?.totalMemoryMb ?? 0) * MEGABYTE,
   );
 
-  protected readonly allTasks = computed(() =>
-    this.overview.summaries().flatMap((summary) => summary.tasks),
-  );
-
-  protected readonly summary = computed(() => {
-    const total = this.overview.summaries().length;
-    return `${total} ${total === 1 ? 'project' : 'projects'}`;
+  /* Counts describe what the caller can see, never a server total. */
+  protected readonly projectsTrailing = computed(() => {
+    const summaries = this.overview.summaries();
+    const tasks = summaries.flatMap((summary) => summary.tasks);
+    if (this.ipad()) return describeDevStatus(tasks);
+    const projects = `${summaries.length} ${summaries.length === 1 ? 'project' : 'projects'}`;
+    return `${projects} · ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`;
   });
 
   constructor() {
+    this.metrics.track(computed(() => this.overview.summaries().map(({ project }) => project)));
+  }
+
+  protected toggleLive(): void {
+    const folded = !this.liveCollapsed();
+    this.liveCollapsed.set(folded);
+    try {
+      this.view?.localStorage.setItem(LIVE_FOLDED_KEY, folded ? '1' : '0');
+    } catch {
+      return;
+    }
+  }
+
+  /* The dialog page navigates to the new project itself. */
+  protected newProject(): void {
+    from(this.newProjectDialog())
+      .pipe(switchMap((page) => this.sheets.open(page, 'New project', { dialog: true })))
+      .subscribe();
+  }
+
+  /* Fires on every entry: Ionic keeps this page alive under pushed screens. */
+  ionViewWillEnter(): void {
     this.overview.ensureFresh();
-    registerPullRefresh({ busy: this.overview.loading, trigger: () => this.overview.load() });
+    this.alerts.ensureFresh();
   }
 
   protected openProject(project: Project): void {
-    /* The detail page seeds its title from this so the push shows a real name at once. */
+    /* Seeds the detail page's title before its fetch lands. */
     void this.router.navigate(['/projects', project.slug], {
       state: { projectName: project.name },
     });
+  }
+
+  /* Unpicked, a short screen opens folded, or the chart pushes every project below the fold. */
+  private readLiveFolded(): boolean {
+    let stored: string | null | undefined;
+    try {
+      stored = this.view?.localStorage.getItem(LIVE_FOLDED_KEY);
+    } catch {
+      stored = null;
+    }
+    return stored ? stored === '1' : !!this.view?.matchMedia(SHORT_SCREEN).matches;
   }
 }

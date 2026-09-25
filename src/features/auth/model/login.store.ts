@@ -31,7 +31,7 @@ export class LoginStore {
         catchError((error: unknown) => {
           this.errorState.set(
             error instanceof HttpErrorResponse && error.status === 401
-              ? 'Incorrect username or password.'
+              ? 'Wrong username or password. Try again or ask your administrator.'
               : mapApiError(error).message,
           );
           return of(false);

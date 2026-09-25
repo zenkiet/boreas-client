@@ -1,8 +1,8 @@
 import { Service, inject } from '@angular/core';
-import { TuiToastService } from '@taiga-ui/kit';
-import { take } from 'rxjs';
+import { ToastController } from '@ionic/angular/toast-controller';
 
-/** Anything a command hands back: the message is the toast, the flag is its appearance. */
+import { CIRCLE_CHECK, CIRCLE_EXCLAMATION } from '../glyph-urls';
+
 export interface NotifiableResult {
   readonly success: boolean;
   readonly message: string;
@@ -10,9 +10,8 @@ export interface NotifiableResult {
 
 @Service()
 export class NotifyService {
-  private readonly toasts = inject(TuiToastService);
+  private readonly toasts = inject(ToastController);
 
-  /** Routes a command outcome to a toast, green on success and red on failure. */
   result(result: NotifiableResult): void {
     this.show(result.message, result.success);
   }
@@ -26,9 +25,14 @@ export class NotifyService {
   }
 
   private show(message: string, success: boolean): void {
-    this.toasts
-      .open(message, { appearance: success ? 'positive' : 'negative' })
-      .pipe(take(1))
-      .subscribe();
+    void this.toasts
+      .create({
+        message,
+        duration: 2500,
+        position: 'top',
+        icon: success ? CIRCLE_CHECK : CIRCLE_EXCLAMATION,
+        cssClass: success ? 'toast-positive' : 'toast-negative',
+      })
+      .then((toast) => toast.present());
   }
 }

@@ -9,166 +9,181 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { TuiButton, TuiHint, TuiIcon } from '@taiga-ui/core';
+import type { SelectCustomEvent } from '@ionic/angular';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonSelect } from '@ionic/angular/ion-select';
+import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import { EMPTY, defer, from } from 'rxjs';
 
-import { DEV_STATUS_LABEL, Task } from '@entities/task';
+import type { DeployOutcome } from '@entities/notification';
+import { DEV_STATUS_LABEL, DevStatus, Task } from '@entities/task';
+import { toByteSize } from '@shared/lib/format/bytes';
+import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
-
-interface DetailRow {
-  readonly label: string;
-  readonly value: string;
-  readonly mono?: boolean;
-}
 
 const COPIED_RESET_MS = 1600;
 
+/* Workflow order, not severity order: the order a task moves through. */
+const STATUS_OPTIONS = (
+  [
+    ['in_progress', 'Being built — the default for a new task'],
+    ['blocked', 'Not fit for QA yet'],
+    ['ready', 'QA can test this build'],
+  ] as const
+).map(([status, description]) => ({ status, description, label: DEV_STATUS_LABEL[status] }));
+
+const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 'status-menu' };
+
 @Component({
   selector: 'app-task-overview',
-  imports: [InsetGroup, TuiButton, TuiHint, TuiIcon],
+  imports: [InsetGroup, IonButton, IonItem, IonLabel, IonSelect, IonSelectOption],
   template: `
-    <app-inset-group label="Overview">
-      <button type="button" class="lrow row-divider relative status" (click)="statusClicked.emit()">
-        <span class="lrow__label">Status</span>
-        <span class="status__value">
-          <span class="status__dot" [attr.data-dev]="task().devStatus" aria-hidden="true"></span>
-          {{ statusLabel() }}
-        </span>
-        <tui-icon class="status__chevron icon-sm" icon="@tui.chevron-right" aria-hidden="true" />
-      </button>
-
-      <div class="lrow row-divider relative">
-        <span class="lrow__label">Proxy URL</span>
-        <a
-          class="lrow__link"
-          rel="noopener"
-          target="_blank"
-          [href]="proxyUrl()"
-          [attr.title]="proxyUrl()"
+    <!-- Phones already say Overview in the section switch right above. -->
+    <app-inset-group [label]="wide() ? 'Overview' : ''">
+      <ion-item>
+        <ion-select
+          label="Status"
+          interface="popover"
+          [interfaceOptions]="statusMenu"
+          [value]="task().devStatus"
+          (ionChange)="statusChange.emit($event)"
         >
-          {{ proxyUrl() }}
-        </a>
-        <button
-          tuiIconButton
-          type="button"
-          size="xs"
-          appearance="flat-grayscale"
-          [tuiHint]="copied() ? 'Copied' : 'Copy URL'"
-          aria-label="Copy proxy URL"
+          @for (option of statusOptions; track option.status) {
+            <ion-select-option [value]="option.status" [description]="option.description">
+              {{ option.label }}
+            </ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+
+      <ion-item>
+        <ion-label class="row-label">Proxy URL</ion-label>
+        <!-- min-width lets the nowrap link shrink; without it the copy button leaves the group. -->
+        <a class="value value--link value--tail" rel="noopener" target="_blank" [href]="proxyUrl()"
+          ><bdi>{{ proxyLabel() }}</bdi></a
+        >
+        <ion-button
+          slot="end"
+          fill="clear"
+          size="small"
+          [attr.aria-label]="copied() ? 'Copied' : 'Copy proxy URL'"
           (click)="copyUrl()"
         >
-          <tui-icon class="icon-sm" [icon]="copied() ? '@tui.check' : '@tui.copy'" />
-        </button>
-      </div>
+          <span
+            slot="icon-only"
+            [class]="copied() ? 'icon-[light--check]' : 'icon-[light--copy]'"
+            aria-hidden="true"
+          ></span>
+        </ion-button>
+      </ion-item>
 
-      <div class="lrow row-divider relative">
-        <span class="lrow__label">Image</span>
-        <span class="image font-mono" [attr.title]="task().image">{{ shortImage() }}</span>
-        <button
-          tuiIconButton
-          type="button"
-          size="xs"
-          appearance="flat-grayscale"
-          [tuiHint]="copiedImage() ? 'Copied' : 'Copy image'"
-          aria-label="Copy image reference"
+      <ion-item>
+        <ion-label class="row-label">Container</ion-label>
+        <span class="value" [attr.data-state]="task().status">{{ task().status }}</span>
+      </ion-item>
+
+      <ion-item>
+        <ion-label class="row-label">Image</ion-label>
+        <span class="value value--tail font-mono" [attr.title]="task().image"
+          ><bdi>{{ shortImage() }}</bdi></span
+        >
+        <ion-button
+          slot="end"
+          fill="clear"
+          size="small"
+          [attr.aria-label]="copiedImage() ? 'Copied' : 'Copy full image reference'"
           (click)="copyImage()"
         >
-          <tui-icon class="icon-sm" [icon]="copiedImage() ? '@tui.check' : '@tui.copy'" />
-        </button>
-      </div>
+          <span
+            slot="icon-only"
+            [class]="copiedImage() ? 'icon-[light--check]' : 'icon-[light--copy]'"
+            aria-hidden="true"
+          ></span>
+        </ion-button>
+      </ion-item>
 
       @if (lastDeploy(); as deploy) {
-        <div class="lrow row-divider relative">
-          <span class="lrow__label">Last deploy</span>
-          <span class="lrow__value" [class.deploy--failed]="deploy.failed">
+        <ion-item>
+          <ion-label class="row-label">Last deploy</ion-label>
+          <span class="value" [attr.data-state]="deploy.failed ? 'error' : null">
             {{ deployLabel(deploy) }}
           </span>
-        </div>
+        </ion-item>
       }
 
-      @for (row of rows(); track row.label) {
-        <div class="lrow row-divider relative">
-          <span class="lrow__label">{{ row.label }}</span>
-          <span class="lrow__value" [class.font-mono]="row.mono">{{ row.value }}</span>
-        </div>
+      <ion-item>
+        <ion-label class="row-label">Port</ion-label>
+        <span class="value tabular">{{ task().port }}</span>
+      </ion-item>
+
+      @if (usage(); as now) {
+        <ion-item class="desk-only">
+          <ion-label class="row-label">Usage</ion-label>
+          <span class="value tabular">{{ usageLabel(now) }}</span>
+        </ion-item>
       }
     </app-inset-group>
   `,
   styles: `
-    /* Tailwind has no preflight, so reset the button-shaped row explicitly. */
-    button.status {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      background: none;
-      font: inherit;
-      text-align: start;
-      cursor: pointer;
+    .row-label {
+      flex: none;
+      white-space: nowrap;
     }
 
-    .status__value {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4375rem;
-      margin-inline-start: auto;
-      font-size: 0.9375rem;
-      color: var(--tui-text-primary);
-    }
-
-    .status__dot {
-      inline-size: 0.5rem;
-      block-size: 0.5rem;
-      border-radius: 999px;
-    }
-
-    .status__dot[data-dev='in_progress'] {
-      background: var(--tui-status-warning);
-    }
-
-    .status__dot[data-dev='blocked'] {
-      background: var(--tui-status-negative);
-    }
-
-    .status__dot[data-dev='ready'] {
-      background: var(--tui-status-positive);
-    }
-
-    .status__chevron {
-      color: var(--tui-text-tertiary);
-    }
-
-    /* Without flex+min-size the nowrap link refuses to shrink and shoves the copy button
-       outside the group, which put it out of reach entirely at 375px. */
-    .lrow__link {
+    .value {
       flex: 1;
       min-inline-size: 0;
       overflow: hidden;
+      padding-inline-start: 0.75rem;
+      font-size: 1rem;
+      color: var(--app-text-tertiary);
+      text-align: end;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .value--link,
+    .value.font-mono {
+      font-size: 0.875rem;
+    }
+
+    .value--link {
       font-family: var(--app-font-mono);
-      font-size: 0.9375rem;
-      color: var(--tui-text-action);
-      text-align: end;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      color: var(--ion-color-primary);
+      text-decoration: none;
     }
 
-    .lrow__link:hover {
-      text-decoration: underline;
-      text-underline-offset: 0.125rem;
+    /* Clipped at the head, where rows are alike; in rtl, inline-end is the label's side. */
+    .value--tail {
+      direction: rtl;
+      padding-inline: 0 0.75rem;
+      text-align: start;
     }
 
-    .image {
-      flex: 1;
-      min-inline-size: 0;
-      overflow: hidden;
-      font-size: 0.9375rem;
-      color: var(--tui-text-primary);
-      text-align: end;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .value[data-state='running'] {
+      color: var(--app-status-positive);
     }
 
-    .deploy--failed {
-      color: var(--tui-status-negative);
+    .value[data-state='stopped'] {
+      color: var(--app-text-primary);
+    }
+
+    .value[data-state='error'] {
+      color: var(--ion-color-danger);
+      font-weight: 600;
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      ion-item {
+        --row-min-height: 3.125rem;
+        font-size: 0.9375rem;
+      }
+
+      .value {
+        font-size: 0.9375rem;
+      }
     }
   `,
 })
@@ -177,36 +192,38 @@ export class TaskOverview {
 
   readonly task = input.required<Task>();
   readonly proxyUrl = input.required<string>();
-  /** Newest deploy notification for this task; hidden when it never deployed via CI. */
-  readonly lastDeploy = input<{ readonly at: Date; readonly failed: boolean } | null>(null);
+  readonly lastDeploy = input<DeployOutcome | null>(null);
+  readonly usage = input<{ readonly cpu: number; readonly mem: number } | null>(null);
   readonly copyFailed = output<void>();
   readonly imageCopyFailed = output<void>();
-  readonly statusClicked = output<void>();
+  /** The raw event, so the page can flip the select back on a refused change. */
+  readonly statusChange = output<SelectCustomEvent<DevStatus>>();
 
-  protected readonly statusLabel = computed(() => DEV_STATUS_LABEL[this.task().devStatus]);
+  protected readonly wide = wideScreen();
+  protected readonly statusOptions = STATUS_OPTIONS;
+  protected readonly statusMenu = STATUS_MENU;
 
-  /* A 64-hex digest is unreadable; 12 chars identify the build, copy keeps the full ref. */
-  protected readonly shortImage = computed(() =>
-    this.task().image.replace(/sha256:([0-9a-f]{12})[0-9a-f]{52}/, '$1'),
-  );
+  /* Every task shares the host; the path is what tells them apart. */
+  protected readonly proxyLabel = computed(() => this.proxyUrl().replace(/^https?:\/\/[^/]+/, '…'));
 
-  protected deployLabel(deploy: { readonly at: Date; readonly failed: boolean }): string {
-    return `${formatDate(deploy.at)}${deploy.failed ? ' · failed' : ''}`;
-  }
+  /* "…/storefront@9f86d0"; copy keeps the full reference. */
+  protected readonly shortImage = computed(() => {
+    const image = this.task().image.replace(/@sha256:([0-9a-f]{6})[0-9a-f]+$/, '@$1');
+    const slash = image.lastIndexOf('/', image.includes('@') ? image.indexOf('@') : image.length);
+    return slash < 0 ? image : `…${image.slice(slash)}`;
+  });
 
   protected readonly copied = signal(false);
   protected readonly copiedImage = signal(false);
 
-  protected readonly rows = computed<readonly DetailRow[]>(() => {
-    const task = this.task();
+  protected deployLabel(deploy: DeployOutcome): string {
+    return `${formatDate(deploy.at)} · ${deploy.failed ? 'failed' : 'succeeded'}`;
+  }
 
-    return [
-      { label: 'Container', value: task.status },
-      { label: 'Description', value: task.description || '—' },
-      { label: 'Created', value: formatDate(task.createdAt) },
-      { label: 'Updated', value: formatDate(task.updatedAt) },
-    ];
-  });
+  protected usageLabel({ cpu, mem }: { readonly cpu: number; readonly mem: number }): string {
+    const { value, unit } = toByteSize(mem);
+    return `${cpu.toFixed(1)}% CPU · ${value} ${unit}`;
+  }
 
   protected copyUrl(): void {
     this.copy(this.proxyUrl(), this.copied, this.copyFailed);
@@ -229,6 +246,18 @@ export class TaskOverview {
   }
 }
 
-function formatDate(value: Date | string): string {
-  return new Date(value).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' });
+/* "Today 10:12": the row answers "how recent". */
+function formatDate(date: Date): string {
+  const time = date.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const midnight = (at: Date) => new Date(at).setHours(0, 0, 0, 0);
+  const days = Math.round((midnight(new Date()) - midnight(date)) / 86_400_000);
+  if (days === 0) return `Today ${time}`;
+  if (days === 1) return `Yesterday ${time}`;
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  const day = date.toLocaleDateString('en', {
+    month: 'short',
+    day: 'numeric',
+    year: sameYear ? undefined : 'numeric',
+  });
+  return `${day} ${time}`;
 }

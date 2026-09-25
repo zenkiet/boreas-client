@@ -1,33 +1,71 @@
 import type { JSONContent } from '@tiptap/core';
-import { marked } from 'marked';
+import type { Token } from 'marked';
+import { Marked, marked } from 'marked';
 
 /* Escaped so a round trip through the editor cannot invent syntax. */
 const ESCAPE = /([\\`*_[\]])/g;
 
 const MARK_WRAP: Record<string, string> = { bold: '**', italic: '*', code: '`' };
 
-/** Markdown to HTML for `setContent`; the editor schema drops anything it has no node for. */
+/** For the editor's `setContent`: its schema drops any node it lacks. */
 export function noteToHtml(markdown: string): string {
   return marked.parse(markdown, { async: false, breaks: true, gfm: true });
 }
 
-/** Editor document back to markdown, the format the API stores. */
 export function noteToMarkdown(doc: JSONContent): string {
   return blocks(doc.content ?? []).trim();
 }
 
-/** One-line projection for list rows and previews; never produces HTML. */
-export function noteToPlainText(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
-    .replace(/\[([^\]]*)]\([^)]*\)/g, '$1')
-    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-    .replace(/^\s{0,3}[-*+]\s+/gm, '')
-    .replace(/^\s{0,3}\d+\.\s+/gm, '')
-    .replace(/[*_`>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+const SAFE_HREF = /^(?:https?:|mailto:)/i;
+
+/* A second instance: marked.use() would change the legal pages and the editor's parse too. */
+const preview = new Marked({
+  async: false,
+  breaks: true,
+  gfm: true,
+  renderer: {
+    /* Angular's sanitizer keeps class and remote img, so raw HTML and images never reach it. */
+    html: ({ text }) => escapeHtml(text),
+    image: ({ text }) => escapeHtml(text),
+    link(token) {
+      return SAFE_HREF.test(token.href) ? false : this.parser.parseInline(token.tokens);
+    },
+  },
+  hooks: {
+    /* The page owns h1: note headings start at h2 and close up, so no level is ever skipped. */
+    processAllTokens(tokens) {
+      const headings = collectHeadings(tokens);
+      const levels = [...new Set(headings.map((heading) => heading.depth))].sort();
+      for (const heading of headings) {
+        heading.depth = Math.min(levels.indexOf(heading.depth) + 2, 6);
+      }
+      return tokens;
+    },
+    /* Every anchor left is marked's own; a same-window link would navigate the WebView away. */
+    postprocess: (html) =>
+      html.replaceAll('<a href=', '<a target="_blank" rel="noopener noreferrer" href='),
+  },
+});
+
+/** Bind through plain `[innerHTML]`, never bypassSecurityTrustHtml: the sanitizer is layer two. */
+export function noteToPreviewHtml(markdown: string): string {
+  return preview.parse(markdown) as string;
+}
+
+function collectHeadings(tokens: readonly Token[]): { depth: number }[] {
+  return tokens.flatMap((token) => [
+    ...(token.type === 'heading' ? [token as { depth: number }] : []),
+    ...('tokens' in token && token.tokens ? collectHeadings(token.tokens) : []),
+    ...(token.type === 'list' ? collectHeadings(token.items) : []),
+  ]);
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function blocks(nodes: readonly JSONContent[]): string {
@@ -78,8 +116,7 @@ function leaf(node: JSONContent): string {
   const code = marks.some((mark) => mark.type === 'code');
   const escaped = code ? node.text : node.text.replace(ESCAPE, '\\$1');
 
-  /* Emphasis cannot open or close on whitespace, so the padding moves outside the delimiters —
-     which also keeps adjacent runs from fusing into one unparseable `****`. */
+  /* Whitespace stays outside the delimiters: emphasis cannot open or close on it. */
   const [, lead, core, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(escaped) ?? [];
   if (!core) return escaped;
 

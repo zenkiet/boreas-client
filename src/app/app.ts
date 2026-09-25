@@ -1,19 +1,11 @@
-import { Component, inject } from '@angular/core';
-import { TuiRoot } from '@taiga-ui/core';
+import { Component } from '@angular/core';
+import { IonApp } from '@ionic/angular/ion-app';
 
-import { ThemeStore } from '@shared/lib/theme/theme.store';
 import { AppShell } from '@widgets/app-shell';
 
 @Component({
   selector: 'app-root',
-  imports: [AppShell, TuiRoot],
-  template: `
-    <tui-root class="block! min-h-dvh" [attr.tuiTheme]="theme.theme()">
-      <app-shell />
-    </tui-root>
-  `,
-  host: { class: 'block min-h-dvh' },
+  imports: [AppShell, IonApp],
+  template: `<ion-app><app-shell /></ion-app>`,
 })
-export class App {
-  protected readonly theme = inject(ThemeStore);
-}
+export class App {}

@@ -1,54 +1,18 @@
-import { DOCUMENT, Location } from '@angular/common';
-import {
-  EnvironmentProviders,
-  inject,
-  makeEnvironmentProviders,
-  provideAppInitializer,
-} from '@angular/core';
-import { ActivationStart, Router } from '@angular/router';
+import { EnvironmentProviders, inject, provideAppInitializer } from '@angular/core';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import { TUI_DIALOGS_CLOSE } from '@taiga-ui/core';
-import { Subject, filter, merge } from 'rxjs';
+import { NavController } from '@ionic/angular/nav-controller';
+import { Platform } from '@ionic/angular/platform';
 
-const backRequested$ = new Subject<void>();
-
+/* Capacitor forwards the key to Ionic only while a JS listener exists, hence the no-op one. */
 export function provideAndroidBackButton(): EnvironmentProviders {
-  return makeEnvironmentProviders([
-    {
-      provide: TUI_DIALOGS_CLOSE,
-      useFactory: () =>
-        merge(
-          inject(Router).events.pipe(filter((event) => event instanceof ActivationStart)),
-          backRequested$,
-        ),
-    },
-    provideAppInitializer(() => {
-      if (Capacitor.getPlatform() !== 'android') {
-        return;
-      }
+  return provideAppInitializer(() => {
+    if (Capacitor.getPlatform() !== 'android') return;
 
-      const location = inject(Location);
-      const document = inject(DOCUMENT);
-
-      void App.addListener('backButton', ({ canGoBack }) => {
-        if (document.querySelector('tui-dialog, tui-sheet-dialog')) {
-          backRequested$.next();
-          return;
-        }
-
-        if (document.querySelector('tui-dropdown, tui-bottom-sheet')) {
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-          return;
-        }
-
-        if (canGoBack) {
-          location.back();
-          return;
-        }
-
-        void App.exitApp();
-      });
-    }),
-  ]);
+    const nav = inject(NavController);
+    void App.addListener('backButton', () => undefined);
+    inject(Platform).backButton.subscribeWithPriority(1, () =>
+      nav.pop().then((popped) => (popped ? undefined : App.exitApp())),
+    );
+  });
 }

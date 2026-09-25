@@ -4,7 +4,8 @@ import { Observable, catchError, finalize, map, of } from 'rxjs';
 
 import { Task, TaskApi } from '@entities/task';
 import { mapApiError } from '@shared/api/api-error';
-import { keepLastValue } from '@shared/api/resource-cache';
+import { CommandResult } from '@shared/api/command';
+import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 
 interface TaskRef {
   readonly project: string;
@@ -16,7 +17,6 @@ export class ViewTaskStore {
   private readonly api = inject(TaskApi);
   private readonly ref = signal<TaskRef | undefined>(undefined);
   private readonly savingEnvironmentState = signal(false);
-  private readonly saveError = signal<string | undefined>(undefined);
 
   private readonly snapshot = rxResource({
     params: () => this.ref(),
@@ -33,22 +33,14 @@ export class ViewTaskStore {
   readonly savingEnvironment = this.savingEnvironmentState.asReadonly();
   readonly hasLoaded = computed(() => this.current() !== undefined);
 
-  readonly error = computed(() => {
-    const fetchError = this.snapshot.error();
-    return this.saveError() ?? (fetchError ? mapApiError(fetchError).message : undefined);
-  });
+  readonly error = resourceError(this.snapshot);
 
   readonly proxyUrl = computed(() => {
     const ref = this.ref();
     return ref ? this.api.accessUrl(ref.project, ref.name) : '';
   });
 
-  /**
-   * Follows the two route inputs every task screen binds.
-   *
-   * Call from a page constructor: the effect belongs to that page's injection context,
-   * not the store's, so it dies with the screen that opened it.
-   */
+  /** Call from a page constructor, so the effect dies with the page, not the store. */
   track(project: Signal<string>, name: Signal<string>): void {
     effect(() => {
       const slug = project();
@@ -66,28 +58,23 @@ export class ViewTaskStore {
     this.ref.set({ project, name });
   }
 
-  /* Applying always recreates; the deferred-apply option stays out of the env surface. */
-  updateEnvironment(environment: Record<string, string>): Observable<string> {
+  /** Always recreates; drop the draft only on success, so a refusal keeps the edits. */
+  updateEnvironment(environment: Record<string, string>): Observable<CommandResult> {
     const ref = this.ref();
 
     if (!ref || this.savingEnvironmentState()) {
-      return of('An environment update is already running.');
+      return of({ success: false, message: 'An environment update is already running.' });
     }
 
     this.savingEnvironmentState.set(true);
-    this.saveError.set(undefined);
 
     return this.api.update(ref.project, ref.name, { environment, autoRestart: true }).pipe(
       map((task) => {
         /* PATCH returns the fresh task, so no follow-up fetch is needed. */
         this.snapshot.update(() => task);
-        return `Environment updated (${task.status}).`;
+        return { success: true, message: `Environment updated (${task.status}).` };
       }),
-      catchError((error: unknown) => {
-        const message = mapApiError(error).message;
-        this.saveError.set(message);
-        return of(message);
-      }),
+      catchError((error: unknown) => of({ success: false, message: mapApiError(error).message })),
       finalize(() => this.savingEnvironmentState.set(false)),
     );
   }

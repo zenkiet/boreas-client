@@ -5,7 +5,11 @@
     <title>Boreas | ZenSoftware</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f4f6fa" />
+    <meta
+      name="description"
+      content="Boreas runs your task environments: live logs, usage, deploys and notes for every project."
+    />
+    <meta name="theme-color" content="#f2f2f7" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,14 +18,265 @@
     <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400..600&display=swap"
-    />
+    <!-- Inline so the splash paints before any bundle; provideSplash() lifts it. -->
+    <style>
+      #splash {
+        --s1: #47a8ff;
+        --s2: #2096ff;
+        --s3: #0088ff;
+        --s4: #0068d6;
+        --halo: rgba(255, 255, 255, 0.16);
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        overflow: hidden;
+        background: #0088ff;
+        color: #fff;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue',
+          system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        transition: opacity 0.3s ease-out;
+      }
+      /* Starts on the native launch blue so the hand-off never jumps. */
+      #splash::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        background:
+          radial-gradient(circle at 50% 44%, var(--halo) 0, transparent 46%),
+          linear-gradient(180deg, var(--s1) 0%, var(--s2) 38%, var(--s3) 66%, var(--s4) 100%);
+        animation: splash-show 0.35s ease-out forwards;
+      }
+      @media (prefers-color-scheme: dark) {
+        #splash {
+          --s1: #2f6fe4;
+          --s2: #1f5bd0;
+          --s3: #1549b4;
+          --s4: #0c3791;
+          --halo: rgba(255, 255, 255, 0.1);
+        }
+      }
+      #splash.splash-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash .mk {
+        position: absolute;
+        left: 50%;
+        top: calc(50% - 122px);
+        margin-left: -60px;
+        overflow: visible;
+      }
+      #splash .mk path {
+        fill: #fff;
+        fill-opacity: 0;
+        stroke: #fff;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        stroke-dasharray: 1 1;
+        stroke-dashoffset: 1;
+      }
+      #splash .mk .gust {
+        fill: none;
+        stroke-width: 44;
+        stroke-opacity: 0.35;
+        opacity: 0;
+      }
+      #splash .mk .line {
+        stroke-width: 9;
+      }
+      #splash .g1 {
+        animation: splash-gust 1s cubic-bezier(0.5, 0, 0.3, 1) 0.15s forwards;
+      }
+      #splash .l1 {
+        animation:
+          splash-draw 1.05s cubic-bezier(0.55, 0.05, 0.25, 1) 0.25s forwards,
+          splash-fill 0.45s ease-out 1.05s forwards,
+          splash-unstroke 0.35s ease-out 1.35s forwards;
+      }
+      #splash .g2 {
+        animation: splash-gust 0.9s cubic-bezier(0.5, 0, 0.3, 1) 0.5s forwards;
+      }
+      #splash .l2 {
+        animation:
+          splash-draw 0.95s cubic-bezier(0.55, 0.05, 0.25, 1) 0.6s forwards,
+          splash-fill 0.45s ease-out 1.3s forwards,
+          splash-unstroke 0.35s ease-out 1.6s forwards;
+      }
+      #splash .word-row {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(50% + 60px);
+        margin: 0;
+        text-align: center;
+      }
+      #splash .word {
+        display: inline-block;
+        font-size: 36px;
+        line-height: 44px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+        mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+        -webkit-mask-size: 240% 100%;
+        mask-size: 240% 100%;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: 100% 0;
+        mask-position: 100% 0;
+        animation:
+          splash-wipe 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) 1.55s forwards,
+          splash-drift 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) 1.55s both;
+      }
+      /* Delayed past the 2.45s wipe: only a boot slower than the intro shows the bar. */
+      #splash .bar {
+        position: absolute;
+        left: 50%;
+        top: max(calc(50% + 120px), calc(100% - 120px));
+        width: 132px;
+        height: 4px;
+        margin-left: -66px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.28);
+        opacity: 0;
+        animation: splash-show 0.5s ease-out 2.6s forwards;
+      }
+      #splash .fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 0;
+        border-radius: 2px;
+        background: #fff;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        animation: splash-grow 2.8s cubic-bezier(0.35, 0.7, 0.25, 1) 2.7s infinite;
+      }
+      @keyframes splash-gust {
+        0% {
+          stroke-dashoffset: 1;
+          opacity: 0;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+      @keyframes splash-draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @keyframes splash-fill {
+        to {
+          fill-opacity: 1;
+        }
+      }
+      @keyframes splash-unstroke {
+        to {
+          stroke-opacity: 0;
+        }
+      }
+      @keyframes splash-wipe {
+        to {
+          -webkit-mask-position: 0 0;
+          mask-position: 0 0;
+        }
+      }
+      @keyframes splash-drift {
+        from {
+          transform: translateX(-8px);
+        }
+        to {
+          transform: none;
+        }
+      }
+      @keyframes splash-show {
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes splash-grow {
+        0% {
+          width: 0;
+          opacity: 1;
+        }
+        70% {
+          width: 100%;
+          opacity: 1;
+        }
+        100% {
+          width: 100%;
+          opacity: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash::before,
+        #splash .mk path,
+        #splash .word,
+        #splash .bar,
+        #splash .fill {
+          animation: none;
+        }
+        #splash::before,
+        #splash .bar {
+          opacity: 1;
+        }
+        #splash .mk .line {
+          stroke-dashoffset: 0;
+          fill-opacity: 1;
+          stroke-opacity: 0;
+        }
+        #splash .word {
+          -webkit-mask-image: none;
+          mask-image: none;
+        }
+        #splash .fill {
+          width: 62%;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash">
+      <svg class="mk" width="120" height="160" viewBox="212 113 600 800" aria-hidden="true">
+        <defs>
+          <filter id="splash-soft" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="12" />
+          </filter>
+        </defs>
+        <path
+          class="gust g1"
+          filter="url(#splash-soft)"
+          pathLength="1"
+          d="M 645.706 311.4047 c 0 94.75 -76.8282 171.4857 -171.5782 171.4857 c -4.0972 0 -8.115 -0.1718 -12.1196 -0.5154 l 36.3589 -104.5699 h 0.0793 c 27.1469 -9.8993 46.43 -35.936 46.43 -66.4135 c 0 -39.0948 -31.667 -70.7618 -70.7618 -70.7618 s -70.6825 31.667 -70.6825 70.7618 v 574.7248 h -100.8032 V 311.4047 c 0 -32.8565 9.3045 -63.5984 25.3495 -89.7144 c 30.1339 -49.0865 84.256 -81.8638 146.1362 -81.8638 c 94.75 0 171.5782 76.8282 171.5782 171.5782 Z"
+        />
+        <path
+          class="line l1"
+          pathLength="1"
+          d="M 645.706 311.4047 c 0 94.75 -76.8282 171.4857 -171.5782 171.4857 c -4.0972 0 -8.115 -0.1718 -12.1196 -0.5154 l 36.3589 -104.5699 h 0.0793 c 27.1469 -9.8993 46.43 -35.936 46.43 -66.4135 c 0 -39.0948 -31.667 -70.7618 -70.7618 -70.7618 s -70.6825 31.667 -70.6825 70.7618 v 574.7248 h -100.8032 V 311.4047 c 0 -32.8565 9.3045 -63.5984 25.3495 -89.7144 c 30.1339 -49.0865 84.256 -81.8638 146.1362 -81.8638 c 94.75 0 171.5782 76.8282 171.5782 171.5782 Z"
+        />
+        <path
+          class="gust g2"
+          filter="url(#splash-soft)"
+          pathLength="1"
+          d="M 801.4903 668.3725 c 0 99.9573 -81.0047 180.962 -180.962 180.962 c -9.3838 0 -18.609 -0.6873 -27.5699 -2.0486 v -97.314 c 8.7098 2.9077 17.9217 4.5201 27.5699 4.5201 c 47.5402 0 86.1327 -38.5793 86.1327 -86.1327 s -38.5793 -86.0402 -86.1327 -86.0402 s -86.1327 38.5 -86.1327 86.0402 v 217.7571 h -94.8293 v -217.7571 c 0 -68.7132 38.3282 -128.5449 94.8293 -159.1942 c 25.6138 -13.9171 54.9679 -21.7678 86.1327 -21.7678 c 99.9573 0 180.962 81.0972 180.962 180.962 Z"
+        />
+        <path
+          class="line l2"
+          pathLength="1"
+          d="M 801.4903 668.3725 c 0 99.9573 -81.0047 180.962 -180.962 180.962 c -9.3838 0 -18.609 -0.6873 -27.5699 -2.0486 v -97.314 c 8.7098 2.9077 17.9217 4.5201 27.5699 4.5201 c 47.5402 0 86.1327 -38.5793 86.1327 -86.1327 s -38.5793 -86.0402 -86.1327 -86.0402 s -86.1327 38.5 -86.1327 86.0402 v 217.7571 h -94.8293 v -217.7571 c 0 -68.7132 38.3282 -128.5449 94.8293 -159.1942 c 25.6138 -13.9171 54.9679 -21.7678 86.1327 -21.7678 c 99.9573 0 180.962 81.0972 180.962 180.962 Z"
+        />
+      </svg>
+      <p class="word-row"><span class="word">Boreas</span></p>
+      <div class="bar" role="progressbar" aria-label="Loading Boreas"><div class="fill"></div></div>
+    </div>
     <app-root></app-root>
   </body>
 </html>

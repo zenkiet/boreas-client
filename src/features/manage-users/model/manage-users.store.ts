@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 
 import { CreateUserInput, UpdateUserInput, User, UserApi } from '@entities/user';
+import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { CommandGate, CommandResult } from '@shared/api/command';
 import { listView } from '@shared/api/resource-cache';
 
@@ -13,11 +14,15 @@ export class ManageUsersStore {
   private readonly api = inject(UserApi);
   private readonly gate = new CommandGate('Another user action is already running.');
 
+  private readonly session = inject(AuthTokenStore);
+
+  /* Outlives its page, so keyed on the token: a switched account never sees the old list. */
   private readonly listResource = rxResource({
+    params: () => this.session.token() || undefined,
     stream: () => this.api.list(),
   });
 
-  private readonly list = listView<User>(this.listResource);
+  private readonly list = listView<User>(this.listResource, () => this.session.token());
 
   readonly users = this.list.items;
   readonly loading = this.list.loading;
@@ -28,6 +33,10 @@ export class ManageUsersStore {
 
   load(): void {
     this.listResource.reload();
+  }
+
+  clearCreateError(): void {
+    this.gate.clearError();
   }
 
   create(input: CreateUserInput): Observable<User | undefined> {

@@ -2,13 +2,15 @@ import { Service, computed, effect, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { EMPTY, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
-import { Notification, NotificationApi } from '@entities/notification';
+import { DeployOutcome, Notification, NotificationApi, isDeploy } from '@entities/notification';
 import { ProjectApi } from '@entities/project';
+import { taskKey } from '@entities/task/model';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { keepLastValue, resourceError } from '@shared/api/resource-cache';
 import { PushStore } from '@shared/lib/push';
+import { localDay } from './alert-filter';
 
-/** A notification tagged with its project; the API payload has no project field. */
+/** Tagged at merge: the API payload has no project field. */
 export interface ProjectAlert extends Notification {
   readonly project: string;
 }
@@ -30,7 +32,7 @@ export class ListAlertsStore {
   private loadedAt = 0;
   private readonly sessionSeenIds = signal<ReadonlySet<string>>(new Set());
 
-  /* No cross-project endpoint, so the feed fans out one list per reachable project. */
+  /* No cross-project endpoint, so one list per project. */
   private readonly snapshot = rxResource({
     /* Keyed by token: idle until sign-in, refetched for whoever signs in next. */
     params: () => this.tokens.token() || undefined,
@@ -60,7 +62,7 @@ export class ListAlertsStore {
       ),
   });
 
-  /* Keep the last good snapshot across reloads and routes, but never across tokens. */
+  /* The last good snapshot survives reloads, never a token change. */
   private readonly current = keepLastValue<AlertsSnapshot>(this.snapshot, () =>
     this.tokens.token(),
   );
@@ -70,6 +72,37 @@ export class ListAlertsStore {
   readonly loading = this.snapshot.isLoading;
   readonly hasLoaded = computed(() => this.current() !== undefined);
   readonly error = resourceError(this.snapshot);
+
+  /** By project slug. */
+  readonly lastDeploys = computed(() => {
+    const deploys = new Map<string, DeployOutcome>();
+    for (const alert of this.alerts()) {
+      if (isDeploy(alert) && !deploys.has(alert.project)) {
+        deploys.set(alert.project, toOutcome(alert));
+      }
+    }
+    return deploys as ReadonlyMap<string, DeployOutcome>;
+  });
+
+  /** By `taskKey`. */
+  readonly latestDeploys = computed(() => {
+    const deploys = new Map<string, DeployOutcome>();
+    for (const alert of this.alerts()) {
+      const key = taskKey(alert.project, alert.taskName);
+      if (isDeploy(alert) && !deploys.has(key)) deploys.set(key, toOutcome(alert));
+    }
+    return deploys as ReadonlyMap<string, DeployOutcome>;
+  });
+
+  /** Does not tick at midnight; the next load moves "today" on. */
+  readonly failedTodayKeys = computed(() => {
+    const today = localDay(new Date());
+    return new Set(
+      this.alerts()
+        .filter((alert) => alert.kind === 'deploy_failed' && localDay(alert.createdAt) === today)
+        .map((alert) => taskKey(alert.project, alert.taskName)),
+    ) as ReadonlySet<string>;
+  });
 
   readonly unseenCount = computed(
     () =>
@@ -84,7 +117,6 @@ export class ListAlertsStore {
     });
   }
 
-  /** Pages call this on entry: serves the cache, refetching only once it is stale. */
   ensureFresh(): void {
     if (this.snapshot.isLoading() || Date.now() - this.loadedAt < STALE_AFTER_MS) {
       return;
@@ -97,7 +129,7 @@ export class ListAlertsStore {
     this.snapshot.reload();
   }
 
-  /** No bulk endpoint yet, so one idempotent fire-and-forget POST per unseen row. */
+  /** No bulk endpoint: one idempotent POST per unseen row. */
   markSeen(): void {
     const posted = this.sessionSeenIds();
     const unseen = this.alerts().filter((alert) => !alert.seen && !posted.has(alert.id));
@@ -111,4 +143,8 @@ export class ListAlertsStore {
         .subscribe();
     }
   }
+}
+
+function toOutcome(alert: ProjectAlert): DeployOutcome {
+  return { at: alert.createdAt, failed: alert.kind === 'deploy_failed' };
 }

@@ -1,261 +1,294 @@
 import { Component, computed, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { TuiIcon } from '@taiga-ui/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import type { ToggleCustomEvent } from '@ionic/angular';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonToggle } from '@ionic/angular/ion-toggle';
+import { NavController } from '@ionic/angular/nav-controller';
 
 import { SessionStore } from '@features/auth';
 import { ChangeServerService } from '@features/connect-server';
+import { ManageCredentialsStore } from '@features/manage-credentials';
+import { ManageTokensStore } from '@features/manage-tokens/model';
+import { ManageUsersStore } from '@features/manage-users';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { APP_VERSION } from '@shared/config/app-info';
 import { ServerConfigStore } from '@shared/config/server-config.store';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
 import { PushStore } from '@shared/lib/push';
 import { Theme, ThemeStore } from '@shared/lib/theme/theme.store';
-import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
+import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
-import { PageHeader } from '@shared/ui/page-header/page-header';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 
-/* Only the two real appearances: 'system' is the Automatic switch, not a third thumbnail. */
+/* 'system' is the Automatic toggle, not a third thumbnail. */
 const THEME_CHOICES: readonly { readonly theme: Theme; readonly label: string }[] = [
   { theme: 'light', label: 'Light' },
   { theme: 'dark', label: 'Dark' },
 ];
 
-const ADMIN_LINKS: readonly { readonly label: string; readonly icon: string; readonly route: string }[] =
-  [
-    { label: 'Users', icon: '@tui.users', route: '/settings/users' },
-    { label: 'Registry credentials', icon: '@tui.key-round', route: '/settings/registries' },
-  ];
+const ADMIN_LINKS = [
+  { label: 'Users', icon: 'icon-[light--user-group]', pane: 'users' },
+  { label: 'Registry credentials', icon: 'icon-[light--lock]', pane: 'registries' },
+] as const;
 
 @Component({
   selector: 'app-settings-page',
-  imports: [GlassSwitch, InsetGroup, PageHeader, Reveal, RouterLink, TuiIcon],
+  imports: [InsetGroup, IonItem, IonLabel, IonNote, IonToggle, PAGE_CHROME],
   template: `
-    <div appReveal class="mx-auto w-full max-w-176">
-      <app-page-header title="Settings" />
+    <ion-header [translucent]="true">
+      <ion-toolbar><ion-title>Settings</ion-title></ion-toolbar>
+    </ion-header>
 
-      <div class="groups">
+    <ion-content [fullscreen]="true">
+      <div class="mx-auto max-w-(--app-column)">
+        <ion-header collapse="condense">
+          <ion-toolbar><ion-title size="large">Settings</ion-title></ion-toolbar>
+        </ion-header>
+
+        <!-- iPad reaches Account from the sidebar's foot and the default pane. -->
         @if (session.user(); as user) {
-          <app-inset-group label="Account">
-            <a class="account nav-row row-divider relative" routerLink="/settings/account">
-              <span class="account__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
-              <span class="min-w-0 flex-1">
-                <span class="account__name">
-                  {{ user.username }}
-                  <span class="account__role" [attr.data-role]="user.role">{{ user.role }}</span>
-                </span>
-                <span class="account__email">{{ user.email }}</span>
-              </span>
-              <tui-icon
-                class="icon-sm nav-row__chevron"
-                icon="@tui.chevron-right"
-                aria-hidden="true"
-              />
-            </a>
+          <app-inset-group class="narrow-only">
+            <ion-item button class="account" (click)="open('account')">
+              <span slot="start" class="avatar" aria-hidden="true">{{
+                user.username.slice(0, 2)
+              }}</span>
+              <ion-label>
+                <span class="name">{{ user.username }}</span>
+                <span class="role" [attr.data-role]="user.role">{{
+                  user.role === 'admin' ? 'Admin' : 'User'
+                }}</span>
+              </ion-label>
+              <ion-note>{{ user.email }}</ion-note>
+            </ion-item>
           </app-inset-group>
         }
 
         <app-inset-group label="General">
-          <a class="lrow nav-row row-divider relative" routerLink="/settings/tokens">
-            <tui-icon class="icon-sm nav-row__icon" icon="@tui.key-round" aria-hidden="true" />
-            <span class="flex-1">API tokens</span>
-            <tui-icon
-              class="icon-sm nav-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </a>
-          <button type="button" class="lrow nav-row row-divider relative" (click)="changeServer()">
-            <tui-icon class="icon-sm nav-row__icon" icon="@tui.server" aria-hidden="true" />
-            <span class="flex-none">Server</span>
-            <span class="lrow__value font-mono min-w-0 flex-1 truncate">{{ serverUrl() }}</span>
-            <tui-icon
-              class="icon-sm nav-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </button>
-          <a class="lrow nav-row row-divider relative" routerLink="/settings/about">
-            <tui-icon class="icon-sm nav-row__icon" icon="@tui.info" aria-hidden="true" />
-            <span class="flex-1">About Boreas</span>
-            <span class="lrow__value tabular">{{ version }}</span>
-            <tui-icon
-              class="icon-sm nav-row__chevron"
-              icon="@tui.chevron-right"
-              aria-hidden="true"
-            />
-          </a>
+          <ion-item
+            button
+            [class.selected]="selected() === 'tokens'"
+            [attr.aria-current]="selected() === 'tokens' ? 'page' : null"
+            (click)="open('tokens')"
+          >
+            <span slot="start" class="icon-[light--key]" aria-hidden="true"></span>
+            <ion-label>API tokens</ion-label>
+            @if (apiTokens.hasLoaded() && !apiTokens.sessionRequired()) {
+              <ion-note slot="end" class="tabular">{{ apiTokens.liveCount() }} live</ion-note>
+            }
+          </ion-item>
+          <ion-item button (click)="changeServer()">
+            <span slot="start" class="icon-[light--server]" aria-hidden="true"></span>
+            <ion-label class="server">
+              Server
+              <ion-note class="font-mono">{{ serverHost() }}</ion-note>
+            </ion-label>
+          </ion-item>
+          <ion-item
+            button
+            [class.selected]="selected() === 'about'"
+            [attr.aria-current]="selected() === 'about' ? 'page' : null"
+            (click)="open('about')"
+          >
+            <span slot="start" class="icon-[light--circle-info]" aria-hidden="true"></span>
+            <ion-label>About Boreas</ion-label>
+            <ion-note slot="end" class="tabular">{{ version }}</ion-note>
+          </ion-item>
         </app-inset-group>
 
         @if (push.permission() !== 'unsupported') {
-          <div>
-            <app-inset-group label="Notifications">
-              <div class="lrow row-divider relative">
-                <span class="lrow__label">Push notifications</span>
-                <button
-                  appGlassSwitch
-                  aria-label="Push notifications"
-                  [checked]="push.enabled()"
-                  [busy]="push.busy()"
-                  [disabled]="push.permission() === 'denied'"
-                  (checkedChange)="togglePush($event)"
-                ></button>
-              </div>
-            </app-inset-group>
+          <app-inset-group label="Notifications">
+            <ion-item>
+              <span slot="start" class="icon-[light--bell]" aria-hidden="true"></span>
+              <ion-toggle
+                [checked]="push.enabled()"
+                [disabled]="push.busy() || push.permission() === 'denied'"
+                (ionChange)="togglePush($event)"
+              >
+                Push notifications
+              </ion-toggle>
+            </ion-item>
             @if (push.hint(); as hint) {
-              <p class="footnote" role="status">{{ hint }}</p>
+              <ion-note>{{ hint }}</ion-note>
+            } @else {
+              <ion-note>
+                Deploy results and status changes arrive on this device while you are signed in.
+              </ion-note>
             }
-          </div>
+          </app-inset-group>
         } @else if (push.hint(); as hint) {
           <app-inset-group label="Notifications">
-            <p class="notice" role="status">{{ hint }}</p>
+            <ion-item>
+              <ion-label class="ion-text-wrap" role="status">{{ hint }}</ion-label>
+            </ion-item>
           </app-inset-group>
         }
 
         <app-inset-group label="Appearance">
-          <div class="themes row-divider relative" role="radiogroup" aria-label="Appearance">
-            @for (option of themeChoices; track option.theme) {
-              <button
-                type="button"
-                role="radio"
-                class="theme"
-                [attr.aria-checked]="theme.theme() === option.theme"
-                (click)="theme.setMode(option.theme)"
-              >
-                <span class="theme__preview" [attr.data-theme]="option.theme" aria-hidden="true">
-                  <span class="theme__title"></span>
-                  <span class="theme__card"></span>
-                  <span class="theme__card"></span>
-                  <span class="theme__card theme__card--short"></span>
-                </span>
-                <span class="theme__label">
-                  @if (theme.theme() === option.theme) {
-                    <tui-icon class="theme__check" icon="@tui.circle-check" aria-hidden="true" />
-                  }
-                  {{ option.label }}
-                </span>
-              </button>
-            }
-          </div>
-          <div class="lrow row-divider relative">
-            <span class="lrow__label">Automatic</span>
-            <button
-              appGlassSwitch
-              aria-label="Match the system appearance"
+          <ion-item lines="none">
+            <div class="themes" role="radiogroup" aria-label="Appearance">
+              @for (option of themeChoices; track option.theme) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="theme"
+                  [attr.aria-checked]="theme.theme() === option.theme"
+                  (click)="theme.setMode(option.theme)"
+                >
+                  <span class="theme__preview" [attr.data-theme]="option.theme" aria-hidden="true">
+                    <span class="theme__title"></span>
+                    <span class="theme__card"></span>
+                    <span class="theme__card"></span>
+                    <span class="theme__card theme__card--short"></span>
+                  </span>
+                  <span class="theme__label">{{ option.label }}</span>
+                </button>
+              }
+            </div>
+          </ion-item>
+          <ion-item>
+            <ion-toggle
               [checked]="theme.mode() === 'system'"
-              (checkedChange)="setAutomatic($event)"
-            ></button>
-          </div>
+              (ionChange)="setAutomatic($event.detail.checked)"
+            >
+              Automatic
+            </ion-toggle>
+          </ion-item>
+          <ion-note class="narrow-only">{{ themeNote() }}</ion-note>
         </app-inset-group>
 
         @if (session.isAdmin()) {
           <app-inset-group label="Administration">
-            @for (link of adminLinks; track link.route) {
-              <a class="lrow nav-row row-divider relative" [routerLink]="link.route">
-                <tui-icon class="icon-sm nav-row__icon" [icon]="link.icon" aria-hidden="true" />
-                <span class="flex-1">{{ link.label }}</span>
-                <tui-icon
-                  class="icon-sm nav-row__chevron"
-                  icon="@tui.chevron-right"
-                  aria-hidden="true"
-                />
-              </a>
+            @for (link of adminLinks; track link.pane) {
+              <ion-item
+                button
+                [class.selected]="selected() === link.pane"
+                [attr.aria-current]="selected() === link.pane ? 'page' : null"
+                (click)="open(link.pane)"
+              >
+                <span slot="start" [class]="link.icon" aria-hidden="true"></span>
+                <ion-label>{{ link.label }}</ion-label>
+                @if (adminCount(link.pane); as count) {
+                  <ion-note slot="end" class="tabular">{{ count }}</ion-note>
+                }
+              </ion-item>
             }
+            <ion-note class="narrow-only">Only administrators see this group.</ion-note>
           </app-inset-group>
         }
+
+        <!-- iPad signs out from the Account pane. -->
+        <app-inset-group class="narrow-only">
+          <ion-item button [detail]="false" (click)="signOut()">
+            <ion-label color="danger">Sign out</ion-label>
+          </ion-item>
+        </app-inset-group>
       </div>
-    </div>
+    </ion-content>
   `,
   styles: `
-    .groups {
-      display: grid;
-      gap: 0.875rem;
-      margin-block-start: 1.25rem;
+    /* Not an end-slot note: it would squeeze the label to one letter. */
+    ion-label.server {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
     }
 
-    /* Columns, not a grid: settings groups differ wildly in height and a grid row would
-       stretch every short card to match the Appearance block beside it. */
-    @media (min-width: 48rem) {
-      .groups {
-        display: block;
-        columns: 2;
-        column-gap: 1rem;
-        margin-block-start: 1.5rem;
-      }
-
-      .groups > * {
-        break-inside: avoid;
-        margin-block-end: 1rem;
-      }
+    ion-label.server ion-note {
+      flex: 1;
+      font-size: 0.875rem;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-align: end;
     }
 
     .account {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      text-decoration: none;
+      --row-min-height: 4.75rem;
     }
 
-    .account__avatar {
+    @media not all and (min-width: 64rem) and (min-height: 31.25rem) {
+      ion-item > [slot='start'][class*='icon-['] {
+        color: var(--app-text-secondary);
+      }
+    }
+
+    .name {
+      font-size: 1.0625rem;
+      font-weight: 600;
+    }
+
+    .avatar {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      inline-size: 2.25rem;
-      block-size: 2.25rem;
-      flex: none;
+      inline-size: 3rem;
+      block-size: 3rem;
       border-radius: 999px;
       background: var(--app-accent-soft);
-      color: var(--app-accent-text);
-      font-size: 0.8125rem;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .account__name {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      color: var(--ion-color-primary);
       font-size: 1rem;
-      font-weight: 600;
-      color: var(--tui-text-primary);
-    }
-
-    .account__role {
-      border-radius: 999px;
-      padding: 0.125rem 0.5625rem;
-      font-size: 0.6875rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
       text-transform: uppercase;
-      color: var(--tui-text-tertiary);
-      background: var(--tui-background-neutral-1);
     }
 
-    .account__role[data-role='admin'] {
-      color: var(--tui-status-warning);
-      background: var(--tui-status-warning-pale);
+    /* iPad split view: rows select a pane instead of pushing, so no chevrons. */
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      ion-item {
+        --inner-border-width: 0;
+        --row-min-height: 3rem;
+        margin-inline: 0.375rem;
+      }
+
+      ion-item:first-child {
+        margin-block-start: 0.375rem;
+      }
+
+      ion-item:last-child {
+        margin-block-end: 0.375rem;
+      }
+
+      ion-item::part(detail-icon) {
+        display: none;
+      }
+
+      .selected::part(native) {
+        border-radius: 0.875rem;
+        background: rgba(120, 120, 128, 0.16);
+        color: var(--ion-color-primary);
+      }
     }
 
-    .account__email {
-      display: block;
-      overflow: hidden;
-      font-size: 0.875rem;
-      color: var(--tui-text-tertiary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .role {
+      margin-inline-start: 0.375rem;
+      border-radius: 0.625rem;
+      padding: 0.125rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      vertical-align: 0.1em;
+      color: var(--app-text-tertiary);
+      background: var(--app-background-neutral-1);
+    }
+
+    .role[data-role='admin'] {
+      color: var(--app-accent-text);
+      background: var(--app-accent-soft);
     }
 
     .themes {
       display: flex;
+      flex: 1;
       justify-content: center;
-      gap: 1.375rem;
-      padding: 1rem;
+      gap: 1.5rem;
+      padding-block: 1.5rem 0.375rem;
     }
 
     .theme {
       display: grid;
       justify-items: center;
-      gap: 0.5rem;
+      gap: 0.625rem;
       margin: 0;
       border: 0;
       padding: 0;
@@ -269,17 +302,17 @@ const ADMIN_LINKS: readonly { readonly label: string; readonly icon: string; rea
     .theme__preview {
       display: grid;
       align-content: start;
-      gap: 0.3125rem;
+      gap: 0.375rem;
       inline-size: 5.75rem;
       block-size: 7.5rem;
-      border-radius: 0.625rem;
-      padding: 0.5rem;
-      box-shadow: inset 0 0 0 1px var(--tui-border-normal);
-      transition: box-shadow var(--tui-duration);
+      border-radius: 1rem;
+      padding: 0.5rem 0.5rem 1rem;
+      box-shadow: 0 0 0 1px rgba(120, 120, 128, 0.45);
+      transition: box-shadow 0.2s;
     }
 
     .theme__preview[data-theme='light'] {
-      background: #f4f6fa;
+      background: #f2f2f7;
     }
 
     .theme__preview[data-theme='dark'] {
@@ -287,19 +320,19 @@ const ADMIN_LINKS: readonly { readonly label: string; readonly icon: string; rea
     }
 
     .theme[aria-checked='true'] .theme__preview {
-      box-shadow: inset 0 0 0 2px var(--tui-background-accent-1);
+      box-shadow: 0 0 0 2.5px var(--ion-color-primary);
     }
 
     .theme__title {
       block-size: 0.4375rem;
       inline-size: 60%;
-      border-radius: 0.1875rem;
-      margin-block-end: 0.1875rem;
+      border-radius: 999px;
+      margin-block-end: 0.125rem;
     }
 
     .theme__card {
-      block-size: 1.625rem;
-      border-radius: 0.3125rem;
+      block-size: 1.5625rem;
+      border-radius: 0.4375rem;
     }
 
     .theme__card--short {
@@ -323,72 +356,100 @@ const ADMIN_LINKS: readonly { readonly label: string; readonly icon: string; rea
     }
 
     .theme__label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3125rem;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
+      font-size: 1.0625rem;
+      line-height: 1.375rem;
+      color: var(--app-text-tertiary);
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      .theme__label {
+        font-size: 0.9375rem;
+        line-height: 1.25rem;
+      }
     }
 
     .theme[aria-checked='true'] .theme__label {
-      color: var(--tui-text-primary);
-    }
-
-    .theme__check {
-      inline-size: 0.9375rem;
-      block-size: 0.9375rem;
-      font-size: 0.9375rem;
-      color: var(--tui-background-accent-1);
+      font-weight: 600;
+      color: var(--app-text-primary);
     }
 
     .theme:focus-visible .theme__preview {
-      outline: 2px solid var(--tui-border-focus);
+      outline: 2px solid var(--ion-color-primary);
       outline-offset: 2px;
     }
-
-    .notice {
-      margin: 0;
-      padding: 0.75rem 1rem;
-      font-size: 0.9375rem;
-      line-height: 1.5;
-      color: var(--tui-text-secondary);
-    }
-
   `,
 })
 export class SettingsPage {
   protected readonly theme = inject(ThemeStore);
   private readonly config = inject(ServerConfigStore);
   private readonly router = inject(Router);
+  private readonly navCtrl = inject(NavController);
+  private readonly wide = wideScreen();
+  private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
+  /* Phones push the page; iPad shows it beside this list (app/settings-split). */
+  protected readonly selected = computed(() =>
+    this.wide() ? (this.query()?.get('pane') ?? 'account') : null,
+  );
   private readonly server = inject(ChangeServerService);
-  private readonly tokens = inject(AuthTokenStore);
+  private readonly authTokens = inject(AuthTokenStore);
   protected readonly session = inject(SessionStore);
   protected readonly push = inject(PushStore);
+  /* Route-provided, shared with the panes, so the counts stay live. */
+  protected readonly apiTokens = inject(ManageTokensStore);
+  private readonly users = inject(ManageUsersStore);
+  private readonly credentials = inject(ManageCredentialsStore);
 
-  protected readonly serverUrl = computed(() => this.config.baseUrl());
-
+  protected readonly serverHost = this.config.host;
   protected readonly version = APP_VERSION;
-
   protected readonly adminLinks = ADMIN_LINKS;
-
   protected readonly themeChoices = THEME_CHOICES;
 
-  /* Off pins whatever is on screen right now, so the appearance never jumps on toggle. */
+  protected readonly themeNote = computed(() => {
+    const scheme = this.theme.theme() === 'dark' ? 'Dark' : 'Light';
+    return this.theme.mode() === 'system'
+      ? `Following this device — ${scheme} right now.`
+      : `Boreas stays ${scheme} whatever the device uses.`;
+  });
+
+  protected adminCount(pane: string): string {
+    const store = pane === 'users' ? this.users : this.credentials;
+    if (!store.hasLoaded()) return '';
+    return String(
+      pane === 'users' ? this.users.users().length : this.credentials.credentials().length,
+    );
+  }
+
+  /* Off pins the current appearance, so nothing jumps on toggle. */
   protected setAutomatic(automatic: boolean): void {
     this.theme.setMode(automatic ? 'system' : this.theme.theme());
   }
 
-  /* The knob renders from enabled() alone; a refused prompt leaves it off and hint() says why. */
-  protected togglePush(next: boolean): void {
-    (next ? this.push.enable() : this.push.disable()).subscribe();
+  /* ion-toggle flips itself on tap; snap it back to enabled() once the attempt settles. */
+  protected togglePush(event: ToggleCustomEvent): void {
+    (event.detail.checked ? this.push.enable() : this.push.disable()).subscribe({
+      complete: () => (event.target.checked = this.push.enabled()),
+    });
+  }
+
+  protected open(pane: string): void {
+    if (this.wide()) {
+      void this.router.navigate([], { queryParams: { pane }, replaceUrl: true });
+    } else {
+      void this.navCtrl.navigateForward(['/settings', pane]);
+    }
+  }
+
+  /* No confirm: signing out is undone by signing in. */
+  protected signOut(): void {
+    this.session.signOut().subscribe(() => void this.navCtrl.navigateRoot('/login'));
   }
 
   protected changeServer(): void {
     this.server.open().subscribe((changed) => {
-      /* A different server means a different session; the old token is meaningless there. */
+      /* The old token means nothing on another server. */
       if (changed) {
-        this.tokens.clear();
-        void this.router.navigate(['/login']);
+        this.authTokens.clear();
+        void this.navCtrl.navigateRoot('/login');
       }
     });
   }

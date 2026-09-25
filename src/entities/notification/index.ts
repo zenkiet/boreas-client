@@ -1,2 +1,3 @@
 export { NotificationApi } from './api/notification.api';
-export type { Notification, NotificationStatus } from './model/notification';
+export { isDeploy } from './model/notification';
+export type { DeployOutcome, Notification, NotificationKind } from './model/notification';

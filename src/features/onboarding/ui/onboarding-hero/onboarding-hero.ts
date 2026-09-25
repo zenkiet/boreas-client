@@ -58,7 +58,8 @@ const LAST_FRAME = 221;
       block-size: 6rem;
     }
 
-    @media (max-width: 30rem) {
+    /* SE-class heights only: every larger phone keeps the full-size hero. */
+    @media (max-height: 43.75rem) {
       .hero {
         inline-size: 12rem;
         block-size: 12rem;

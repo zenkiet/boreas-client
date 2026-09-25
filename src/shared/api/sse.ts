@@ -6,12 +6,7 @@ import {
 } from '@angular/common/http';
 import { Observable, filter, map } from 'rxjs';
 
-/**
- * Cumulative SSE body as it arrives; EventSource cannot send the auth header,
- * so streams ride HttpClient's progressive text download instead.
- *
- * Each emission is the whole body so far, not a delta: callers parse complete frames out of it.
- */
+/** Each emission is the whole body so far, not a delta; EventSource cannot send the auth header. */
 export function streamSse(
   http: HttpClient,
   url: string,

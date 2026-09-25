@@ -8,7 +8,7 @@ export interface CreateTaskInput {
   readonly environment?: Readonly<Record<string, string>>;
 }
 
-/** Only present fields are sent; image, port, labels or env changes recreate the container. */
+/** Only present fields are sent; image, port, labels or env recreate the container. */
 export interface UpdateTaskInput {
   readonly description?: string;
   readonly note?: string;

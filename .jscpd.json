@@ -4,7 +4,7 @@
   "// why": "Copy-paste detection. The FSD layers forbid sideways imports, so the same shape is easy to re-type in two slices instead of hoisting it into the layer below; this is the check that catches that.",
 
   "path": ["src"],
-  "format": ["typescript", "css", "html"],
+  "format": ["typescript", "css", "markup"],
 
   "// threshold": "Measured 0.52% after the first pass. 1.5% leaves room for an honest clone without letting a second copy-paste habit establish itself.",
   "threshold": 1.5,

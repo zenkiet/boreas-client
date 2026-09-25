@@ -1,5 +1,5 @@
 export { ApiTokenApi } from './api/api-token.api';
-export { API_TOKEN_STATUSES, isRevocable, MAX_TOKEN_DAYS } from './model/api-token';
+export { API_TOKEN_STATUSES, MAX_TOKEN_DAYS, isRevocable } from './model/api-token';
 export type {
   ApiToken,
   ApiTokenStatus,

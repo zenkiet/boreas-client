@@ -1,74 +1,92 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { TuiAppBar } from '@taiga-ui/layout';
+import { Router } from '@angular/router';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { ModalController } from '@ionic/angular/modal-controller';
+import { NavController } from '@ionic/angular/nav-controller';
 
 import { CreateTaskInput } from '@entities/task';
 import { CreateTaskStore, TaskForm } from '@features/create-task';
 import { ListProjectsStore } from '@features/list-projects';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { BackLink } from '@shared/ui/back-link/back-link';
-import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
-import { PageHeader } from '@shared/ui/page-header/page-header';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
+import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
 
 @Component({
   selector: 'app-task-create-page',
-  imports: [BackLink, GlassIconButton, PageHeader, Reveal, RouterLink, TaskForm, TuiAppBar],
+  imports: [IonButton, IonButtons, IonSpinner, PAGE_CHROME, TaskForm],
   providers: [CreateTaskStore],
   template: `
-    <div appReveal class="mx-auto grid max-w-4xl grid-cols-1 gap-3.5 md:gap-4">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a
-            tuiSlot="start"
-            tuiAppBarBack
-            [routerLink]="projectLink()"
-            aria-label="Back to project"
-          ></a>
-          New task
-          <!-- Keep validation-enabled: submitting empty fields must reveal their errors. -->
-          <button
-            tuiSlot="end"
-            appGlassIconButton
-            icon="@tui.check"
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <!-- No discard confirm: only typing is lost, and only the irreversible is confirmed. -->
+        <ion-buttons slot="start">
+          <ion-button aria-label="Cancel" (click)="cancel()">
+            <span slot="icon-only" class="icon-[regular--xmark]" aria-hidden="true"></span>
+          </ion-button>
+        </ion-buttons>
+        <ion-title>New task</ion-title>
+        <ion-buttons slot="end">
+          <!-- Never validity-disabled: submitting empty fields must reveal their errors. -->
+          <ion-button
             type="submit"
+            fill="solid"
+            color="primary"
             form="create-task-form"
             aria-label="Create task"
             [disabled]="create.creating()"
-          ></button>
-        </tui-app-bar>
-      </div>
+          >
+            @if (create.creating()) {
+              <ion-spinner name="lines-small" />
+            } @else {
+              <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
+            }
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
 
-      <div class="hidden md:block">
-        <app-back-link [link]="projectPath()" [label]="slug()" />
-        <div class="mt-1.5">
-          <app-page-header
-            title="New task environment"
-            description="Boreas assigns the proxy route once the container is ready."
-          />
+    <ion-content [fullscreen]="true">
+      <div class="mx-auto max-w-(--app-column)">
+        <app-task-form
+          formId="create-task-form"
+          [creating]="create.creating()"
+          [error]="create.error()"
+          [defaults]="create.defaults()"
+          (submitted)="createTask($event)"
+        />
+        <!-- Wrapped: Ionic's unlayered button margins beat utilities on the button itself. -->
+        <div class="mx-5 mt-6 mb-10">
+          <ion-button
+            type="submit"
+            form="create-task-form"
+            expand="block"
+            class="cta"
+            [disabled]="create.creating()"
+          >
+            @if (create.creating()) {
+              <ion-spinner name="lines-small" />
+              Creating
+            } @else {
+              Create task
+            }
+          </ion-button>
         </div>
       </div>
-
-      <app-task-form
-        formId="create-task-form"
-        [creating]="create.creating()"
-        [error]="create.error()"
-        [defaults]="create.defaults()"
-        (submitted)="createTask($event)"
-      />
-    </div>
+    </ion-content>
   `,
 })
 export class TaskCreatePage {
   protected readonly create = inject(CreateTaskStore);
   private readonly fleet = inject(ListProjectsStore);
   private readonly router = inject(Router);
+  private readonly navCtrl = inject(NavController);
+  private readonly modals = inject(ModalController);
 
   readonly slug = input('');
+  /** True when iPad presents the page as a dialog over its project. */
+  readonly dialog = input(false);
 
-  protected readonly projectLink = computed(() => ['/projects', this.slug()]);
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
   constructor() {
@@ -78,12 +96,21 @@ export class TaskCreatePage {
     });
   }
 
+  protected cancel(): void {
+    if (this.dialog()) void this.modals.dismiss();
+    else void this.navCtrl.navigateBack(this.projectPath());
+  }
+
   protected createTask(input: CreateTaskInput): void {
     this.create.create(this.slug(), input).subscribe((task) => {
       if (!task) return;
 
       this.fleet.invalidate();
-      void this.router.navigate(['/projects', this.slug(), 'tasks', task.name]);
+      if (this.dialog()) void this.modals.dismiss(task, SHEET_DONE);
+      /* A pushed form is replaced, so back from the new task lands on the project. */
+      void this.router.navigate(['/projects', this.slug(), 'tasks', task.name], {
+        replaceUrl: !this.dialog(),
+      });
     });
   }
 }

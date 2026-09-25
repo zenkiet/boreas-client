@@ -52,14 +52,12 @@ export class ManageGrantsStore {
     this.grantsResource.reload();
   }
 
-  add(input: AddMemberInput): Observable<ProjectCommandResult> {
+  /** The same POST grants or re-roles, so a role change only swaps the toast copy. */
+  add(input: AddMemberInput, done = 'Access granted.'): Observable<ProjectCommandResult> {
     const target = this.target();
     if (!target) return of({ success: false, message: 'No task selected.' });
 
-    return this.gate.run(
-      this.projectApi.addGrant(target.slug, target.task, input),
-      'Access granted.',
-    );
+    return this.gate.run(this.projectApi.addGrant(target.slug, target.task, input), done);
   }
 
   remove(userId: string, username: string): Observable<ProjectCommandResult> {

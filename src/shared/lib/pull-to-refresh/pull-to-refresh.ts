@@ -1,46 +1,83 @@
-import { DestroyRef, Service, Signal, computed, inject, signal } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
-import { Observable, Subject, filter, map, merge, pairwise } from 'rxjs';
+import { DOCUMENT } from '@angular/common';
+import { DestroyRef, Directive, ElementRef, Signal, effect, inject, input } from '@angular/core';
+import { IonRefresher } from '@ionic/angular/ion-refresher';
+import { IonRefresherContent } from '@ionic/angular/ion-refresher-content';
+import {
+  Observable,
+  combineLatest,
+  distinctUntilChanged,
+  fromEvent,
+  map,
+  merge,
+  startWith,
+} from 'rxjs';
 
 export interface PullRefreshSource {
   readonly busy: Signal<boolean>;
   readonly trigger: () => void;
 }
 
-@Service()
-export class PullToRefresh {
-  private readonly sources = signal<readonly PullRefreshSource[]>([]);
-  private readonly idlePull = new Subject<void>();
+/** Completes the pull when `busy` falls, or at once when the trigger started nothing. */
+@Directive({
+  selector: 'ion-refresher[appRefresh]',
+  host: { slot: 'fixed', '(ionRefresh)': 'start()' },
+})
+export class Refresh {
+  private readonly el = inject<ElementRef<{ complete(): Promise<void> }>>(ElementRef).nativeElement;
+  private pending = false;
 
-  private readonly busy = computed(() => this.sources().some((source) => source.busy()));
+  readonly source = input.required<PullRefreshSource>({ alias: 'appRefresh' });
 
-  readonly loaded$: Observable<void> = merge(
-    toObservable(this.busy).pipe(
-      pairwise(),
-      filter(([was, is]) => was && !is),
-      map(() => undefined),
-    ),
-    this.idlePull,
-  );
-
-  register(source: PullRefreshSource): () => void {
-    this.sources.update((list) => [...list, source]);
-    return () => {
-      this.sources.update((list) => list.filter((entry) => entry !== source));
-    };
+  constructor() {
+    effect(() => {
+      if (!this.source().busy()) this.finish();
+    });
   }
 
-  refresh(): void {
-    const sources = this.sources();
-    if (sources.length === 0) {
-      this.idlePull.next();
-      return;
-    }
-    sources.forEach((source) => source.trigger());
+  protected start(): void {
+    this.pending = true;
+    this.source().trigger();
+    if (!this.source().busy()) this.finish();
+  }
+
+  private finish(): void {
+    if (!this.pending) return;
+    this.pending = false;
+    void this.el.complete();
   }
 }
 
-export function registerPullRefresh(source: PullRefreshSource): void {
-  const unregister = inject(PullToRefresh).register(source);
-  inject(DestroyRef).onDestroy(unregister);
+export const PULL_REFRESH = [IonRefresher, IonRefresherContent, Refresh] as const;
+
+/** Runs `fn` each time this cached page returns to the top of the stack, never on first entry. */
+export function onReturn(fn: () => void): void {
+  const host: HTMLElement = inject(ElementRef).nativeElement;
+  let entered = false;
+  const listener = (): void => {
+    if (entered) fn();
+    entered = true;
+  };
+
+  host.addEventListener('ionViewWillEnter', listener);
+  inject(DestroyRef).onDestroy(() => host.removeEventListener('ionViewWillEnter', listener));
+}
+
+/** An Observable, not a signal: a covered Ionic page's effects stay frozen until it is on top. */
+export function onScreen(): Observable<boolean> {
+  const host: HTMLElement = inject(ElementRef).nativeElement;
+  const document = inject(DOCUMENT);
+  const entered = merge(
+    fromEvent(host, 'ionViewWillEnter').pipe(map(() => true)),
+    fromEvent(host, 'ionViewDidLeave').pipe(map(() => false)),
+  ).pipe(startWith(true));
+  /* Starts visible: some environments load hidden and never fire visibilitychange. */
+  const visible = fromEvent(document, 'visibilitychange').pipe(
+    map(() => !document.hidden),
+    startWith(true),
+  );
+
+  return combineLatest([entered, visible]).pipe(
+    map(([top, shown]) => top && shown),
+    distinctUntilChanged(),
+  );
 }

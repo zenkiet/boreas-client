@@ -1,15 +1,21 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormField, form, required, submit } from '@angular/forms/signals';
-import { Router } from '@angular/router';
-import { TuiButton, TuiError, TuiLoader, TuiTextfield } from '@taiga-ui/core';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonContent } from '@ionic/angular/ion-content';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonInputPasswordToggle } from '@ionic/angular/ion-input-password-toggle';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { NavController } from '@ionic/angular/nav-controller';
 
 import { LoginStore } from '@features/auth';
 import { ChangeServerService } from '@features/connect-server';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
-import { fieldError } from '@shared/lib/forms/field-error';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
+import { FieldStatus } from '@shared/lib/forms/field-status.directive';
 import { Callout } from '@shared/ui/callout/callout';
+import { EYE, EYE_SLASH } from '@shared/ui/glyph-urls';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 interface LoginDraft {
   username: string;
@@ -18,153 +24,173 @@ interface LoginDraft {
 
 @Component({
   selector: 'app-login-page',
-  imports: [Callout, FormField, Reveal, TuiButton, TuiError, TuiLoader, TuiTextfield],
+  imports: [
+    Callout,
+    FieldStatus,
+    FormField,
+    InsetGroup,
+    IonButton,
+    IonContent,
+    IonInput,
+    IonInputPasswordToggle,
+    IonItem,
+    IonSpinner,
+  ],
   providers: [LoginStore],
   template: `
-    <main appReveal class="login">
-      <div class="login__card">
-        <img
-          class="login__mark"
-          src="/brand-mark.png"
-          width="72"
-          height="72"
-          alt=""
-          aria-hidden="true"
-        />
-
-        <div class="login__head">
-          <h1 class="login__title">Sign in to Boreas</h1>
-          <p class="login__server">
-            <span class="font-mono">{{ serverHost() }}</span>
-            <button type="button" class="login__change" (click)="changeServer()">Change</button>
-          </p>
+    <!-- The theme pads fullscreen content for a tab bar this chromeless page does not have. -->
+    <ion-content [fullscreen]="true" style="--padding-bottom: 0">
+      <div class="login">
+        <div class="login__brand">
+          <img
+            class="login__mark"
+            src="/brand-mark.png"
+            width="76"
+            height="76"
+            alt=""
+            aria-hidden="true"
+          />
+          <div class="login__head">
+            <h1 class="login__title">Sign in to Boreas</h1>
+            <p class="login__server">
+              <span class="login__host">{{ serverHost() }}</span>
+              <button type="button" class="login__change" (click)="changeServer()">Change</button>
+            </p>
+          </div>
         </div>
 
-        <form class="login__form" novalidate (submit)="onSubmit($event)">
+        <form class="w-full" novalidate (submit)="onSubmit($event)">
           @if (login.error(); as message) {
-            <app-callout tone="negative" role="alert">{{ message }}</app-callout>
+            <app-callout class="mx-5 block" tone="negative" role="alert">{{ message }}</app-callout>
           }
 
-          <tui-textfield [tuiTextfieldCleaner]="false">
-            <label tuiLabel [for]="ids.username">Username</label>
-            <input
-              tuiInput
-              autocomplete="username"
-              autocapitalize="off"
-              spellcheck="false"
-              [id]="ids.username"
-              [formField]="draft.username"
-            />
-          </tui-textfield>
-          <tui-error [error]="usernameError()" />
+          <app-inset-group>
+            <ion-item>
+              <ion-input
+                label="Username"
+                labelPlacement="stacked"
+                autocomplete="username"
+                autocapitalize="off"
+                [spellcheck]="false"
+                [formField]="draft.username"
+              />
+            </ion-item>
+            <ion-item>
+              <ion-input
+                label="Password"
+                labelPlacement="stacked"
+                type="password"
+                autocomplete="current-password"
+                [formField]="draft.password"
+              >
+                <ion-input-password-toggle
+                  slot="end"
+                  color="medium"
+                  [showIcon]="eye"
+                  [hideIcon]="eyeSlash"
+                />
+              </ion-input>
+            </ion-item>
+          </app-inset-group>
 
-          <tui-textfield [tuiTextfieldCleaner]="false">
-            <label tuiLabel [for]="ids.password">Password</label>
-            <input
-              tuiInput
-              type="password"
-              autocomplete="current-password"
-              [id]="ids.password"
-              [formField]="draft.password"
-            />
-          </tui-textfield>
-          <tui-error [error]="passwordError()" />
-
-          <button
-            tuiButton
-            type="submit"
-            size="m"
-            appearance="primary"
-            class="login__submit"
-            [disabled]="login.signingIn()"
-          >
-            @if (login.signingIn()) {
-              <tui-loader size="s" [inheritColor]="true" />
-              Signing in
-            } @else {
-              Sign in
-            }
-          </button>
+          <div class="mx-5">
+            <ion-button type="submit" expand="block" class="cta" [disabled]="login.signingIn()">
+              @if (login.signingIn()) {
+                <ion-spinner slot="start" name="lines-small" />
+                Signing in
+              } @else {
+                Sign in
+              }
+            </ion-button>
+            <p class="login__foot">
+              Accounts live on your server. Forgot your password? Your administrator can reset it.
+            </p>
+          </div>
         </form>
       </div>
-    </main>
+    </ion-content>
   `,
   styles: `
     .login {
       display: grid;
-      place-items: center;
-      min-block-size: 100dvh;
-      padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem
-        max(1.5rem, env(safe-area-inset-bottom));
+      align-content: center;
+      justify-items: center;
+      gap: 1.375rem;
+      min-block-size: 100%;
+      max-inline-size: 24rem;
+      margin-inline: auto;
+      padding-block: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-bottom));
     }
 
-    .login__card {
+    .login__brand {
       display: grid;
       justify-items: center;
       gap: 1.25rem;
-      inline-size: min(21rem, 100%);
     }
 
     .login__mark {
-      inline-size: 4.5rem;
-      block-size: 4.5rem;
+      inline-size: 4.75rem;
+      block-size: 4.75rem;
     }
 
     .login__head {
       display: grid;
       justify-items: center;
-      gap: 0.25rem;
+      gap: 0.75rem;
       text-align: center;
     }
 
     .login__title {
       margin: 0;
-      font-size: 1.375rem;
+      font-size: 1.875rem;
+      line-height: 2.25rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--tui-text-primary);
     }
 
     .login__server {
       display: inline-flex;
-      align-items: baseline;
-      gap: 0.5rem;
+      align-items: center;
+      gap: 0.625rem;
       margin: 0;
+      font-size: 0.9375rem;
+      color: var(--app-text-tertiary);
+    }
+
+    .login__foot {
+      margin: 0.875rem 1rem 0;
       font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
+      line-height: 1.125rem;
+      color: var(--app-text-tertiary);
+      text-align: center;
+    }
+
+    .login__host {
+      font-family: var(--app-font-mono);
+      font-size: 0.875rem;
     }
 
     /* Tailwind has no preflight, so reset the button-shaped link explicitly. */
     .login__change {
+      min-block-size: 2.75rem;
       margin: 0;
       border: 0;
-      padding: 0;
+      padding: 0 0.375rem;
       background: none;
       font: inherit;
-      color: var(--tui-text-action);
+      font-weight: 500;
+      color: var(--ion-color-primary);
       cursor: pointer;
-    }
-
-    .login__form {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0.625rem;
-      inline-size: 100%;
-    }
-
-    .login__submit {
-      margin-block-start: 0.375rem;
     }
   `,
 })
 export class LoginPage {
+  protected readonly eye = EYE;
+  protected readonly eyeSlash = EYE_SLASH;
   private readonly server = inject(ChangeServerService);
   protected readonly login = inject(LoginStore);
   private readonly config = inject(ServerConfigStore);
   private readonly tokens = inject(AuthTokenStore);
-  private readonly router = inject(Router);
-
-  protected readonly ids = { username: 'login-username', password: 'login-password' };
+  private readonly nav = inject(NavController);
 
   private readonly model = signal<LoginDraft>({ username: '', password: '' });
 
@@ -173,19 +199,16 @@ export class LoginPage {
     required(path.password, { message: 'Password is required.' });
   });
 
-  protected readonly serverHost = computed(() => this.config.baseUrl().replace(/^https?:\/\//, ''));
+  protected readonly serverHost = this.config.host;
 
   constructor() {
     /* A live token means this visit is a back-navigation, not a sign-in. */
     if (this.tokens.authenticated()) {
-      void this.router.navigate(['/projects']);
+      void this.nav.navigateRoot('/projects');
     }
   }
 
-  protected readonly usernameError = computed(() => fieldError(this.draft.username()));
-  protected readonly passwordError = computed(() => fieldError(this.draft.password()));
-
-  /* No result handling needed: a signed-out page only shows the (already updated) host. */
+  /* No result needed: the host line reads the updated config itself. */
   protected changeServer(): void {
     this.server.open().subscribe();
   }
@@ -199,9 +222,9 @@ export class LoginPage {
       this.login
         .signIn({ username: draft.username.trim(), password: draft.password })
         .subscribe((success) => {
-          if (success) void this.router.navigate(['/projects']);
+          /* Root, so the signed-in stack never keeps this page underneath. */
+          if (success) void this.nav.navigateRoot('/projects');
         });
     });
   }
-
 }

@@ -1,0 +1,80 @@
+diff --git a/dist/popover/animations/ios.enter.d.ts b/dist/popover/animations/ios.enter.d.ts
+index 2de2173ad098d3b3b6b769a3b95c73c8758779f9..cc82e1f9fc149390b2aadcf56ba297570af140c9 100644
+--- a/dist/popover/animations/ios.enter.d.ts
++++ b/dist/popover/animations/ios.enter.d.ts
+@@ -1,3 +1,3 @@
+-import type { Animation } from '@ionic/core';
++import type { Animation } from '@ionic/core/components';
+ export declare const iosEnterAnimation: (baseEl: HTMLElement, opts?: any) => Animation;
+ //# sourceMappingURL=ios.enter.d.ts.map
+\ No newline at end of file
+diff --git a/dist/popover/animations/ios.enter.js b/dist/popover/animations/ios.enter.js
+index dc7874b5e1a201871ee1485c14b55aa23ba7b45a..2a5e64b9ce0edab547b8c9f78fa82a3ea4672c76 100644
+--- a/dist/popover/animations/ios.enter.js
++++ b/dist/popover/animations/ios.enter.js
+@@ -1,4 +1,4 @@
+-import { createAnimation } from '@ionic/core';
++import { createAnimation } from '@ionic/core/components';
+ import { calculateWindowAdjustment, getPopoverDimensions, getPopoverPosition, POPOVER_IOS_BODY_MARGIN } from '../utils.js';
+ import { createCalloutSurface } from '../callout-surface.js';
+ import { getElementRoot } from '../../dom.js';
+diff --git a/dist/popover/animations/ios.leave.d.ts b/dist/popover/animations/ios.leave.d.ts
+index b063db5b2a021a632ef7e8c638b97cd87d73fbdb..918dd0dbbacba5ddeba70fb83dac9853d45b8fd5 100644
+--- a/dist/popover/animations/ios.leave.d.ts
++++ b/dist/popover/animations/ios.leave.d.ts
+@@ -1,3 +1,3 @@
+-import type { Animation } from '@ionic/core';
++import type { Animation } from '@ionic/core/components';
+ export declare const iosLeaveAnimation: (baseEl: HTMLElement) => Animation;
+ //# sourceMappingURL=ios.leave.d.ts.map
+\ No newline at end of file
+diff --git a/dist/popover/animations/ios.leave.js b/dist/popover/animations/ios.leave.js
+index d23b9b64649bec53c71d8381fe4df098b7d5a9f7..3da6795ae0652933e051dbdb935fe2dba949e40b 100644
+--- a/dist/popover/animations/ios.leave.js
++++ b/dist/popover/animations/ios.leave.js
+@@ -1,4 +1,4 @@
+-import { createAnimation } from '@ionic/core';
++import { createAnimation } from '@ionic/core/components';
+ import { getElementRoot } from '../../dom.js';
+ export const iosLeaveAnimation = (baseEl) => {
+     const root = getElementRoot(baseEl);
+diff --git a/dist/popover/popover-interface.d.ts b/dist/popover/popover-interface.d.ts
+index c396bc497df696e90ff3c9e4fd5b6512cf7cde5b..1ffe87d9a926d3b667461c7aeaf2e579510b6a19 100644
+--- a/dist/popover/popover-interface.d.ts
++++ b/dist/popover/popover-interface.d.ts
+@@ -1,4 +1,4 @@
+-import type { AnimationBuilder, ComponentProps, ComponentRef, FrameworkDelegate, Mode, OverlayInterface } from '@ionic/core';
++import type { AnimationBuilder, ComponentProps, ComponentRef, FrameworkDelegate, Mode, OverlayInterface } from '@ionic/core/components';
+ export interface PopoverInterface extends OverlayInterface {
+     present: (event?: MouseEvent | TouchEvent | PointerEvent) => Promise<void>;
+ }
+diff --git a/dist/theme.d.ts b/dist/theme.d.ts
+index 9f696020f2ee6063233b254bb3e5d7e7ecb209c1..08c4f4a3cbd88306d2cbb50e303337a110472b6a 100644
+--- a/dist/theme.d.ts
++++ b/dist/theme.d.ts
+@@ -1,4 +1,4 @@
+-import type { IonicConfig } from '@ionic/core';
++import type { IonicConfig } from '@ionic/core/components';
+ import type { AnimationPosition } from './sheets-of-glass.js';
+ export declare const cloneElement: (tagName: string, useCache?: boolean) => HTMLElement;
+ export declare const getStep: (targetX: number, position: AnimationPosition) => number;
+diff --git a/dist/transition/ios.transition.d.ts b/dist/transition/ios.transition.d.ts
+index bb85728ad8f02cfb57bd108b5aa1effaeb56220e..0c5b1d65d5e6fed3e72340f335de3214037d964e 100644
+--- a/dist/transition/ios.transition.d.ts
++++ b/dist/transition/ios.transition.d.ts
+@@ -1,4 +1,4 @@
+-import type { Animation } from '@ionic/core';
++import type { Animation } from '@ionic/core/components';
+ export interface IosTransitionAnimationOptions {
+     enteringEl: HTMLElement;
+     leavingEl?: HTMLElement;
+diff --git a/dist/transition/ios.transition.js b/dist/transition/ios.transition.js
+index 8b745dcce20c0733eb52320c9071b1dbb0b0b5d9..4e055cfc49e87dac8d7cfcf1cebe387c7dec014f 100644
+--- a/dist/transition/ios.transition.js
++++ b/dist/transition/ios.transition.js
+@@ -1,4 +1,4 @@
+-import { createAnimation } from '@ionic/core';
++import { createAnimation } from '@ionic/core/components';
+ const DURATION = 540;
+ const getClonedElement = (tagName) => {
+     return document.querySelector(`${tagName}.ion-cloned-element`);

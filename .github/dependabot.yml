@@ -23,6 +23,8 @@ updates:
       - dependency-name: '@angular/*'
         update-types:
           - version-update:semver-major
+      # Pinned and patched (patches/): a bump must re-check the patch by hand.
+      - dependency-name: '@rdlabo/*'
     groups:
       angular:
         patterns:
@@ -30,9 +32,10 @@ updates:
         update-types:
           - minor
           - patch
-      taiga-ui:
+      ionic:
         patterns:
-          - '@taiga-ui/*'
+          - '@ionic/*'
+          - ionicons
         update-types:
           - minor
           - patch
@@ -62,7 +65,6 @@ updates:
           - '@tailwindcss/*'
           - postcss
           - postcss-*
-          - less
         update-types:
           - minor
           - patch

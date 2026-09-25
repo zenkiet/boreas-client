@@ -1,52 +1,28 @@
 import { Component, input } from '@angular/core';
+import { IonItemGroup } from '@ionic/angular/ion-item-group';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonList } from '@ionic/angular/ion-list';
+import { IonListHeader } from '@ionic/angular/ion-list-header';
+import { IonNote } from '@ionic/angular/ion-note';
 
+/** A projected `ion-note` becomes the footer; a `[groupMark]` element leads the header label. */
 @Component({
   selector: 'app-inset-group',
+  imports: [IonItemGroup, IonLabel, IonList, IonListHeader, IonNote],
   template: `
-    @if (label()) {
-      <div class="head">
-        <h2 class="head__label">{{ label() }}</h2>
-        @if (trailing()) {
-          <span class="head__trailing tabular" aria-live="polite">{{ trailing() }}</span>
-        }
-      </div>
-    }
-    <div class="box">
-      <ng-content />
-    </div>
-  `,
-  styles: `
-    :host {
-      display: block;
-    }
-
-    .head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0 0.25rem 0.375rem;
-    }
-
-    .head__label {
-      margin: 0;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      line-height: 1.4;
-      color: var(--tui-text-tertiary);
-    }
-
-    .head__trailing {
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-      white-space: nowrap;
-    }
-
-    .box {
-      overflow: hidden;
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-base);
-    }
+    <ion-list [inset]="true">
+      @if (label()) {
+        <ion-list-header>
+          <ion-label><ng-content select="[groupMark]" />{{ label() }}</ion-label>
+          @if (trailing()) {
+            <!-- No aria-live: a live region inside Ionic's role="list" fails AXE. -->
+            <ion-note class="tabular">{{ trailing() }}</ion-note>
+          }
+        </ion-list-header>
+      }
+      <ion-item-group><ng-content /></ion-item-group>
+      <ng-content select="ion-note" />
+    </ion-list>
   `,
 })
 export class InsetGroup {

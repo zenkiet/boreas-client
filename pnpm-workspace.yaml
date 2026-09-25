@@ -47,3 +47,13 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/utils@8.69.0'
   - '@typescript-eslint/visitor-keys@8.69.0'
   - typescript-eslint@8.69.0
+  - '@angular-devkit/architect@0.2201.8'
+  - '@angular-devkit/core@22.1.8'
+  - '@angular-devkit/schematics@22.1.8'
+  - '@angular/build@22.1.8'
+  - '@angular/cli@22.1.8'
+  - '@schematics/angular@22.1.8'
+patchedDependencies:
+  '@ionic/core@9.0.5': patches/@ionic__core@9.0.5.patch
+  '@rdlabo/ionic-theme-ios27@1.1.0': patches/@rdlabo__ionic-theme-ios27@1.1.0.patch
+  '@rdlabo/ionic-theme-utils@0.1.1': patches/@rdlabo__ionic-theme-utils@0.1.1.patch
