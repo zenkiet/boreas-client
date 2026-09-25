@@ -1,10 +1,5 @@
 import { CreateUserInput, Session, UpdateUserInput, User } from '../model/user';
-import {
-  CreateUserRequestDto,
-  LoginResponseDto,
-  UpdateUserRequestDto,
-  UserDto,
-} from './user.dto';
+import { CreateUserRequestDto, LoginResponseDto, UpdateUserRequestDto, UserDto } from './user.dto';
 
 export function toUser(dto: UserDto): User {
   return {

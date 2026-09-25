@@ -10,12 +10,14 @@ const LAYERS = ['app', 'pages', 'widgets', 'features', 'entities', 'shared'];
 
 const SLICED = ['pages', 'widgets', 'features', 'entities'];
 
-// Page components stay direct entries so lazy chunks retain meaningful names.
+// Page components stay direct entries so lazy chunks retain meaningful names. A feature may also
+// expose model/index.ts and an entity api/index.ts: eager code (the shell and its root stores)
+// imports there without dragging the slice's UI into the initial bundle.
 const PUBLIC_ENTRY = {
   pages: '*-page.ts',
   widgets: 'index.ts',
-  features: 'index.ts',
-  entities: 'index.ts',
+  features: '{index.ts,model/index.ts}',
+  entities: '{index.ts,api/index.ts,model/index.ts}',
 };
 
 const below = (layer) => LAYERS.slice(LAYERS.indexOf(layer) + 1);

@@ -1,11 +1,14 @@
 import { Component, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { FormField, form, max, min, required, submit } from '@angular/forms/signals';
-import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonToggle } from '@ionic/angular/ion-toggle';
 
 import { Task, UpdateTaskInput } from '@entities/task';
-import { fieldError } from '@shared/lib/forms/field-error';
+import { FieldStatus } from '@shared/lib/forms/field-status.directive';
 import { Callout } from '@shared/ui/callout/callout';
-import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 let instances = 0;
@@ -18,148 +21,85 @@ interface TaskEditDraft {
 
 @Component({
   selector: 'app-task-edit-form',
-  imports: [Callout, FormField, GlassSwitch, InsetGroup, TuiButton, TuiError, TuiIcon, TuiLoader],
+  imports: [
+    Callout,
+    FieldStatus,
+    FormField,
+    InsetGroup,
+    IonInput,
+    IonItem,
+    IonLabel,
+    IonNote,
+    IonToggle,
+  ],
   template: `
-    <form class="grid grid-cols-1 gap-3.5" novalidate [id]="formId()" (submit)="onSubmit($event)">
+    <form novalidate [id]="formId()" (submit)="onSubmit($event)">
       @if (error(); as message) {
-        <app-callout tone="negative" role="alert">{{ message }}</app-callout>
+        <app-callout class="m-5" tone="negative" role="alert">{{ message }}</app-callout>
       }
 
-      <div>
-        <app-inset-group label="Container">
-          <div class="frow frow--inline row-divider relative">
-            <span class="frow__inline-label">Name</span>
-            <span class="frow__readonly font-mono">{{ task().name }}</span>
-          </div>
+      <app-inset-group label="Task" [trailing]="changeLabel()">
+        <ion-item>
+          <ion-label>Name</ion-label>
+          <ion-note slot="end" class="name">{{ task().name }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-input
+            label="Description"
+            labelPlacement="stacked"
+            autocomplete="off"
+            placeholder="One line people will recognise"
+            [formField]="draft.description"
+          />
+        </ion-item>
+      </app-inset-group>
 
-          <div class="frow row-divider relative">
-            <label class="frow__label" [for]="ids.image">Docker image</label>
-            <input
-              class="frow__input"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck="false"
-              [id]="ids.image"
-              [formField]="draft.image"
-            />
-            @if (imageError(); as message) {
-              <tui-error [error]="message" />
-            }
-          </div>
+      <app-inset-group label="Container">
+        <ion-item>
+          <ion-input
+            class="font-mono value-tail"
+            label="Docker image"
+            labelPlacement="stacked"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            [formField]="draft.image"
+          />
+        </ion-item>
+        <ion-item>
+          <ion-input
+            class="value-input tabular text-end"
+            label="Internal port"
+            type="number"
+            inputmode="numeric"
+            [formField]="draft.port"
+          />
+        </ion-item>
+      </app-inset-group>
 
-          <div class="frow row-divider relative">
-            <label class="frow__label" [for]="ids.description">Description</label>
-            <input
-              class="frow__input frow__input--text"
-              autocomplete="off"
-              placeholder="Optional"
-              [id]="ids.description"
-              [formField]="draft.description"
-            />
-          </div>
-
-          <div class="frow frow--inline row-divider relative">
-            <label class="frow__inline-label" [for]="ids.port">Internal port</label>
-            <input
-              class="frow__input frow__input--end"
-              type="number"
-              inputmode="numeric"
-              [id]="ids.port"
-              [formField]="draft.port"
-            />
-          </div>
-          @if (portError(); as message) {
-            <div class="frow__trailing-error">
-              <tui-error [error]="message" />
-            </div>
-          }
-        </app-inset-group>
-        <p class="footnote">
-          The name is the proxy URL and cannot change. Changing the image or port recreates the
-          container; editing only the description leaves it untouched.
-        </p>
-      </div>
-
-      <div>
-        <app-inset-group label="Apply">
-          <div class="frow frow--inline row-divider relative">
-            <span class="frow__inline-label">Restart to apply</span>
-            <button
-              appGlassSwitch
-              aria-label="Restart to apply"
-              [checked]="restart()"
-              (checkedChange)="restart.set($event)"
-            ></button>
-          </div>
-        </app-inset-group>
-        <p class="footnote">
+      <app-inset-group label="Apply">
+        <ion-item>
+          <ion-toggle [checked]="restart()" (ionChange)="restart.set($event.detail.checked)">
+            Restart to apply
+          </ion-toggle>
+        </ion-item>
+        <ion-note>
           Off: container changes wait as “pending recreate” until the next start or restart.
-        </p>
-      </div>
+        </ion-note>
+      </app-inset-group>
 
-      <div class="hidden md:flex md:justify-end">
-        <button
-          tuiButton
-          type="submit"
-          size="m"
-          appearance="primary"
-          [disabled]="saving() || !dirty()"
-        >
-          @if (saving()) {
-            <tui-loader size="s" [inheritColor]="true" />
-            Saving
-          } @else {
-            <tui-icon class="icon-sm" icon="@tui.check" />
-            Save changes
-          }
-        </button>
-      </div>
+      @if (!restart() && containerChanged()) {
+        <app-callout class="m-5" tone="warning" role="status">
+          These changes wait until {{ task().name }} is next started or restarted. The task page
+          shows it as pending.
+        </app-callout>
+      }
     </form>
   `,
   styles: `
-    .frow--inline {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-block-size: 3rem;
-    }
-
-    .frow__readonly {
-      font-size: 1rem;
-      color: var(--tui-text-tertiary);
-    }
-
-    .frow__input {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      padding: 0;
-      background: none;
+    .name {
       font-family: var(--app-font-mono);
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
-    }
-
-    /* Prose, not an identifier. */
-    .frow__input--text {
-      font-family: var(--tui-typography-family-text);
-    }
-
-    /* Local, not shared: it must outrank the .frow__input above it. */
-    .frow__input--end {
-      inline-size: 7ch;
-      flex: none;
-      text-align: end;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .frow__input:focus {
-      outline: none;
-    }
-
-    .frow__input::placeholder {
-      color: var(--tui-text-tertiary);
-      opacity: 0.6;
+      font-size: 0.9375rem;
     }
   `,
 })
@@ -170,7 +110,7 @@ export class TaskEditForm {
   readonly saving = input(false);
   readonly error = input<string | undefined>(undefined);
   readonly formId = input(this.uid);
-  /** Emits only the fields that differ from the task, PATCH-style. */
+  /** Only the changed fields, PATCH-style; `{}` when nothing changed. */
   readonly submitted = output<UpdateTaskInput>();
 
   private seeded = false;
@@ -178,29 +118,28 @@ export class TaskEditForm {
   protected readonly restart = signal(true);
 
   protected readonly draft = form(this.model, (path) => {
-    required(path.image, { message: 'Docker image is required.' });
-    min(path.port, 1, { message: 'Internal port must be between 1 and 65535.' });
-    max(path.port, 65535, { message: 'Internal port must be between 1 and 65535.' });
+    required(path.image, { message: 'Enter a Docker image.' });
+    min(path.port, 1, { message: 'Enter a port from 1 to 65535.' });
+    max(path.port, 65535, { message: 'Enter a port from 1 to 65535.' });
   });
 
-  protected readonly ids = {
-    image: `${this.uid}-image`,
-    description: `${this.uid}-description`,
-    port: `${this.uid}-port`,
-  };
-
-  protected readonly imageError = computed(() => fieldError(this.draft.image()));
-  protected readonly portError = computed(() => fieldError(this.draft.port()));
-
-  protected readonly dirty = computed(() => {
+  private readonly changed = computed(() => {
     const draft = this.model();
     const task = this.task();
 
-    return (
-      draft.image.trim() !== task.image ||
-      draft.description.trim() !== (task.description ?? '') ||
-      draft.port !== task.port
-    );
+    return {
+      image: draft.image.trim() !== task.image,
+      description: draft.description.trim() !== (task.description ?? ''),
+      port: draft.port !== task.port,
+    };
+  });
+
+  private readonly changes = computed(() => Object.values(this.changed()).filter(Boolean).length);
+  protected readonly dirty = computed(() => this.changes() > 0);
+  protected readonly containerChanged = computed(() => this.changed().image || this.changed().port);
+  protected readonly changeLabel = computed(() => {
+    const count = this.changes();
+    return count === 0 ? 'No changes' : count === 1 ? '1 change' : `${count} changes`;
   });
 
   constructor() {
@@ -223,8 +162,9 @@ export class TaskEditForm {
   protected onSubmit(event: Event): void {
     event.preventDefault();
 
-    /* The app-bar submitter cannot expose the desktop button's disabled state. */
-    if (this.saving() || !this.dirty()) {
+    if (this.saving()) return;
+    if (!this.dirty()) {
+      this.submitted.emit({});
       return;
     }
 

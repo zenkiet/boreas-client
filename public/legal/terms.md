@@ -1,6 +1,6 @@
 # Terms of Service
 
-**Last updated:** 02 September 2026
+**Last updated:** 27 September 2026
 
 These terms are an agreement between you and **Kiet Le**, an individual developer
 in Vietnam ("we", "us"), covering your use of the **Boreas** mobile and web
@@ -55,7 +55,7 @@ terms give you permission to use the App; they do not transfer any ownership.
 
 The App includes open source components that remain under their own licenses.
 Those licenses, with the required notices, are listed in the App under
-**Settings › About › Open Source Licenses**.
+**Settings › About Boreas › Open-source licences**.
 
 ## 6. Third-party services
 
@@ -80,8 +80,8 @@ Nothing in these terms excludes liability that cannot lawfully be excluded.
 
 ## 9. Changes to these terms
 
-We may update this terms. The current version always ships inside the App and
-is published at <https://raw.githubusercontent.com/zenkiet/boreas-client/refs/heads/main/public/legal/terms.md>. The date at the top
+We may update these terms. The current version always ships inside the App and
+is published at <https://boreas.zenkiet.dev/legal/terms>. The date at the top
 tells you when it last changed.
 
 ## 10. Termination

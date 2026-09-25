@@ -1,469 +1,601 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  untracked,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiButton, TuiDropdown, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiTab, TuiTabsHorizontal } from '@taiga-ui/kit';
-import { TuiAppBar } from '@taiga-ui/layout';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
+import type { SelectCustomEvent } from '@ionic/angular';
+import { IonBackButton } from '@ionic/angular/ion-back-button';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonPopover } from '@ionic/angular/ion-popover';
+import { IonRouterLink, IonRouterLinkWithHref } from '@ionic/angular/ion-router-link';
+import { IonSegment } from '@ionic/angular/ion-segment';
+import { IonSegmentButton } from '@ionic/angular/ion-segment-button';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { NavController } from '@ionic/angular/nav-controller';
 import { filter, map, switchMap } from 'rxjs';
 
-import { EnvironmentEditor, EnvironmentList } from '@entities/environment';
+import { EnvironmentEditor } from '@entities/environment';
 import { AddMemberInput, GRANTABLE_ROLES, Member } from '@entities/project';
 import {
+  DEV_STATUS_DOT,
+  DEV_STATUS_LABEL,
   DevStatus,
-  DevStatusSheet,
   Task,
   TaskActionRequest,
   TaskMenu,
   TaskStateAction,
   isTransitioningTask,
+  taskKey,
 } from '@entities/task';
 import { ControlTaskStore } from '@features/control-task';
-import { ListAlertsStore } from '@features/list-alerts';
-import { ListProjectsStore } from '@features/list-projects';
-import { ManageGrantsStore, MemberList } from '@features/manage-project';
+import { ListAlertsStore } from '@features/list-alerts/model';
+import { ListProjectsStore } from '@features/list-projects/model';
+import {
+  ManageGrantsStore,
+  MemberForm,
+  MemberList,
+  MemberRoleChange,
+} from '@features/manage-project';
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
+import { TaskUsage, TaskUsageStore } from '@features/track-stats';
 import { ViewTaskStore } from '@features/view-task';
-import { noteToPlainText } from '@shared/lib/markdown/note-markdown';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
-import { BackLink } from '@shared/ui/back-link/back-link';
+import {
+  PULL_REFRESH,
+  PullRefreshSource,
+  onReturn,
+} from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { ErrorState } from '@shared/ui/error-state/error-state';
-import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
-import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
-import { TaskOverview } from '@widgets/task-overview';
+import { TaskNoteCard, TaskOverview } from '@widgets/task-overview';
 
-const VIEWS = ['info', 'environment', 'logs'] as const;
+type View = 'info' | 'environment' | 'logs';
 
-type View = (typeof VIEWS)[number];
+const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[];
 
 @Component({
   selector: 'app-task-detail-page',
   imports: [
-    BackLink,
     Callout,
+    NgTemplateOutlet,
     EnvironmentEditor,
-    EnvironmentList,
     ErrorState,
-    GlassIconButton,
-    GlassSegmented,
     InsetGroup,
+    IonBackButton,
+    IonButton,
+    IonButtons,
+    IonItem,
+    IonLabel,
+    IonNote,
+    IonPopover,
+    IonRouterLink,
+    IonRouterLinkWithHref,
+    IonSegment,
+    IonSegmentButton,
+    IonSpinner,
     LogConsole,
+    MemberForm,
     MemberList,
-    Reveal,
+    PAGE_CHROME,
+    PULL_REFRESH,
     RouterLink,
     SkeletonRows,
     TaskMenu,
+    TaskNoteCard,
     TaskOverview,
-    TuiAppBar,
-    TuiButton,
-    TuiDropdown,
-    TuiIcon,
-    TuiLoader,
-    TuiTab,
-    TuiTabsHorizontal,
+    TaskUsage,
   ],
-  providers: [ViewTaskStore, ControlTaskStore, LogStreamStore, ManageGrantsStore],
+  providers: [ViewTaskStore, ControlTaskStore, LogStreamStore, ManageGrantsStore, TaskUsageStore],
+  host: { class: 'desk-wide' },
   template: `
     <!-- iOS push: the name is already in the URL, so chrome renders before any data. -->
-    <div appReveal class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a
-            tuiSlot="start"
-            tuiAppBarBack
-            [routerLink]="projectLink()"
-            aria-label="Back to project"
-          ></a>
-          <span class="detail__bar-title">{{ name() }}</span>
+    <ion-header [translucent]="true" class="wide-head" [class.condensed]="condensed()">
+      <ion-toolbar>
+        <!-- aria-hidden: the h1 already names the page; this only fades in on phones. -->
+        <ion-title class="font-mono" aria-hidden="true">{{ name() }}</ion-title>
+        <ion-buttons slot="start" class="desk-hide">
+          <!-- Re-created per label: ion-back-button copies aria-label only once.
+               Tracking more than the item keeps Angular's re-creation warning off. -->
+          @for (label of [projectName()]; track projectPath() + label) {
+            <ion-back-button
+              [defaultHref]="projectPath()"
+              [text]="label"
+              [attr.aria-label]="'Back to ' + label"
+            />
+          }
+        </ion-buttons>
+        <nav slot="start" class="crumbs desk-only" aria-label="Breadcrumb">
+          <a routerLink="/projects" routerDirection="back">Home</a>
+          <span aria-hidden="true">›</span>
+          <a [routerLink]="projectPath()" routerDirection="back">{{ projectName() }}</a>
+          <span aria-hidden="true">›</span>
+          <span class="font-mono" aria-current="page">{{ name() }}</span>
+        </nav>
+        <ion-buttons slot="end" class="wide-only">
           @if (detail.task(); as task) {
-            <!-- A single ng-container root lets this @if project into tuiSlot="end". -->
-            <ng-container tuiSlot="end">
-              <!-- Use a menu here; bottom sheets are reserved for message surfaces. -->
-              <button
-                appGlassIconButton
-                icon="@tui.ellipsis"
-                type="button"
-                aria-label="More actions"
-                [tuiDropdown]="menu"
-                [(tuiDropdownOpen)]="menuOpen"
-              ></button>
-              <ng-template #menu>
-                <app-task-menu
-                  [task]="task"
-                  [accessUrl]="detail.proxyUrl()"
-                  [pending]="isPending(task)"
-                  (actionRequested)="onMenuAction($event)"
-                />
-              </ng-template>
-            </ng-container>
-          } @else {
-            <button
-              tuiSlot="end"
-              appGlassIconButton
-              icon="@tui.ellipsis"
-              type="button"
+            @if (task.status === 'running') {
+              <ion-button
+                class="act"
+                fill="solid"
+                target="_blank"
+                rel="noopener"
+                [href]="detail.proxyUrl()"
+              >
+                <span
+                  slot="start"
+                  class="icon-[light--arrow-up-right-from-square]"
+                  aria-hidden="true"
+                ></span>
+                Open
+              </ion-button>
+            }
+            <ion-button
+              class="act"
+              fill="solid"
+              [disabled]="actionDisabled(task)"
+              (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
+            >
+              <span
+                slot="start"
+                [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
+                aria-hidden="true"
+              ></span>
+              {{ task.status === 'running' ? 'Stop' : 'Start' }}
+            </ion-button>
+            <ion-button
+              class="act"
+              fill="solid"
+              [disabled]="actionDisabled(task)"
+              (click)="changeState('restart')"
+            >
+              <span slot="start" class="icon-[light--arrow-rotate-right]" aria-hidden="true"></span>
+              Restart
+            </ion-button>
+            <ion-button class="act" fill="solid" [routerLink]="editLink()">
+              <span slot="start" class="icon-[light--pencil]" aria-hidden="true"></span>
+              Edit
+            </ion-button>
+            <ion-button
+              class="act act--icon"
+              fill="solid"
               aria-label="More actions"
-              [disabled]="true"
-            ></button>
+              (click)="openMenu($event)"
+            >
+              <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
+            </ion-button>
           }
-        </tui-app-bar>
-      </div>
-
-      <header class="hidden md:block">
-        <app-back-link [link]="projectPath()" [label]="project()" />
-        <h1 class="detail__title mt-1.5">{{ name() }}</h1>
-        @if (detail.task()?.description; as description) {
-          <p class="detail__description">{{ description }}</p>
-        }
-      </header>
-
-      @if (detail.task(); as task) {
-        <!-- Screen readers cannot infer status from the action set. -->
-        <p class="sr-only">Status: {{ task.status }}</p>
-
-        <div class="hidden flex-wrap items-center gap-2 md:flex">
-          @if (task.status === 'running') {
-            <a
-              tuiButton
-              size="s"
-              appearance="primary"
-              rel="noopener"
-              target="_blank"
-              [href]="detail.proxyUrl()"
-            >
-              <tui-icon class="icon-sm" icon="@tui.external-link" />
-              Open task
-            </a>
-            <button
-              tuiButton
-              type="button"
-              size="s"
-              appearance="secondary"
+        </ion-buttons>
+        <ion-buttons slot="end" class="narrow-only">
+          @if (detail.task(); as task) {
+            <ion-button
               [disabled]="actionDisabled(task)"
-              (click)="changeState('stop')"
+              [attr.aria-label]="task.status === 'running' ? 'Stop task' : 'Start task'"
+              (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
             >
-              <tui-icon class="icon-sm" icon="@tui.square" />
-              Stop
-            </button>
-          } @else {
-            <button
-              tuiButton
-              type="button"
-              size="s"
-              appearance="primary"
-              [disabled]="actionDisabled(task)"
-              (click)="changeState('start')"
-            >
-              <tui-icon class="icon-sm" icon="@tui.play" />
-              Start
-            </button>
+              <span
+                slot="icon-only"
+                [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
+                aria-hidden="true"
+              ></span>
+            </ion-button>
           }
-          <button
-            tuiButton
-            type="button"
-            size="s"
-            appearance="secondary"
-            [disabled]="actionDisabled(task)"
-            (click)="changeState('restart')"
+          <ion-button
+            aria-label="More actions"
+            [disabled]="!detail.task()"
+            (click)="openMenu($event)"
           >
-            <tui-icon class="icon-sm" icon="@tui.rotate-cw" />
-            Restart
-          </button>
-          <a tuiButton size="s" appearance="secondary" [routerLink]="editLink()">
-            <tui-icon class="icon-sm" icon="@tui.pencil" />
-            Edit
-          </a>
-          <button
-            tuiButton
-            type="button"
-            size="s"
-            appearance="flat-destructive"
-            [disabled]="actionDisabled(task)"
-            (click)="deleteTask(task.name)"
-          >
-            <tui-icon class="icon-sm" icon="@tui.trash-2" />
-            Delete
-          </button>
-        </div>
+            <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+      @if (wide()) {
+        <ion-toolbar>
+          <div class="title-row">
+            <ng-container *ngTemplateOutlet="titleBlock" />
+            <ng-container *ngTemplateOutlet="sectionSwitch" />
+          </div>
+        </ion-toolbar>
+      }
+    </ion-header>
 
-        @if (detail.error()) {
-          <app-callout tone="negative" role="alert">{{ detail.error() }}</app-callout>
-        }
-        @if (task.pendingRecreate) {
-          <app-callout tone="warning" role="status">
-            <p class="m-0">
-              Changes are waiting for a container recreate. They apply on the next start or restart.
-            </p>
-            <div class="mt-2">
-              <button
-                tuiButton
-                type="button"
-                size="s"
-                appearance="secondary"
+    <ion-content
+      [fullscreen]="true"
+      [scrollEvents]="true"
+      (ionScroll)="condensed.set($event.detail.scrollTop > 48)"
+    >
+      <ion-refresher [appRefresh]="pull"><ion-refresher-content /></ion-refresher>
+
+      @if (!wide()) {
+        <div class="phone-title"><ng-container *ngTemplateOutlet="titleBlock" /></div>
+        <ion-toolbar class="phone-switch">
+          <ng-container *ngTemplateOutlet="sectionSwitch" />
+        </ion-toolbar>
+      }
+
+      <div class="mx-auto max-w-(--app-column)">
+        @if (detail.task(); as task) {
+          <!-- Screen readers cannot infer status from the action set. -->
+          <p class="sr-only">Status: {{ task.status }}</p>
+
+          @if (detail.error()) {
+            <app-callout class="m-5" tone="negative" role="alert">{{ detail.error() }}</app-callout>
+          }
+          @if (task.pendingRecreate) {
+            <app-callout class="m-5" tone="warning" role="status">
+              <p class="m-0">
+                Changes are waiting for a container recreate. They apply on the next start or
+                restart.
+              </p>
+              <ion-button
+                class="mt-2"
+                size="small"
+                fill="outline"
                 [disabled]="actionDisabled(task)"
                 (click)="changeState('restart')"
               >
                 Restart now
-              </button>
-            </div>
-          </app-callout>
+              </ion-button>
+            </app-callout>
+          }
         }
-      }
 
-      <app-glass-segmented
-        [items]="viewItems()"
-        [activeIndex]="viewIndex()"
-        (activeIndexChange)="setView($event)"
-      />
-
-      @if (detail.error() && !detail.hasLoaded()) {
-        <app-error-state
-          title="Unable to load task"
-          [message]="detail.error()!"
-          (retry)="reload()"
-        />
-      } @else {
-        <!-- Preserve console scroll/buffer and environment drafts while switching views. -->
-        <div class="detail__console" [class.hidden]="view() !== 'logs'">
-          <app-log-console
-            [entries]="logs.entries()"
-            [connected]="logs.connected()"
-            [connecting]="!detail.task() || logs.connecting()"
-            [downloading]="logs.downloading()"
-            (downloadRequested)="downloadLogs()"
+        @if (detail.error() && !detail.hasLoaded()) {
+          <app-error-state
+            class="m-5 block"
+            title="Unable to load task"
+            [message]="detail.error()!"
+            (retry)="reload()"
           />
-        </div>
-
-        @if (detail.task(); as task) {
-          <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'environment'">
-            <!-- Tabs, not a second pill: the mode switch must not read as page navigation. -->
-            <tui-tabs
-              class="env-tabs"
-              [activeItemIndex]="envModeIndex()"
-              (activeItemIndexChange)="setEnvMode($event)"
-            >
-              <button tuiTab>List</button>
-              <button tuiTab>
-                Raw
-                @if (environmentDirty()) {
-                  <span class="env-tabs__dot" aria-label="Unsaved changes"></span>
-                }
-              </button>
-            </tui-tabs>
-
-            <div [class.hidden]="envMode() !== 'list'">
-              <app-inset-group>
-                <div class="detail__pad">
-                  <app-environment-list
-                    [environment]="detail.environment()"
-                    (copyFailed)="reportValueCopyFailure()"
-                  />
-                </div>
-              </app-inset-group>
-            </div>
-
-            <div [class.hidden]="envMode() !== 'raw'">
-              <app-inset-group>
-                <div class="detail__pad">
-                  <app-environment-editor
-                    [environment]="detail.environment()"
-                    [resetKey]="environmentResetKey()"
-                    (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
-                    (errorsChange)="environmentErrors.set($event)"
-                  />
-                </div>
-
-                <div class="detail__apply row-divider relative">
-                  <button
-                    tuiButton
-                    type="button"
-                    size="m"
-                    appearance="primary"
-                    [disabled]="
-                      !environmentDirty() ||
-                      detail.savingEnvironment() ||
-                      environmentErrors().length > 0
-                    "
-                    (click)="applyEnvironment()"
-                  >
-                    @if (detail.savingEnvironment()) {
-                      <tui-loader size="s" [inheritColor]="true" />
-                    }
-                    Apply environment
-                  </button>
-                </div>
-              </app-inset-group>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'info'">
-            <app-task-overview
-              [task]="task"
-              [proxyUrl]="detail.proxyUrl()"
-              [lastDeploy]="lastDeploy()"
-              (copyFailed)="reportCopyFailure()"
-              (imageCopyFailed)="reportImageCopyFailure()"
-              (statusClicked)="changeDevStatus(task)"
-            />
-
-            <app-inset-group label="Note">
-              <a class="note-row row-divider relative" [routerLink]="noteLink()">
-                <span class="min-w-0 flex-1">
-                  @if (notePreview(); as preview) {
-                    <span class="note-row__text">{{ preview }}</span>
-                  } @else {
-                    <span class="note-row__add">Add note</span>
-                  }
-                </span>
-                <tui-icon class="note-row__chevron icon-sm" icon="@tui.chevron-right" />
-              </a>
-            </app-inset-group>
-
-            <!-- Listing grants is owner-only, so a null list self-gates the whole panel. -->
-            @if (grants.grants(); as grantList) {
-              <div>
-                <app-inset-group label="Access" [trailing]="grantSummary(grantList.length)">
-                  <app-member-list
-                    dateVerb="Granted"
-                    defaultRole="viewer"
-                    [members]="grantList"
-                    [users]="grants.users()"
-                    [busy]="grants.busy()"
-                    [roles]="grantableRoles"
-                    (addRequested)="addGrant($event)"
-                    (removeRequested)="removeGrant($event)"
-                  />
-                </app-inset-group>
-                <p class="footnote">
-                  A grant raises this task's access above the person's project role — it never
-                  lowers it — and disappears with the task.
-                </p>
-              </div>
-            }
-          </div>
         } @else {
-          <div [class.hidden]="view() === 'logs'">
-            <app-inset-group>
-              <app-skeleton-rows variant="task" label="Loading task" />
-            </app-inset-group>
+          <!-- Hidden, never destroyed: the console keeps its scroll, the editor its draft. -->
+          <div class="body">
+            <div class="main">
+              <div class="console" [class.hidden]="mainView() !== 'logs'">
+                <app-log-console
+                  [entries]="logs.entries()"
+                  [connected]="logs.connected()"
+                  [connecting]="!detail.task() || logs.connecting()"
+                  [downloading]="logs.downloading()"
+                  (downloadRequested)="downloadLogs()"
+                />
+              </div>
+
+              @if (detail.task()) {
+                <div [class.hidden]="mainView() !== 'environment'">
+                  <app-inset-group>
+                    <app-environment-editor
+                      class="tall"
+                      [footer]="true"
+                      [environment]="detail.environment()"
+                      [resetKey]="environmentResetKey()"
+                      (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
+                      (errorsChange)="environmentErrors.set($event)"
+                    />
+                  </app-inset-group>
+                  <div class="apply">
+                    <p class="apply__note">
+                      Applying replaces the whole map and recreates the container.
+                    </p>
+                    <ion-button
+                      expand="block"
+                      class="cta"
+                      [disabled]="
+                        !environmentDirty() ||
+                        detail.savingEnvironment() ||
+                        environmentErrors().length > 0
+                      "
+                      (click)="applyEnvironment()"
+                    >
+                      @if (detail.savingEnvironment()) {
+                        <ion-spinner name="lines-small" />
+                      } @else {
+                        Apply and restart
+                      }
+                    </ion-button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="aside" [class.hidden]="!desktop() && view() !== 'info'">
+              @if (detail.task(); as task) {
+                <!-- One DOM for every width: the order-* classes arrange it. -->
+                <div class="info">
+                  <div class="info__col">
+                    <app-task-overview
+                      class="order-1"
+                      [task]="task"
+                      [proxyUrl]="detail.proxyUrl()"
+                      [lastDeploy]="lastDeploy()"
+                      [usage]="usage.points().at(-1) ?? null"
+                      (copyFailed)="
+                        notify('The proxy URL could not be copied to the clipboard.', false)
+                      "
+                      (imageCopyFailed)="
+                        notify('The image reference could not be copied to the clipboard.', false)
+                      "
+                      (statusChange)="changeDevStatus(task, $event)"
+                    />
+
+                    <!-- Listing grants is owner-only: a null list self-gates the panel. -->
+                    @if (grants.grants(); as grantList) {
+                      <app-inset-group
+                        class="order-4"
+                        label="Access"
+                        [trailing]="grantSummary(grantList.length)"
+                      >
+                        <app-member-list
+                          dateVerb="Granted"
+                          [members]="grantList"
+                          [busy]="grants.busy()"
+                          (removeRequested)="removeGrant($event)"
+                          (roleChange)="changeGrantRole($event)"
+                        />
+                        <ion-item>
+                          <button
+                            type="button"
+                            class="disclose"
+                            [attr.aria-expanded]="granting()"
+                            (click)="granting.update((open) => !open)"
+                          >
+                            Grant access…
+                          </button>
+                        </ion-item>
+                        @if (granting()) {
+                          <app-member-form
+                            addLabel="Grant access"
+                            defaultRole="viewer"
+                            [members]="grantList"
+                            [users]="grants.users()"
+                            [busy]="grants.busy()"
+                            [roles]="grantableRoles"
+                            (addRequested)="addGrant($event)"
+                          />
+                        }
+                        <ion-note>
+                          A grant raises one person above their project role for this task only.
+                        </ion-note>
+                      </app-inset-group>
+                    }
+                  </div>
+
+                  <div class="info__col">
+                    <!-- Stopped tasks are absent from the stream; desktop has a Usage row. -->
+                    @if (task.status === 'running') {
+                      <app-inset-group
+                        class="desk-hide order-2"
+                        label="Live usage"
+                        trailing="last 60 s"
+                      >
+                        <app-task-usage [points]="usage.points()" />
+                      </app-inset-group>
+                    }
+                    <app-inset-group class="order-3" label="Note">
+                      <app-task-note-card
+                        [note]="task.note ?? ''"
+                        [updatedAt]="task.updatedAt"
+                        [editLink]="noteLink()"
+                      />
+                    </app-inset-group>
+                  </div>
+                </div>
+              } @else {
+                <app-inset-group>
+                  <app-skeleton-rows variant="task" label="Loading task" />
+                </app-inset-group>
+              }
+            </div>
           </div>
         }
-      }
-    </div>
+      </div>
+    </ion-content>
+
+    <!-- One menu for both triggers, so it anchors with [event], not a trigger id. -->
+    @if (detail.task(); as task) {
+      <ion-popover
+        side="bottom"
+        alignment="end"
+        style="--width: 15.625rem"
+        [attr.aria-label]="'Actions for ' + task.name"
+        [isOpen]="menuOpen()"
+        [event]="menuEvent()"
+        [dismissOnSelect]="true"
+        (didDismiss)="menuOpen.set(false)"
+      >
+        <ng-template>
+          <app-task-menu
+            [task]="task"
+            [accessUrl]="detail.proxyUrl()"
+            [pending]="isPending(task)"
+            (actionRequested)="onMenuAction($event)"
+          />
+        </ng-template>
+      </ion-popover>
+    }
+
+    <ng-template #titleBlock>
+      <div>
+        <h1 class="task-h1">{{ name() }}</h1>
+        @if (detail.task(); as task) {
+          <p>
+            <i
+              class="size-2 flex-none rounded-full"
+              [class]="devDot[task.devStatus]"
+              aria-hidden="true"
+            ></i>
+            <span class="truncate">
+              {{ devLabel[task.devStatus] }}
+              @if (task.description) {
+                · {{ task.description }}
+              }
+            </span>
+          </p>
+        }
+      </div>
+    </ng-template>
+
+    <ng-template #sectionSwitch>
+      <ion-segment [value]="mainView()" (ionChange)="view.set($any($event.detail.value))">
+        <ion-segment-button value="info" class="desk-hide">
+          <ion-label>Overview</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="environment">
+          <ion-label>
+            Environment
+            @if (environmentDirty()) {
+              <span class="unsaved" aria-hidden="true"></span
+              ><span class="sr-only">, unsaved changes</span>
+            }
+          </ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="logs"><ion-label>Logs</ion-label></ion-segment-button>
+      </ion-segment>
+    </ng-template>
   `,
   styles: `
-    .detail__bar-title {
-      min-inline-size: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .detail__title {
-      margin: 0;
+    /* The emulated attribute outweighs the global .title-row h1 the other pushed pages use. */
+    .task-h1 {
       font-family: var(--app-font-mono);
-      font-size: clamp(1.375rem, 4vw, 1.75rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--tui-text-primary);
-      overflow-wrap: anywhere;
-    }
-
-    .detail__description {
-      margin: 0.375rem 0 0;
-      font-size: 0.9375rem;
-      color: var(--tui-text-secondary);
-      overflow-wrap: anywhere;
-    }
-
-    /* Fixed console bounds prevent streaming lines from shifting page layout. */
-    .detail__console {
-      --console-min: clamp(16rem, calc(100dvh - 22.5rem), 48rem);
-      --console-max: clamp(16rem, calc(100dvh - 22.5rem), 48rem);
-    }
-
-    /* Taiga sizes tabs for a desktop toolbar; iOS wants the app's own text size and a rounded rail. */
-    .env-tabs {
-      font-size: 0.9375rem;
-    }
-
-    /* Halves, so the underline reads as a rail rather than a mostly empty hairline. */
-    .env-tabs [tuiTab] {
-      flex: 1;
-      justify-content: center;
-      gap: 0.375rem;
-      margin-inline-start: 0;
-    }
-
-    .env-tabs [tuiTab]._active {
+      font-size: 1.75rem;
+      line-height: 2.125rem;
       font-weight: 600;
+      letter-spacing: 0;
     }
 
-    .env-tabs::before {
-      block-size: 0.1875rem;
-      border-radius: 999px;
+    .title-row > div {
+      min-inline-size: 0;
     }
 
-    .env-tabs__dot {
+    ion-button.act--icon {
+      --padding-start: 0;
+      --padding-end: 0;
+      inline-size: 2.5rem;
+    }
+
+    .apply {
+      display: flex;
+      flex-direction: column-reverse;
+      margin: 0.875rem 1.25rem 0;
+    }
+
+    .apply__note {
+      margin: 0.5rem 1rem 0;
+      font-size: 0.8125rem;
+      line-height: 1.125rem;
+      color: var(--app-text-tertiary);
+    }
+
+    .unsaved {
+      display: inline-block;
       inline-size: 0.375rem;
       block-size: 0.375rem;
+      margin-inline-start: 0.25rem;
+      vertical-align: middle;
       border-radius: 999px;
-      background: var(--tui-background-accent-1);
+      background: var(--ion-color-primary);
     }
 
-    @media (min-width: 48rem) {
-      .detail__console {
-        --console-min: clamp(18rem, calc(100dvh - 26.5rem), 48rem);
-        --console-max: clamp(18rem, calc(100dvh - 26.5rem), 48rem);
+    .info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info__col {
+      display: contents;
+    }
+
+    /* Fixed console bounds keep streaming lines from shifting the page. */
+    .console {
+      --console-max: clamp(16rem, calc(100dvh - 22rem), 48rem);
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      .task-h1 {
+        font-size: 1.875rem;
+        line-height: 2.375rem;
+      }
+
+      .apply {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .apply__note {
+        margin: 0 1rem;
+      }
+
+      .apply ion-button {
+        flex: none;
+        inline-size: auto;
+        min-block-size: 3rem;
+        --padding-start: 1.5rem;
+        --padding-end: 1.5rem;
+        --button-font-size: 1rem;
       }
     }
 
-    .note-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      text-decoration: none;
+    @media (min-width: 64rem) and (min-height: 31.25rem) and (max-width: 79.99rem) {
+      .info {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+      }
+
+      .info__col {
+        display: flex;
+        flex-direction: column;
+      }
     }
 
-    /* Two lines of plain text: no markdown is ever rendered outside the editor. */
-    .note-row__text {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      overflow: hidden;
-      font-size: 0.9375rem;
-      line-height: 1.45;
-      color: var(--tui-text-primary);
-    }
+    @media (min-width: 80rem) {
+      .task-h1 {
+        font-size: 1.75rem;
+        line-height: 2.25rem;
+      }
 
-    .note-row__add {
-      font-size: 0.9375rem;
-      color: var(--tui-text-action);
-    }
+      .body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 23.125rem;
+        align-items: start;
+      }
 
-    .note-row__chevron {
-      flex: none;
-      color: var(--tui-text-tertiary);
-    }
+      .main {
+        grid-area: 1 / 1;
+      }
 
-    .detail__pad {
-      padding: 0.875rem 1rem;
-    }
+      .aside {
+        grid-area: 1 / 2;
+      }
 
-    .detail__apply {
-      display: flex;
-      justify-content: flex-end;
-      padding: 0.75rem 1rem;
+      :host ::ng-deep .main app-inset-group .list-ios.list-inset {
+        margin-inline-end: 0.625rem;
+      }
+
+      :host ::ng-deep .aside app-inset-group .list-ios.list-inset {
+        margin-inline-start: 0.625rem;
+      }
+
+      .console {
+        --console-max: calc(100dvh - var(--offset-top, 0px) - 8rem);
+      }
     }
   `,
 })
@@ -471,19 +603,26 @@ export class TaskDetailPage {
   protected readonly grants = inject(ManageGrantsStore);
   protected readonly grantableRoles = GRANTABLE_ROLES;
   protected readonly detail = inject(ViewTaskStore);
+  protected readonly usage = inject(TaskUsageStore);
   private readonly commands = inject(ControlTaskStore);
   private readonly confirmations = inject(ConfirmActionService);
-  private readonly dialogs = inject(TuiResponsiveDialogService);
   private readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
+  private readonly navCtrl = inject(NavController);
   private readonly fleet = inject(ListProjectsStore);
   private readonly deploys = inject(ListAlertsStore);
   protected readonly logs = inject(LogStreamStore);
+  protected readonly desktop = desktopScreen();
+  protected readonly wide = wideScreen();
 
   readonly slug = input('');
   readonly name = input('');
+  /** The `?section=` deep link. */
+  readonly section = input<string>();
 
-  protected readonly project = computed(() => this.slug());
+  protected readonly devLabel = DEV_STATUS_LABEL;
+  protected readonly devDot = DEV_STATUS_DOT;
+
   protected readonly editLink = computed(() => [
     '/projects',
     this.slug(),
@@ -491,7 +630,6 @@ export class TaskDetailPage {
     this.name(),
     'edit',
   ]);
-  protected readonly projectLink = computed(() => ['/projects', this.slug()]);
   protected readonly noteLink = computed(() => [
     '/projects',
     this.slug(),
@@ -499,43 +637,55 @@ export class TaskDetailPage {
     this.name(),
     'note',
   ]);
-
-  protected readonly notePreview = computed(() => noteToPlainText(this.detail.task()?.note ?? ''));
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
-  /* Alerts arrive newest-first, so find() is the latest deploy of this task. */
-  protected readonly lastDeploy = computed(() => {
-    const alert = this.deploys
-      .alerts()
-      .find((entry) => entry.project === this.slug() && entry.taskName === this.name());
-    return alert ? { at: alert.createdAt, failed: alert.status === 'failure' } : null;
+  protected readonly lastDeploy = computed(
+    () => this.deploys.latestDeploys().get(taskKey(this.slug(), this.name())) ?? null,
+  );
+
+  /* Untracked: a resize must never reset the section someone picked. */
+  protected readonly view = linkedSignal<View>(() => {
+    const section = this.section();
+    if (section && VIEWS.includes(section)) return section as View;
+    return untracked(this.desktop) ? 'logs' : 'info';
   });
+  /* Desktop has no Overview tab: the aside always shows it. */
+  protected readonly mainView = computed(() =>
+    this.desktop() && this.view() === 'info' ? 'logs' : this.view(),
+  );
 
-  protected readonly view = signal<View>('info');
-  protected readonly viewIndex = computed(() => VIEWS.indexOf(this.view()));
+  protected readonly projectName = computed(
+    () =>
+      this.fleet.summaries().find(({ project }) => project.slug === this.slug())?.project.name ??
+      this.slug(),
+  );
+
   protected readonly menuOpen = signal(false);
-
-  protected readonly envMode = signal<'raw' | 'list'>('list');
-  protected readonly envModeIndex = computed(() => (this.envMode() === 'raw' ? 1 : 0));
-
-  protected readonly viewItems = computed<readonly GlassSegmentedItem[]>(() => [
-    { label: 'Info' },
-    { label: 'Environment', dot: this.environmentDirty() },
-    { label: 'Logs' },
-  ]);
+  protected readonly condensed = signal(false);
+  protected readonly menuEvent = signal<Event | null>(null);
+  protected readonly granting = signal(false);
 
   protected readonly draftEnvironment = signal<Record<string, string>>({});
   protected readonly environmentDirty = signal(false);
   protected readonly environmentErrors = signal<readonly string[]>([]);
   protected readonly environmentResetKey = signal(0);
 
-  constructor() {
-    registerPullRefresh({
-      busy: this.detail.loading,
-      trigger: () => this.reload(),
-    });
+  protected readonly pull: PullRefreshSource = {
+    busy: this.detail.loading,
+    trigger: () => this.reload(),
+  };
 
+  constructor() {
     this.detail.track(this.slug, this.name);
+    /* Edit and note screens change this task underneath the cached page. */
+    onReturn(() => this.reload());
+
+    this.usage.watch(
+      computed(() => {
+        const task = this.detail.task();
+        return task?.status === 'running' ? { slug: this.slug(), task: task.name } : undefined;
+      }),
+    );
 
     effect(() => {
       const slug = this.slug();
@@ -543,7 +693,7 @@ export class TaskDetailPage {
       if (slug && name) this.grants.load(slug, name);
     });
 
-    // Wait for a loaded task so an unknown route name does not reconnect forever.
+    // A loaded task first, or an unknown route name would reconnect forever.
     effect(() => {
       const task = this.detail.task();
       if (task) this.logs.connect(this.slug(), task.name);
@@ -557,15 +707,20 @@ export class TaskDetailPage {
     });
   }
 
-  protected setView(index: number): void {
-    const view = VIEWS[index];
-    if (view) this.view.set(view);
+  /* A covered page keeps its stream otherwise; the reload on return reconnects it. */
+  ionViewDidLeave(): void {
+    this.logs.disconnect();
   }
 
   protected reload(): void {
     const slug = this.slug();
     const name = this.name();
     if (slug && name) this.detail.refresh(slug, name);
+  }
+
+  protected openMenu(event: Event): void {
+    this.menuEvent.set(event);
+    this.menuOpen.set(true);
   }
 
   protected downloadLogs(): void {
@@ -583,9 +738,6 @@ export class TaskDetailPage {
   }
 
   protected onMenuAction({ action, task }: TaskActionRequest): void {
-    // Taiga auto-dismisses context dropdowns only, so explicitly close this menu.
-    this.menuOpen.set(false);
-
     if (action === 'delete') {
       this.deleteTask(task.name);
       return;
@@ -599,28 +751,25 @@ export class TaskDetailPage {
     this.changeState(action);
   }
 
-  protected changeDevStatus(task: Task): void {
-    this.dialogs
-      .open<DevStatus>(new PolymorpheusComponent(DevStatusSheet), {
-        label: 'Dev status',
-        data: task.devStatus,
-      })
-      .pipe(
-        filter((status) => status !== task.devStatus),
-        switchMap((status) => this.commands.setDevStatus(this.slug(), task, status)),
-      )
-      .subscribe((result) => {
-        this.notify(result.message, result.success);
+  protected changeDevStatus(task: Task, event: SelectCustomEvent<DevStatus>): void {
+    const status = event.detail.value;
+    if (status === task.devStatus) return;
 
-        if (result.success) {
-          /* Home and the project list read this as dot colors. */
-          this.fleet.invalidate();
-          this.reload();
-        }
-      });
+    this.commands.setDevStatus(this.slug(), task, status).subscribe((result) => {
+      this.notify(result.message, result.success);
+
+      if (result.success) {
+        /* Home and the project list draw this as dot colours. */
+        this.fleet.invalidate();
+        this.reload();
+      } else {
+        /* The select flipped itself on pick; a refused change has to flip it back. */
+        event.target.value = task.devStatus;
+      }
+    });
   }
 
-  /* Reversible lifecycle actions do not require confirmation. */
+  /* No confirm: lifecycle actions are reversible. */
   protected changeState(action: TaskStateAction): void {
     const task = this.detail.task();
     if (!task) return;
@@ -628,7 +777,7 @@ export class TaskDetailPage {
       this.notify(result.message, result.success);
 
       if (result.success) {
-        /* Home reads task status as dots, so its cached fleet is now out of date. */
+        /* Home's cached fleet draws task status. */
         this.fleet.invalidate();
         this.reload();
       }
@@ -640,7 +789,7 @@ export class TaskDetailPage {
       .confirm({
         title: `Delete ${name}?`,
         message:
-          'The container, environment metadata and proxy route will be deleted. This action cannot be undone.',
+          'The container, its variables and its proxy route are removed. This can’t be undone.',
         confirmLabel: 'Delete task',
         destructive: true,
       })
@@ -655,39 +804,21 @@ export class TaskDetailPage {
 
         if (result.success) {
           this.fleet.invalidate();
-          void this.router.navigate(['/projects', this.slug()]);
+          void this.navCtrl.navigateBack(this.projectPath());
         }
       });
   }
 
+  /* Only a success drops the draft: a refusal must never cost the unapplied edits. */
   protected applyEnvironment(): void {
-    this.detail.updateEnvironment(this.draftEnvironment()).subscribe((message) => {
-      this.environmentDirty.set(false);
-      this.notify(
-        message,
-        !message.toLowerCase().includes('failed') && !message.toLowerCase().includes('invalid'),
-      );
+    this.detail.updateEnvironment(this.draftEnvironment()).subscribe((result) => {
+      this.notify(result.message, result.success);
+      if (result.success) this.environmentDirty.set(false);
     });
   }
 
-  protected setEnvMode(index: number): void {
-    this.envMode.set(index === 1 ? 'raw' : 'list');
-  }
-
-  protected reportValueCopyFailure(): void {
-    this.notify('The value could not be copied to the clipboard.', false);
-  }
-
-  protected reportCopyFailure(): void {
-    this.notify('The proxy URL could not be copied to the clipboard.', false);
-  }
-
-  protected reportImageCopyFailure(): void {
-    this.notify('The image reference could not be copied to the clipboard.', false);
-  }
-
   protected grantSummary(count: number): string {
-    return `${count} ${count === 1 ? 'person' : 'people'}`;
+    return `${count} ${count === 1 ? 'grant' : 'grants'}`;
   }
 
   protected addGrant(input: AddMemberInput): void {
@@ -695,6 +826,16 @@ export class TaskDetailPage {
       this.notify(result.message, result.success);
       if (result.success) this.grants.reload();
     });
+  }
+
+  protected changeGrantRole({ member, event }: MemberRoleChange): void {
+    this.grants
+      .add({ userId: member.userId, role: event.detail.value }, 'Role updated.')
+      .subscribe((result) => {
+        this.notify(result.message, result.success);
+        if (result.success) this.grants.reload();
+        else event.target.value = member.role;
+      });
   }
 
   protected removeGrant(grant: Member): void {
@@ -715,7 +856,7 @@ export class TaskDetailPage {
       });
   }
 
-  private notify(message: string, success: boolean): void {
+  protected notify(message: string, success: boolean): void {
     this.notifications.result({ message, success });
   }
 }

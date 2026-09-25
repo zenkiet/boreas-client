@@ -23,7 +23,6 @@ export class LogStreamStore {
   private readonly destroyRef = inject(DestroyRef);
   private readonly entriesState = signal<readonly LogEntry[]>([]);
   private readonly connectedState = signal(false);
-  /* True only until the first byte or first failure; drives the console's spinner. */
   private readonly connectingState = signal(false);
   private readonly downloadingState = signal(false);
   private target?: StreamTarget;
@@ -60,7 +59,7 @@ export class LogStreamStore {
     this.reconnectTimer = undefined;
   }
 
-  /** Saves the tail through the authenticated API; a plain href cannot carry the token. */
+  /** Through the API: a plain href cannot carry the token. */
   download(): Observable<boolean> {
     const target = this.target;
 
@@ -121,7 +120,7 @@ export class LogStreamStore {
     }, delay);
   }
 
-  /* Parse only the newly arrived complete frames of the cumulative SSE body. */
+  /* Each emission is the whole body so far; parse only its new complete frames. */
   private consume(text: string): void {
     const end = text.lastIndexOf('\n\n');
     if (end < this.consumed) return;
@@ -138,7 +137,7 @@ export class LogStreamStore {
     }
   }
 
-  /* Reconnects replay the tail; message comparison preserves distinct lines sharing a timestamp. */
+  /* Reconnects replay the tail; lines sharing a timestamp are told apart by message. */
   private receive(data: string): void {
     const entry = toLogEntry(data);
     if (!entry) return;

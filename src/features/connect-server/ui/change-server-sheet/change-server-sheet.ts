@@ -1,96 +1,109 @@
 import { Component, inject, signal } from '@angular/core';
-import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core';
-import { injectContext } from '@taiga-ui/polymorpheus';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonContent } from '@ionic/angular/ion-content';
+import { IonHeader } from '@ionic/angular/ion-header';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { IonTitle } from '@ionic/angular/ion-title';
+import { IonToolbar } from '@ionic/angular/ion-toolbar';
+import { ModalController } from '@ionic/angular/modal-controller';
 
 import { Callout } from '@shared/ui/callout/callout';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
 import { ConnectServerStore } from '../../model/connect-server.store';
 
-/** Opened through TuiResponsiveDialogService: a sheet on mobile, a dialog on desktop. */
 @Component({
   selector: 'app-change-server-sheet',
-  imports: [Callout, TuiButton, TuiLoader],
+  imports: [
+    Callout,
+    InsetGroup,
+    IonButton,
+    IonButtons,
+    IonContent,
+    IonHeader,
+    IonInput,
+    IonItem,
+    IonNote,
+    IonSpinner,
+    IonTitle,
+    IonToolbar,
+  ],
   providers: [ConnectServerStore],
   template: `
-    <form class="grid grid-cols-1 gap-3" (submit)="connect($event)">
-      @if (failed()) {
-        <app-callout tone="negative" size="s" role="alert">
-          No Boreas API answered at this address. Check it and try again.
-        </app-callout>
-      }
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="cancel()">Cancel</ion-button>
+        </ion-buttons>
+        <ion-title>Change server</ion-title>
+        <ion-buttons slot="end">
+          <ion-button
+            type="submit"
+            form="change-server-form"
+            fill="solid"
+            color="primary"
+            [disabled]="connection.checking() || !url().trim()"
+          >
+            @if (connection.checking()) {
+              <ion-spinner name="lines-small" aria-label="Checking" />
+            } @else {
+              Connect
+            }
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
 
-      <div class="box">
-        <div class="frow row-divider relative">
-          <label class="frow__label" for="change-server-url">Server address</label>
-          <input
-            id="change-server-url"
-            class="url-field font-mono"
-            type="url"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            placeholder="https://boreas.example.com"
-            [value]="url()"
-            (input)="typeUrl($event)"
-          />
-        </div>
-      </div>
-      <button
-        tuiButton
-        type="submit"
-        size="m"
-        appearance="primary"
-        [disabled]="connection.checking() || !url().trim()"
-      >
-        @if (connection.checking()) {
-          <tui-loader size="s" [inheritColor]="true" />
-          Checking
-        } @else {
-          Check and switch
+    <ion-content>
+      <form id="change-server-form" (submit)="connect($event)">
+        @if (failed()) {
+          <app-callout class="m-5" tone="negative" role="alert">
+            No Boreas API answered at this address. Check it and try again.
+          </app-callout>
         }
-      </button>
-    </form>
-  `,
-  styles: `
-    :host {
-      display: block;
-    }
 
-    .box {
-      overflow: hidden;
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-neutral-1);
-    }
-
-    .url-field {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      padding: 0;
-      background: none;
-      font-size: 1rem;
-      color: var(--tui-text-primary);
-    }
-
-    .url-field:focus {
-      outline: none;
-    }
-
-    .url-field::placeholder {
-      color: var(--tui-text-tertiary);
-      opacity: 0.6;
-    }
+        <app-inset-group>
+          <ion-item>
+            <ion-input
+              label="Server address"
+              labelPlacement="stacked"
+              class="font-mono"
+              type="url"
+              autocomplete="off"
+              autocapitalize="off"
+              placeholder="https://boreas.example.com"
+              [spellcheck]="false"
+              [value]="url()"
+              (ionInput)="typeUrl($event.detail.value)"
+            />
+          </ion-item>
+          <ion-note>
+            Boreas checks the address answers as a Boreas API before switching. A different server
+            signs you out.
+          </ion-note>
+        </app-inset-group>
+      </form>
+    </ion-content>
   `,
 })
 export class ChangeServerSheet {
+  private readonly modals = inject(ModalController);
   protected readonly connection = inject(ConnectServerStore);
-  protected readonly context = injectContext<TuiDialogContext<string>>();
 
   protected readonly url = signal(this.connection.suggestedUrl());
   protected readonly failed = signal(false);
 
-  protected typeUrl(event: Event): void {
-    this.url.set((event.target as HTMLInputElement).value);
+  protected typeUrl(value: string | null | undefined): void {
+    this.url.set(value ?? '');
     this.failed.set(false);
+  }
+
+  protected cancel(): void {
+    void this.modals.dismiss();
   }
 
   protected connect(event: Event): void {
@@ -101,7 +114,7 @@ export class ChangeServerSheet {
     /* connect() persists the address itself once the health check passes. */
     this.connection.connect(url).subscribe((healthy) => {
       if (healthy) {
-        this.context.completeWith(url);
+        void this.modals.dismiss(url, SHEET_DONE);
       } else {
         this.failed.set(true);
       }

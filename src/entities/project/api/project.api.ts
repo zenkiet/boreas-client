@@ -82,7 +82,7 @@ export class ProjectApi {
       .pipe(map(() => undefined));
   }
 
-  /** Owner-only; a grant rides the member shape and raises one task's access, never lowers it. */
+  /** Owner-only; a grant raises one task's access, never lowers it. */
   grants(slug: string, task: string): Observable<readonly Member[]> {
     return this.http
       .get<GrantsResponseDto>(`${this.grantsUrl(slug, task)}`)

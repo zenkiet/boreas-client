@@ -1,32 +1,22 @@
 import { Service, inject } from '@angular/core';
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { Observable, defaultIfEmpty, filter, map } from 'rxjs';
+import { Observable, defaultIfEmpty, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
+import { SheetService } from '@shared/ui/sheet/sheet.service';
 import { ChangeServerSheet } from '../ui/change-server-sheet/change-server-sheet';
 
 @Service()
 export class ChangeServerService {
-  private readonly dialogs = inject(TuiResponsiveDialogService);
+  private readonly sheets = inject(SheetService);
   private readonly config = inject(ServerConfigStore);
 
-  /**
-   * Opens the address sheet (dialog on desktop) and emits once, true only when the
-   * address actually changed.
-   *
-   * A different server is a different session, so a true here obliges the caller to
-   * clear the token. A dismissal completes without emitting, hence the `false` default.
-   */
+  /** Emits true only when the address changed, which obliges the caller to clear the token. */
   open(): Observable<boolean> {
     const before = this.config.baseUrl();
 
-    return this.dialogs
-      .open<string>(new PolymorpheusComponent(ChangeServerSheet), { label: 'Change server' })
-      .pipe(
-        filter((url): url is string => typeof url === 'string'),
-        map((url) => url !== before),
-        defaultIfEmpty(false),
-      );
+    return this.sheets.open<string>(ChangeServerSheet, 'Change server', {}, 300).pipe(
+      map((url) => url !== before),
+      defaultIfEmpty(false),
+    );
   }
 }

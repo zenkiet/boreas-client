@@ -1,71 +1,99 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { TuiAppBar } from '@taiga-ui/layout';
+import { Component, inject, input } from '@angular/core';
+import { Router } from '@angular/router';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { ModalController } from '@ionic/angular/modal-controller';
+import { NavController } from '@ionic/angular/nav-controller';
 
 import { CreateProjectInput } from '@entities/project';
 import { ListProjectsStore } from '@features/list-projects';
 import { ManageProjectStore, ProjectForm } from '@features/manage-project';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { BackLink } from '@shared/ui/back-link/back-link';
-import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
-import { PageHeader } from '@shared/ui/page-header/page-header';
+import { ServerConfigStore } from '@shared/config/server-config.store';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
+import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
 
 @Component({
   selector: 'app-project-create-page',
-  imports: [BackLink, GlassIconButton, PageHeader, ProjectForm, Reveal, RouterLink, TuiAppBar],
+  imports: [IonButton, IonButtons, IonSpinner, PAGE_CHROME, ProjectForm],
   providers: [ManageProjectStore],
   template: `
-    <div appReveal class="mx-auto grid max-w-160 grid-cols-1 gap-3.5 md:gap-4">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack routerLink="/projects" aria-label="Back to projects"></a>
-          New project
-          <!-- Keep validation-enabled: submitting empty fields must reveal their errors. -->
-          <button
-            tuiSlot="end"
-            appGlassIconButton
-            icon="@tui.check"
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button aria-label="Cancel" (click)="cancel()">
+            <span slot="icon-only" class="icon-[regular--xmark]" aria-hidden="true"></span>
+          </ion-button>
+        </ion-buttons>
+        <ion-title>New project</ion-title>
+        <!-- Never validity-disabled: submitting empty fields must reveal their errors. -->
+        <ion-buttons slot="end">
+          <ion-button
             type="submit"
             form="create-project-form"
+            fill="solid"
+            color="primary"
             aria-label="Create project"
             [disabled]="manage.busy()"
-          ></button>
-        </tui-app-bar>
-      </div>
+          >
+            <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
 
-      <div class="hidden md:block">
-        <app-back-link link="/projects" label="Projects" />
-        <div class="mt-1.5">
-          <app-page-header
-            title="New project"
-            description="Tasks live inside projects and are served at /project/task/."
-          />
+    <ion-content [fullscreen]="true">
+      <div class="mx-auto max-w-(--app-column)">
+        <app-project-form
+          formId="create-project-form"
+          [creating]="manage.busy()"
+          [error]="manage.createError()"
+          [credentials]="manage.credentials()"
+          [proxyHost]="config.host()"
+          (submitted)="createProject($event)"
+        />
+        <div class="mx-5 mt-6 mb-10">
+          <ion-button
+            type="submit"
+            form="create-project-form"
+            expand="block"
+            class="cta"
+            [disabled]="manage.busy()"
+          >
+            @if (manage.busy()) {
+              <ion-spinner name="lines-small" />
+              Creating
+            } @else {
+              Create project
+            }
+          </ion-button>
         </div>
       </div>
-
-      <app-project-form
-        formId="create-project-form"
-        [creating]="manage.busy()"
-        [error]="manage.createError()"
-        [credentials]="manage.credentials()"
-        (submitted)="createProject($event)"
-      />
-    </div>
+    </ion-content>
   `,
 })
 export class ProjectCreatePage {
+  /** Set when iPad presents this page as a dialog over Home instead of pushing it. */
+  readonly dialog = input(false);
+
   protected readonly manage = inject(ManageProjectStore);
+  protected readonly modals = inject(ModalController);
+  protected readonly config = inject(ServerConfigStore);
   private readonly fleet = inject(ListProjectsStore);
   private readonly router = inject(Router);
+  private readonly navCtrl = inject(NavController);
+
+  protected cancel(): void {
+    if (this.dialog()) void this.modals.dismiss();
+    else void this.navCtrl.navigateBack('/projects');
+  }
 
   protected createProject(input: CreateProjectInput): void {
     this.manage.create(input).subscribe((project) => {
       if (!project) return;
 
       this.fleet.invalidate();
+      if (this.dialog()) void this.modals.dismiss(project, SHEET_DONE);
       void this.router.navigate(['/projects', project.slug], {
         state: { projectName: project.name },
       });

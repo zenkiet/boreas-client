@@ -12,6 +12,7 @@ export class ServerConfigStore {
   private readonly baseUrlState = signal(this.read());
 
   readonly baseUrl = this.baseUrlState.asReadonly();
+  readonly host = computed(() => this.baseUrlState().replace(/^https?:\/\//, ''));
   readonly configured = computed(() => this.baseUrlState() !== '');
 
   suggestedUrl(): string {

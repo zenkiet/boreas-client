@@ -10,130 +10,138 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonContent } from '@ionic/angular/ion-content';
+import { NavController } from '@ionic/angular/nav-controller';
 import { gsap } from 'gsap';
-
-import { motionFlag } from '@shared/ui/motion/motion-flag';
 
 import { ChangeServerService } from '@features/connect-server';
 import { OnboardingHero } from '@features/onboarding';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { WelcomeSeenStore } from '@shared/api/welcome-seen.store';
-import { ServerConfigStore } from '@shared/config/server-config.store';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
+import { motionFlag } from '@shared/ui/motion/motion-flag';
 
 const STEPS = [0, 1, 2] as const;
 const LAST = STEPS.length - 1;
-const HERO_SCALE = 0.6;
-// A fast flick advances before the distance threshold is reached, measured in px/ms.
+const HERO_SCALE = 0.5;
+const HERO_DROP = 48;
+const HERO_INSET = 52;
+// px/ms: a flick this fast advances before the distance threshold.
 const FLICK = 0.5;
 
 @Component({
   selector: 'app-welcome-page',
-  imports: [OnboardingHero, Reveal],
+  imports: [IonButton, IonContent, OnboardingHero],
   template: `
-    <div class="flow">
-      <div #hero class="flow__hero">
-        <div appReveal class="flow__hero-content">
-          <app-onboarding-hero />
-        </div>
-        <div
-          #tagline
-          class="flow__tagline"
-          [class.flow__tagline--hidden]="step() !== 0"
-          [attr.aria-hidden]="step() === 0 ? null : true"
-        >
-          <h1 class="flow__title flow__title--hero">Every branch,<br />its own URL.</h1>
-          <p class="flow__sub">
-            Boreas runs each task in an isolated container and serves it at /project/task/ — ready
-            before the coffee is.
-          </p>
-        </div>
-      </div>
-
-      <div
-        #viewport
-        class="flow__viewport"
-        (pointerdown)="onDown($event)"
-        (pointerup)="onUp($event)"
-        (pointercancel)="onUp($event)"
-      >
-        <div #track class="flow__track">
-          <section class="flow__step" [inert]="step() !== 0"></section>
-
-          <section class="flow__step" [inert]="step() !== 1">
-            <h2 class="flow__title">Deploy from CI,<br />not from a laptop</h2>
-            <p class="flow__sub flow__sub--start">
-              One API token, one call. The exact image your pipeline built is the one that runs.
+    <ion-content [scrollY]="false">
+      <div class="flow">
+        <div #hero class="flow__hero">
+          <div class="flow__hero-content">
+            <app-onboarding-hero />
+          </div>
+          <div
+            #tagline
+            class="flow__tagline"
+            [class.flow__tagline--hidden]="step() !== 0"
+            [attr.aria-hidden]="step() === 0 ? null : true"
+          >
+            <h1 class="flow__title flow__title--hero">Every branch, its own URL.</h1>
+            <p class="flow__sub">
+              Boreas runs each task in an isolated container and serves it at /project/task/ — ready
+              before the coffee is.
             </p>
-            <div class="mini">
-              <pre class="mini__code" aria-hidden="true">
+          </div>
+        </div>
+
+        <div
+          #viewport
+          class="flow__viewport"
+          (pointerdown)="onDown($event)"
+          (pointerup)="onUp($event)"
+          (pointercancel)="onUp($event)"
+        >
+          <div #track class="flow__track">
+            <section class="flow__step" [inert]="step() !== 0"></section>
+
+            <section class="flow__step" [inert]="step() !== 1">
+              <h2 class="flow__title">Deploy from CI, not from a laptop</h2>
+              <p class="flow__sub flow__sub--start">
+                One API token, one call. The exact image your pipeline built is the one that runs.
+              </p>
+              <div class="mini">
+                <!-- Keep the backslash doubled: a lone one would eat the newline. -->
+                <pre class="mini__code" aria-hidden="true">
 curl -X POST …/tasks/web/deploy \\
   -d '&#123;"image":"ghcr.io/acme/web@sha256:…"&#125;'</pre>
-              <div class="mini__row" aria-hidden="true">
-                <span class="mini__dot"></span>
-                <span class="font-mono mini__deployed">Deployed: acme/web</span>
-                <span class="mini__when">now</span>
+                <div class="mini__row" aria-hidden="true">
+                  <span class="mini__dot"></span>
+                  <span class="font-mono mini__deployed">Deployed: acme/web</span>
+                  <span class="mini__when">now</span>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section class="flow__step" [inert]="step() !== 2">
-            <h2 class="flow__title">Logs, alerts,<br />and glass</h2>
-            <p class="flow__sub flow__sub--start">
-              Live logs stream in, deploys land in Alerts, and the whole thing wears Liquid Glass.
-            </p>
-            <div class="mini mini--lit" aria-hidden="true">
-              <div class="mini__row font-mono">
-                <span class="mini__time">16:12:44</span>
-                <span>GET / 200</span>
+            <section class="flow__step" [inert]="step() !== 2">
+              <h2 class="flow__title">Logs, alerts, and glass</h2>
+              <p class="flow__sub flow__sub--start">
+                Live logs stream in, deploys land in Activity, and the whole thing wears Liquid
+                Glass.
+              </p>
+              <div class="mini mini--logs" aria-hidden="true">
+                <div class="mini__row font-mono">
+                  <span class="mini__time">16:12:44</span>
+                  <span>GET / 200</span>
+                </div>
+                <div class="mini__row mini__row--err font-mono">
+                  <span class="mini__time">16:12:45</span>
+                  <span>open() failed</span>
+                </div>
+                <div class="mini__dock">
+                  <span class="mini__tab mini__tab--on">Home</span>
+                  <span class="mini__tab">Search</span>
+                  <span class="mini__tab">Activity</span>
+                </div>
               </div>
-              <div class="mini__row mini__row--err font-mono">
-                <span class="mini__time">16:12:45</span>
-                <span>open() failed</span>
-              </div>
-              <div class="mini__dock">
-                <span class="mini__tab mini__tab--on">Home</span>
-                <span class="mini__tab">Search</span>
-                <span class="mini__tab">Alerts</span>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      <div class="flow__footer">
-        <p class="sr-only" aria-live="polite">Step {{ step() + 1 }} of {{ steps.length }}</p>
-        <div class="flow__dots" aria-hidden="true">
-          @for (dot of steps; track dot) {
-            <span class="flow__dot" [class.flow__dot--active]="dot === step()"></span>
-          }
+            </section>
+          </div>
         </div>
 
-        <button type="button" class="glass-button glass-button--pill" (click)="next()">
-          {{ step() === last ? 'Sign in' : 'Continue' }}
-        </button>
-        <!-- Hidden (not removed) off the last step so the footer never changes height mid-swipe. -->
-        <button
-          type="button"
-          class="flow__ghost"
-          [class.flow__ghost--hidden]="step() !== last"
-          [attr.aria-hidden]="step() === last ? null : true"
-          [tabindex]="step() === last ? null : -1"
-          (click)="changeServer()"
-        >
-          Use a different server
-        </button>
+        <div class="flow__footer">
+          <p class="sr-only" aria-live="polite">Step {{ step() + 1 }} of {{ steps.length }}</p>
+          <div class="flow__dots" aria-hidden="true">
+            @for (dot of steps; track dot) {
+              <span class="flow__dot" [class.flow__dot--active]="dot === step()"></span>
+            }
+          </div>
+
+          <ion-button expand="block" class="cta" (click)="next()">
+            {{ step() === last ? 'Sign in' : 'Continue' }}
+          </ion-button>
+          <!-- Hidden, not removed: the footer must never change height mid-swipe. -->
+          <button
+            type="button"
+            class="flow__ghost"
+            [class.flow__ghost--hidden]="step() !== last"
+            [attr.aria-hidden]="step() === last ? null : true"
+            [tabindex]="step() === last ? null : -1"
+            (click)="changeServer()"
+          >
+            Use a different server
+          </button>
+        </div>
       </div>
-    </div>
+    </ion-content>
   `,
   styles: `
     .flow {
       display: flex;
-      min-block-size: 100dvh;
+      block-size: 100%;
       max-inline-size: 24rem;
       flex-direction: column;
       margin-inline: auto;
-      padding-block: max(2rem, env(safe-area-inset-top)) calc(1.5rem + env(safe-area-inset-bottom));
+      /* The board's 96pt top = a 54pt status bar + 42; the footer ends on the home indicator. */
+      padding-block: calc(max(2rem, env(safe-area-inset-top)) + 1.75rem)
+        max(1.5rem, env(safe-area-inset-bottom));
       overflow: hidden;
     }
 
@@ -151,11 +159,19 @@ curl -X POST …/tasks/web/deploy \\
       align-items: center;
     }
 
+    /* -7rem: the height the shrunk hero gives back (half of 14rem). */
     .flow__viewport {
       flex: 1;
       min-block-size: 0;
+      margin-block-start: -7rem;
       overflow: hidden;
       touch-action: pan-y;
+    }
+
+    @media (max-height: 43.75rem) {
+      .flow__viewport {
+        margin-block-start: -6rem;
+      }
     }
 
     /* Explicit viewport sizing avoids a min-width:auto flex-basis feedback loop. */
@@ -170,14 +186,13 @@ curl -X POST …/tasks/web/deploy \\
       display: flex;
       flex: 0 0 100%;
       flex-direction: column;
-      justify-content: center;
       gap: 0.75rem;
-      padding-inline: 1.5rem;
+      padding: 1.75rem 1.5rem 0;
     }
 
     .flow__tagline {
       position: absolute;
-      inset-block-start: calc(100% - 0.25rem);
+      inset-block-start: calc(100% + 0.375rem);
       inset-inline: 1.5rem;
       display: grid;
       gap: 0.875rem;
@@ -191,24 +206,29 @@ curl -X POST …/tasks/web/deploy \\
 
     .flow__title {
       margin: 0;
-      font-size: 1.375rem;
-      font-weight: 700;
-      line-height: 1.2;
+      font-size: 1.875rem;
+      font-weight: 800;
+      line-height: 2.1875rem;
       letter-spacing: -0.02em;
-      color: var(--tui-text-primary);
+      color: var(--app-text-primary);
+      text-wrap: balance;
     }
 
     .flow__title--hero {
-      font-size: 2rem;
-      letter-spacing: -0.03em;
+      font-size: 2.25rem;
+      line-height: 2.5625rem;
     }
 
     .flow__sub {
       margin: 0;
-      max-inline-size: 17.5rem;
-      font-size: 0.9375rem;
-      line-height: 1.55;
-      color: var(--tui-text-secondary);
+      font-size: 1.0625rem;
+      line-height: 1.5rem;
+      color: var(--app-text-secondary);
+      text-wrap: pretty;
+    }
+
+    .flow__tagline .flow__sub {
+      max-inline-size: 19.375rem;
     }
 
     .flow__tagline .flow__sub {
@@ -219,49 +239,30 @@ curl -X POST …/tasks/web/deploy \\
       margin-block-end: 0.375rem;
     }
 
-    /* Miniature of the real product: a terminal call and the alert row it produces. */
     .mini {
-      display: grid;
-      gap: 0.5rem;
-      border-radius: 1.125rem;
-      padding: 0.875rem;
-      background: var(--tui-background-neutral-1);
-    }
-
-    .mini--lit {
-      background:
-        radial-gradient(circle at 30% 15%, var(--app-accent-soft), transparent 65%),
-        var(--tui-background-neutral-1);
+      margin-block-start: 0.75rem;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      background: var(--app-background-base);
     }
 
     .mini__code {
       margin: 0;
-      overflow-x: auto;
-      scrollbar-width: none;
-      border-radius: 0.625rem;
-      padding: 0.625rem 0.75rem;
-      /* A terminal stays dark in both themes. */
-      background: #131316;
-      font-family: var(--tui-font-text-mono, monospace);
-      font-size: 0.6875rem;
-      line-height: 1.6;
-      color: #c2c6cf;
+      padding: 1rem 1.125rem;
+      background: var(--app-code-bg);
+      font-family: var(--app-font-mono);
+      font-size: 0.75rem;
+      line-height: 1.1875rem;
+      color: var(--app-text-secondary);
+      white-space: pre-wrap;
     }
 
     .mini__row {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding-inline: 0.25rem;
-      font-size: 0.75rem;
-      color: var(--tui-text-primary);
-    }
-
-    .mini__row--err {
-      border-radius: 0.5rem;
-      padding-block: 0.125rem;
-      background: var(--tui-status-negative-pale);
-      color: var(--tui-text-negative);
+      gap: 0.625rem;
+      min-block-size: 3.25rem;
+      padding-inline: 1.125rem;
     }
 
     .mini__dot {
@@ -269,46 +270,66 @@ curl -X POST …/tasks/web/deploy \\
       block-size: 0.5rem;
       flex: none;
       border-radius: 999px;
-      background: var(--tui-status-positive);
+      background: var(--app-status-positive);
     }
 
     .mini__deployed {
+      flex: 1;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .mini__when {
+      font-size: 0.8125rem;
+      color: var(--app-text-tertiary);
+    }
+
+    .mini--logs {
+      position: relative;
+      block-size: 11rem;
+      padding-block-start: 0.625rem;
+      font-size: 0.8125rem;
+    }
+
+    .mini--logs .mini__row {
+      gap: 0.75rem;
+      min-block-size: 0;
+      padding-block: 0.375rem;
+    }
+
+    .mini__row--err {
+      background: var(--app-status-negative-pale);
+    }
+
+    .mini__time {
+      color: var(--app-text-tertiary);
+    }
+
+    .mini__dock {
+      position: absolute;
+      inset-block-end: 1rem;
+      inset-inline-start: 50%;
+      display: flex;
+      gap: 0.125rem;
+      translate: -50% 0;
+      border-radius: 1.375rem;
+      padding: 0.25rem;
+      background: var(--app-sheet);
+      box-shadow:
+        0 0 0 0.5px rgba(15, 23, 42, 0.1),
+        0 8px 24px rgba(15, 23, 42, 0.1);
       font-size: 0.75rem;
       font-weight: 600;
     }
 
-    .mini__when {
-      margin-inline-start: auto;
-      font-size: 0.6875rem;
-      color: var(--tui-text-tertiary);
-    }
-
-    .mini__time {
-      color: var(--tui-text-tertiary);
-    }
-
-    .mini__dock {
-      display: flex;
-      justify-content: center;
-      gap: 0.25rem;
-      margin-block-start: 0.25rem;
-      border-radius: 999px;
-      padding: 0.25rem;
-      background: var(--app-glass-lens, var(--tui-background-neutral-1));
-      backdrop-filter: var(--app-segment-filter);
-    }
-
     .mini__tab {
-      border-radius: 999px;
-      padding: 0.3125rem 0.75rem;
-      font-size: 0.6875rem;
-      font-weight: 600;
-      color: var(--tui-text-secondary);
+      border-radius: 1.125rem;
+      padding: 0.5rem 0.875rem;
     }
 
     .mini__tab--on {
-      background: var(--app-segment-thumb-fill);
-      color: var(--tui-text-primary);
+      background: rgba(120, 120, 128, 0.16);
+      color: var(--ion-color-primary);
     }
 
     .flow__footer {
@@ -325,31 +346,32 @@ curl -X POST …/tasks/web/deploy \\
     }
 
     .flow__dot {
-      inline-size: 0.3125rem;
-      block-size: 0.3125rem;
+      inline-size: 0.4375rem;
+      block-size: 0.4375rem;
       border-radius: 999px;
-      background: var(--tui-background-neutral-2);
+      background: rgba(120, 120, 128, 0.22);
       transition:
-        inline-size var(--tui-duration),
-        background-color var(--tui-duration);
+        inline-size var(--app-duration),
+        background-color var(--app-duration);
     }
 
     .flow__dot--active {
-      inline-size: 0.875rem;
-      background: var(--tui-text-action);
+      inline-size: 1.375rem;
+      background: var(--ion-color-primary);
     }
 
     .flow__ghost {
+      min-block-size: 2.75rem;
       margin: 0;
       border: 0;
-      padding: 0.5rem;
+      padding: 0 1rem;
       background: none;
       font: inherit;
       font-size: 0.9375rem;
       font-weight: 500;
-      color: var(--tui-text-secondary);
+      color: var(--ion-color-primary);
       cursor: pointer;
-      transition: opacity var(--tui-duration);
+      transition: opacity var(--app-duration);
     }
 
     .flow__ghost--hidden {
@@ -365,7 +387,7 @@ export class WelcomePage {
   private readonly server = inject(ChangeServerService);
   private readonly welcome = inject(WelcomeSeenStore);
   private readonly tokens = inject(AuthTokenStore);
-  private readonly config = inject(ServerConfigStore);
+  private readonly nav = inject(NavController);
 
   private readonly hero = viewChild.required<ElementRef<HTMLElement>>('hero');
   private readonly tagline = viewChild.required<ElementRef<HTMLElement>>('tagline');
@@ -411,7 +433,6 @@ export class WelcomePage {
     });
 
     afterNextRender(() => {
-
       const viewport = this.viewport().nativeElement;
       const observer = new ResizeObserver(() => this.layout());
       observer.observe(viewport);
@@ -433,9 +454,8 @@ export class WelcomePage {
       this.go(this.step() + 1);
       return;
     }
-    /* The flag is what keeps the tour from ever coming back on this device. */
     this.welcome.markSeen();
-    void this.router.navigate(['/login']);
+    void this.nav.navigateRoot('/login');
   }
 
   protected changeServer(): void {
@@ -445,7 +465,7 @@ export class WelcomePage {
     });
   }
 
-  // Query state lets back, forward, and deep links address each onboarding step.
+  // Through the URL, so back, forward and deep links address each step.
   private go(step: number): void {
     const target = Math.min(Math.max(step, 0), LAST);
     if (target === this.step()) {
@@ -465,12 +485,15 @@ export class WelcomePage {
 
     this.shrunk = this.step() > 0;
     const hero = this.hero().nativeElement;
-    gsap.set(hero, { scale: this.shrunk ? HERO_SCALE : 1, y: this.shrunk ? 0 : this.heroY() });
+    gsap.set(hero, this.heroVars(this.shrunk));
     gsap.set(this.tagline().nativeElement, { autoAlpha: this.shrunk ? 0 : 1 });
   }
 
-  private heroY(): number {
-    return this.viewport().nativeElement.offsetHeight / 2;
+  private heroVars(shrunk: boolean): gsap.TweenVars {
+    const half = this.hero().nativeElement.offsetWidth / 2;
+    return shrunk
+      ? { scale: HERO_SCALE, x: HERO_INSET - half, y: 0 }
+      : { scale: 1, x: 0, y: HERO_DROP };
   }
 
   private settle(step: number): void {
@@ -495,7 +518,7 @@ export class WelcomePage {
 
     const hero = this.hero().nativeElement;
     const tagline = this.tagline().nativeElement;
-    const heroVars = { scale: shrunk ? HERO_SCALE : 1, y: shrunk ? 0 : this.heroY() };
+    const heroVars = this.heroVars(shrunk);
     const taglineVars = { autoAlpha: shrunk ? 0 : 1 };
 
     if (this.motion.enabled) {
@@ -513,7 +536,6 @@ export class WelcomePage {
   }
 
   protected onDown(event: PointerEvent): void {
-    // Interactive controls must not initiate track dragging.
     if ((event.target as HTMLElement).closest('input, textarea, button, a')) {
       return;
     }
@@ -525,7 +547,7 @@ export class WelcomePage {
     this.velocity = 0;
     this.dragging = true;
     this.dragMoved = false;
-    // Pointer capture can race with release; dragging still degrades safely without it.
+    // Capture can race with release; dragging still works without it.
     try {
       this.viewport().nativeElement.setPointerCapture(event.pointerId);
     } catch {

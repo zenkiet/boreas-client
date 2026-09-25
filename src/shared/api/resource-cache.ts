@@ -2,19 +2,13 @@ import { Signal, computed, linkedSignal } from '@angular/core';
 
 import { mapApiError } from './api-error';
 
-/** The subset of `rxResource` these helpers read; keeps them usable from any resource-like value. */
 export interface ReadableResource<T> {
   hasValue(): boolean;
   value(): T;
   error(): unknown;
 }
 
-/**
- * Keeps the last good value through a failed reload, but never across a key change.
- *
- * Pass the key whenever the resource is parameterised: without it, one task's data
- * flashes on another's screen while the new fetch is still in flight.
- */
+/** Keeps the last value through a failed reload; without `key` it leaks across param changes. */
 export function keepLastValue<T>(
   resource: ReadableResource<T | undefined>,
   key: () => string = () => '',
@@ -29,7 +23,6 @@ export function keepLastValue<T>(
   });
 }
 
-/** A resource's error as display copy, or undefined while it is fine. */
 export function resourceError(
   resource: Pick<ReadableResource<unknown>, 'error'>,
 ): Signal<string | undefined> {

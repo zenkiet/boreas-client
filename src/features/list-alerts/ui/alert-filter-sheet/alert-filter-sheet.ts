@@ -1,226 +1,167 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { TuiDay } from '@taiga-ui/cdk';
-import { TuiButton, TuiDialogContext, TuiIcon } from '@taiga-ui/core';
-import { injectContext } from '@taiga-ui/polymorpheus';
+import { Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonContent } from '@ionic/angular/ion-content';
+import { IonDatetime } from '@ionic/angular/ion-datetime';
+import { IonDatetimeButton } from '@ionic/angular/ion-datetime-button';
+import { IonFooter } from '@ionic/angular/ion-footer';
+import { IonHeader } from '@ionic/angular/ion-header';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonModal } from '@ionic/angular/ion-modal';
+import { IonSelect } from '@ionic/angular/ion-select';
+import { IonSelectOption } from '@ionic/angular/ion-select-option';
+import { IonTitle } from '@ionic/angular/ion-title';
+import { IonToggle } from '@ionic/angular/ion-toggle';
+import { IonToolbar } from '@ionic/angular/ion-toolbar';
+import { ModalController } from '@ionic/angular/modal-controller';
 
-import { DateRangePickerService } from '@shared/ui/date-range-picker/date-range-picker.service';
-import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
-import { GlassSwitch } from '@shared/ui/glass-switch/glass-switch';
-import { AlertFilter, matchesFilter } from '../../model/alert-filter';
+import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
+import { AlertFilter, localDay, matchesFilter } from '../../model/alert-filter';
 import { ProjectAlert } from '../../model/list-alerts.store';
 
-export interface AlertFilterSheetData {
-  readonly alerts: readonly ProjectAlert[];
-  readonly projects: readonly string[];
-  readonly value: AlertFilter;
-}
+const DAY_MS = 86_400_000;
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** Opened through TuiResponsiveDialogService: a sheet on mobile, a dialog on desktop. */
+/** Only Show commits the draft; a swipe discards it. */
 @Component({
   selector: 'app-alert-filter-sheet',
-  imports: [GlassSelect, GlassSwitch, TuiButton, TuiIcon],
+  imports: [
+    InsetGroup,
+    IonButton,
+    IonButtons,
+    IonContent,
+    IonDatetime,
+    IonDatetimeButton,
+    IonFooter,
+    IonHeader,
+    IonItem,
+    IonLabel,
+    IonModal,
+    IonSelect,
+    IonSelectOption,
+    IonTitle,
+    IonToggle,
+    IonToolbar,
+  ],
   template: `
-    <div class="head">
-      <h2 class="head__title">Filters</h2>
-      <button
-        tuiButton
-        type="button"
-        size="s"
-        appearance="flat"
-        [disabled]="pristine()"
-        (click)="reset()"
-      >
-        Reset
-      </button>
-    </div>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="reset()">Reset</ion-button>
+        </ion-buttons>
+        <ion-title>Filters</ion-title>
+      </ion-toolbar>
+    </ion-header>
 
-    <div class="box">
-      <div class="frow frow--inline row-divider relative">
-        <span class="frow__inline-label">Project</span>
-        <app-glass-select
-          ariaLabel="Project"
-          placeholder="All projects"
-          [options]="projectOptions()"
-          [value]="project()"
-          (valueChange)="project.set($event)"
-        />
-      </div>
-
-      <button
-        type="button"
-        class="frow frow--inline row-divider daterow relative"
-        (click)="pickRange()"
-      >
-        <span class="frow__inline-label">Date range</span>
-        <span class="daterow__value tabular">{{ rangeLabel() }}</span>
-        @if (range()) {
-          <!-- A real button cannot nest here, so the clear affordance is a keyless icon span. -->
-          <span
-            class="daterow__clear"
-            role="button"
-            tabindex="0"
-            aria-label="Clear date range"
-            (click)="clearRange($event)"
-            (keydown.enter)="clearRange($event)"
+    <ion-content>
+      <app-inset-group>
+        <ion-item>
+          <ion-select
+            label="Project"
+            interface="popover"
+            [value]="project()"
+            (ionChange)="project.set($event.detail.value)"
           >
-            <tui-icon class="icon-sm" icon="@tui.x" />
-          </span>
-        } @else {
-          <tui-icon class="daterow__chevron icon-sm" icon="@tui.chevron-right" aria-hidden="true" />
+            <ion-select-option value="">All projects</ion-select-option>
+            @for (slug of projects(); track slug) {
+              <ion-select-option [value]="slug">{{ slug }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+        <ion-item>
+          <ion-toggle [checked]="!!range()" (ionChange)="toggleRange($event.detail.checked)">
+            Date range
+          </ion-toggle>
+        </ion-item>
+        @if (range()) {
+          <ion-item>
+            <ion-label>From</ion-label>
+            <ion-datetime-button slot="end" datetime="alert-filter-from" />
+          </ion-item>
+          <ion-item>
+            <ion-label>To</ion-label>
+            <ion-datetime-button slot="end" datetime="alert-filter-to" />
+          </ion-item>
         }
-      </button>
+      </app-inset-group>
 
-      <div class="frow frow--inline row-divider relative">
-        <span class="frow__inline-label">Failures only</span>
-        <button
-          appGlassSwitch
-          aria-label="Failures only"
-          [checked]="failuresOnly()"
-          (checkedChange)="failuresOnly.set($event)"
-        ></button>
+      <ion-modal [keepContentsMounted]="true" aria-label="From date">
+        <ng-template>
+          <ion-datetime
+            id="alert-filter-from"
+            presentation="date"
+            [min]="min"
+            [max]="range()?.to ?? today"
+            [value]="range()?.from"
+            (ionChange)="setDay('from', $event.detail.value)"
+          />
+        </ng-template>
+      </ion-modal>
+      <ion-modal [keepContentsMounted]="true" aria-label="To date">
+        <ng-template>
+          <ion-datetime
+            id="alert-filter-to"
+            presentation="date"
+            [min]="range()?.from ?? min"
+            [max]="today"
+            [value]="range()?.to"
+            (ionChange)="setDay('to', $event.detail.value)"
+          />
+        </ng-template>
+      </ion-modal>
+    </ion-content>
+
+    <ion-footer>
+      <div class="px-5 pt-3 pb-6">
+        <ion-button expand="block" class="cta" (click)="apply()">
+          Show {{ count() }} {{ count() === 1 ? 'event' : 'events' }}
+        </ion-button>
       </div>
-    </div>
-
-    <button tuiButton type="button" size="m" appearance="primary" class="apply" (click)="apply()">
-      Show {{ count() }} {{ count() === 1 ? 'alert' : 'alerts' }}
-    </button>
-  `,
-  styles: `
-    :host {
-      display: block;
-    }
-
-    .head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-block-end: 0.5rem;
-    }
-
-    .head__title {
-      margin: 0;
-      font-size: 1.0625rem;
-      font-weight: 700;
-      color: var(--tui-text-primary);
-    }
-
-    .box {
-      overflow: hidden;
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-neutral-1);
-    }
-
-    .frow--inline {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-block-size: 3rem;
-    }
-
-    /* Tailwind has no preflight, so reset the row button explicitly. */
-    .daterow {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      background: none;
-      font: inherit;
-      color: inherit;
-      text-align: start;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .daterow__value {
-      font-size: 0.9375rem;
-      color: var(--tui-text-secondary);
-    }
-
-    .daterow__chevron {
-      color: var(--tui-text-tertiary);
-    }
-
-    .daterow__clear {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      inline-size: 1.75rem;
-      block-size: 1.75rem;
-      border-radius: 999px;
-      background: var(--tui-background-neutral-2);
-      color: var(--tui-text-secondary);
-      cursor: pointer;
-    }
-
-    .apply {
-      inline-size: 100%;
-      margin-block-start: 0.875rem;
-    }
+    </ion-footer>
   `,
 })
 export class AlertFilterSheet {
-  private readonly picker = inject(DateRangePickerService);
+  private readonly modals = inject(ModalController);
 
-  protected readonly context = injectContext<TuiDialogContext<AlertFilter, AlertFilterSheetData>>();
+  readonly alerts = input.required<readonly ProjectAlert[]>();
+  readonly projects = input.required<readonly string[]>();
+  readonly value = input.required<AlertFilter>();
 
-  protected readonly project = signal(this.context.data.value.project);
-  protected readonly range = signal(this.context.data.value.range);
-  protected readonly failuresOnly = signal(this.context.data.value.failuresOnly);
+  protected readonly today = localDay(new Date());
+  /* Alerts live in the past, so the window ends today and reaches a year back. */
+  protected readonly min = localDay(new Date(Date.now() - 365 * DAY_MS));
 
-  protected readonly projectOptions = computed<readonly GlassSelectOption[]>(() => [
-    { value: '', label: 'All projects' },
-    ...this.context.data.projects.map((slug) => ({ value: slug, label: slug })),
-  ]);
+  protected readonly project = linkedSignal(() => this.value().project);
+  protected readonly range = linkedSignal(() => this.value().range);
 
-  protected readonly pristine = computed(
-    () => !this.project() && !this.range() && !this.failuresOnly(),
+  private readonly draft = computed<AlertFilter>(() => ({
+    project: this.project(),
+    range: this.range(),
+  }));
+
+  protected readonly count = computed(
+    () => this.alerts().filter((alert) => matchesFilter(alert, this.draft())).length,
   );
 
-  protected readonly count = computed(() => {
-    const draft: AlertFilter = {
-      project: this.project(),
-      range: this.range(),
-      failuresOnly: this.failuresOnly(),
-    };
-    return this.context.data.alerts.filter((alert) => matchesFilter(alert, draft)).length;
-  });
-
-  protected readonly rangeLabel = computed(() => {
-    const range = this.range();
-    if (!range) return 'Any time';
-    return `${format(range.from)} – ${format(range.to)}`;
-  });
-
-  protected pickRange(): void {
-    const today = TuiDay.currentLocal();
-
-    /* Alerts live in the past, so the window ends today instead of the tokens' +90d. */
-    this.picker
-      .pick({ min: today.append({ year: -1 }), max: today, value: this.range() })
-      .subscribe((range) => this.range.set(range));
+  protected toggleRange(on: boolean): void {
+    this.range.set(
+      on ? { from: localDay(new Date(Date.now() - 6 * DAY_MS)), to: this.today } : null,
+    );
   }
 
-  protected clearRange(event: Event): void {
-    event.stopPropagation();
-    this.range.set(null);
+  protected setDay(edge: 'from' | 'to', value: string | string[] | null | undefined): void {
+    const range = this.range();
+    if (!range || typeof value !== 'string') return;
+    this.range.set({ ...range, [edge]: value.slice(0, 10) });
   }
 
   protected reset(): void {
     this.project.set('');
     this.range.set(null);
-    this.failuresOnly.set(false);
   }
 
   protected apply(): void {
-    this.context.completeWith({
-      project: this.project(),
-      range: this.range(),
-      failuresOnly: this.failuresOnly(),
-    });
+    void this.modals.dismiss(this.draft(), SHEET_DONE);
   }
-}
-
-function format(day: TuiDay): string {
-  return `${MONTHS[day.month]} ${day.day}`;
 }

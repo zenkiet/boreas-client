@@ -1,8 +1,6 @@
-/** Delete is excluded because this type mirrors only PUT /state actions. */
+/** PUT /state actions only; delete is its own endpoint. */
 
-export const TASK_STATE_ACTIONS = ['start', 'stop', 'restart'] as const;
-
-export type TaskStateAction = (typeof TASK_STATE_ACTIONS)[number];
+export type TaskStateAction = 'start' | 'stop' | 'restart';
 
 export function describeCompletedAction(action: TaskStateAction): string {
   switch (action) {

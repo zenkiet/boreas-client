@@ -37,7 +37,7 @@ export const routes: Routes = [
   },
   {
     path: 'notifications',
-    title: 'Alerts | Boreas',
+    title: 'Activity | Boreas',
     canActivate: guards,
     loadComponent: () => import('@pages/alerts/alerts-page').then(({ AlertsPage }) => AlertsPage),
   },

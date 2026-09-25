@@ -1,24 +1,32 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, required, submit } from '@angular/forms/signals';
-import { RouterLink } from '@angular/router';
-import { TuiButton, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiAppBar } from '@taiga-ui/layout';
+import { IonBackButton } from '@ionic/angular/ion-back-button';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonInputPasswordToggle } from '@ionic/angular/ion-input-password-toggle';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonSelect } from '@ionic/angular/ion-select';
+import { IonSelectOption } from '@ionic/angular/ion-select-option';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
 import { filter, switchMap } from 'rxjs';
 
 import { RegistryCredential, RegistryKind } from '@entities/registry-credential';
+import { ListProjectsStore } from '@features/list-projects/model';
 import { CredentialCommandResult, ManageCredentialsStore } from '@features/manage-credentials';
-import { fieldError } from '@shared/lib/forms/field-error';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
-import { BackLink } from '@shared/ui/back-link/back-link';
+import { FieldStatus } from '@shared/lib/forms/field-status.directive';
+import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { Callout } from '@shared/ui/callout/callout';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
-import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
+import { EYE, EYE_SLASH } from '@shared/ui/glyph-urls';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 interface CredentialDraft {
@@ -30,248 +38,190 @@ interface CredentialDraft {
 @Component({
   selector: 'app-registries-page',
   imports: [
-    BackLink,
     Callout,
     DatePipe,
     EmptyState,
     ErrorState,
+    FieldStatus,
     FormField,
-    GlassSelect,
     InsetGroup,
-    Reveal,
+    IonBackButton,
+    IonButton,
+    IonButtons,
+    IonInput,
+    IonInputPasswordToggle,
+    IonItem,
+    IonLabel,
+    IonNote,
+    IonSelect,
+    IonSelectOption,
+    IonSpinner,
+    PAGE_CHROME,
+    PULL_REFRESH,
     SkeletonRows,
-    RouterLink,
-    TuiAppBar,
-    TuiButton,
-    TuiError,
-    TuiIcon,
-    TuiLoader,
   ],
-  providers: [ManageCredentialsStore],
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-3.5 md:gap-4">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack routerLink="/settings" aria-label="Back to settings"></a>
-          Registry credentials
-        </tui-app-bar>
-      </div>
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-buttons slot="start"><ion-back-button defaultHref="/settings" /></ion-buttons>
+        <ion-title>Registry credentials</ion-title>
+      </ion-toolbar>
+    </ion-header>
 
-      <div class="hidden md:block">
-        <app-back-link link="/settings" label="Settings" />
-        <h1 class="page-title mt-1.5">Registry credentials</h1>
-      </div>
+    <ion-content [fullscreen]="true">
+      <ion-refresher [appRefresh]="pull"><ion-refresher-content /></ion-refresher>
 
-      <h1 class="page-title md:hidden">Registries</h1>
-
-      @if (credentials.error() && !credentials.hasLoaded()) {
-        <app-error-state [message]="credentials.error()!" (retry)="credentials.load()" />
-      } @else {
-        @if (credentials.loading() && !credentials.hasLoaded()) {
-          <!-- The form below is local and stays live; only the credential rows wait. -->
-          <app-inset-group label="Credentials">
-            <app-skeleton-rows variant="member" label="Loading credentials" />
-          </app-inset-group>
+      <div class="mx-auto max-w-(--app-column)">
+        @if (credentials.error() && !credentials.hasLoaded()) {
+          <app-error-state
+            class="m-5 block"
+            [message]="credentials.error()!"
+            (retry)="credentials.load()"
+          />
         } @else {
-          <app-inset-group label="Credentials" [trailing]="summary()">
-            @for (credential of credentials.credentials(); track credential.id) {
-              <div class="row row-divider relative">
-                <tui-icon class="row__icon icon-sm" icon="@tui.key-round" aria-hidden="true" />
-                <span class="min-w-0 flex-1">
-                  <span class="row__name">{{ credential.name }}</span>
-                  <span class="row__sub">
-                    {{ credential.registry === 'ghcr' ? 'ghcr.io' : 'Docker Hub' }} ·
-                    {{ credential.username }} · added {{ credential.createdAt | date: 'MMM d, y' }}
-                  </span>
-                </span>
-                <button
-                  tuiIconButton
-                  type="button"
-                  size="s"
-                  appearance="flat-grayscale"
-                  [disabled]="credentials.busy()"
-                  [attr.aria-label]="'Delete ' + credential.name"
-                  (click)="deleteCredential(credential)"
-                >
-                  <tui-icon class="icon-sm" icon="@tui.trash-2" />
-                </button>
-              </div>
-            } @empty {
-              <app-empty-state
-                icon="@tui.key-round"
-                title="No credentials yet"
-                description="Add a registry credential so projects can pull private images."
-                [bordered]="false"
-              />
-            }
-          </app-inset-group>
-        }
-
-        <div>
-          <app-inset-group label="New credential">
-            <form class="grid grid-cols-1" novalidate (submit)="onSubmit($event)">
-              @if (credentials.createError(); as message) {
-                <div class="p-3">
-                  <app-callout tone="negative" role="alert">{{ message }}</app-callout>
-                </div>
+          @if (credentials.loading() && !credentials.hasLoaded()) {
+            <app-inset-group label="Credentials">
+              <app-skeleton-rows variant="member" label="Loading credentials" />
+            </app-inset-group>
+          } @else {
+            <app-inset-group label="Credentials" [trailing]="summary()">
+              @for (credential of credentials.credentials(); track credential.id) {
+                <ion-item>
+                  <ion-label
+                    ><span class="name">{{ credential.name }}</span></ion-label
+                  >
+                  <ion-note>
+                    {{ credential.registry === 'ghcr' ? 'ghcr.io' : 'Docker Hub' }} · as
+                    {{ credential.username }} · added {{ credential.createdAt | date: 'MMM d' }}
+                  </ion-note>
+                  <ion-button
+                    slot="end"
+                    fill="clear"
+                    color="medium"
+                    [disabled]="credentials.busy()"
+                    [attr.aria-label]="'Delete ' + credential.name"
+                    (click)="deleteCredential(credential)"
+                  >
+                    <span slot="icon-only" class="icon-[light--trash]" aria-hidden="true"></span>
+                  </ion-button>
+                </ion-item>
+              } @empty {
+                <app-empty-state
+                  icon="icon-[light--key]"
+                  title="No credentials yet"
+                  description="Add a registry credential so projects can pull private images."
+                  [bordered]="false"
+                />
               }
+              <ion-item>
+                <button
+                  type="button"
+                  class="disclose"
+                  [attr.aria-expanded]="adding()"
+                  (click)="adding.set(!adding())"
+                >
+                  Add credential…
+                </button>
+              </ion-item>
+            </app-inset-group>
+          }
 
-              <div class="frow row-divider relative">
-                <label class="frow__label" for="credential-name">Name</label>
-                <input
-                  id="credential-name"
-                  class="frow__input"
+          @if (adding()) {
+            @if (credentials.createError(); as message) {
+              <app-callout class="m-5" tone="negative" role="alert">{{ message }}</app-callout>
+            }
+
+            <app-inset-group label="New credential">
+              <ion-item>
+                <ion-input
+                  label="Name"
+                  labelPlacement="stacked"
+                  placeholder="e.g. ghcr-acme"
                   autocomplete="off"
                   autocapitalize="off"
-                  spellcheck="false"
-                  placeholder="ghcr"
+                  [spellcheck]="false"
                   [formField]="draft.name"
                 />
-                @if (fieldError(draft.name()); as message) {
-                  <tui-error [error]="message" />
-                }
-              </div>
-
-              <div class="frow frow--inline row-divider relative">
-                <span class="frow__inline-label">Registry</span>
-                <app-glass-select
-                  ariaLabel="Registry"
-                  [options]="registryOptions"
+              </ion-item>
+              <ion-item>
+                <ion-select
+                  label="Registry"
+                  interface="popover"
                   [value]="draftRegistry()"
                   [disabled]="credentials.busy()"
-                  (valueChange)="pickRegistry($event)"
-                />
-              </div>
-
-              <div class="frow row-divider relative">
-                <label class="frow__label" for="credential-username">Username</label>
-                <input
-                  id="credential-username"
-                  class="frow__input"
+                  (ionChange)="draftRegistry.set($event.detail.value)"
+                >
+                  <ion-select-option value="ghcr">ghcr.io</ion-select-option>
+                  <ion-select-option value="dockerhub">Docker Hub</ion-select-option>
+                </ion-select>
+              </ion-item>
+              <ion-item>
+                <ion-input
+                  label="Username"
+                  labelPlacement="stacked"
                   autocomplete="off"
                   autocapitalize="off"
-                  spellcheck="false"
+                  [spellcheck]="false"
                   [formField]="draft.username"
                 />
-                @if (fieldError(draft.username()); as message) {
-                  <tui-error [error]="message" />
-                }
-              </div>
-
-              <div class="frow row-divider relative">
-                <label class="frow__label" for="credential-token">Access token</label>
-                <input
-                  id="credential-token"
-                  class="frow__input"
+              </ion-item>
+              <ion-item>
+                <ion-input
+                  label="Access token"
+                  labelPlacement="stacked"
                   type="password"
                   autocomplete="off"
                   [formField]="draft.token"
-                />
-                @if (fieldError(draft.token()); as message) {
-                  <tui-error [error]="message" />
-                }
-              </div>
-
-              <div class="row-divider relative flex justify-end p-3">
-                <button
-                  tuiButton
-                  type="submit"
-                  size="s"
-                  appearance="primary"
-                  [disabled]="credentials.busy()"
                 >
-                  @if (credentials.busy()) {
-                    <tui-loader size="s" [inheritColor]="true" />
-                  }
-                  Add credential
-                </button>
-              </div>
-            </form>
-          </app-inset-group>
-          <p class="footnote">
-            The token is stored server-side and never shown again. Attach the credential to a
-            project from that project's About tab.
-          </p>
-        </div>
-      }
-    </div>
+                  <ion-input-password-toggle
+                    slot="end"
+                    color="medium"
+                    [showIcon]="eye"
+                    [hideIcon]="eyeSlash"
+                  />
+                </ion-input>
+              </ion-item>
+              <ion-item button [detail]="false" [disabled]="credentials.busy()" (click)="create()">
+                <ion-label color="primary">Add credential</ion-label>
+                @if (credentials.busy()) {
+                  <ion-spinner slot="end" name="lines-small" />
+                }
+              </ion-item>
+              <ion-note>
+                The token is kept on the server and never shown again. Attach it to a project from
+                that project’s About section.
+              </ion-note>
+            </app-inset-group>
+          }
+        }
+      </div>
+    </ion-content>
   `,
   styles: `
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6875rem 1rem;
-      min-block-size: 3.5rem;
-    }
-
-    .row__icon {
-      flex: none;
-      color: var(--tui-text-tertiary);
-    }
-
-    .row__name {
-      display: block;
-      overflow: hidden;
-      font-size: 1rem;
+    .name {
+      font-family: var(--app-font-mono);
+      font-size: 0.9375rem;
+      line-height: 1.25rem;
       font-weight: 600;
-      color: var(--tui-text-primary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .row__sub {
-      display: block;
-      overflow: hidden;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .frow--inline {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-block-size: 3rem;
-    }
-
-    .frow__input {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      padding: 0;
-      background: none;
-      font: inherit;
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
-    }
-
-    .frow__input:focus {
-      outline: none;
-    }
-
-    .frow__input::placeholder {
-      color: var(--tui-text-tertiary);
-      opacity: 0.6;
     }
   `,
 })
 export class RegistriesPage {
+  protected readonly eye = EYE;
+  protected readonly eyeSlash = EYE_SLASH;
   protected readonly credentials = inject(ManageCredentialsStore);
+  private readonly fleet = inject(ListProjectsStore);
   private readonly confirmations = inject(ConfirmActionService);
   private readonly notifications = inject(NotifyService);
 
   private readonly model = signal<CredentialDraft>({ name: '', username: '', token: '' });
   protected readonly draftRegistry = signal<RegistryKind>('ghcr');
+  protected readonly adding = signal(false);
 
-  protected readonly registryOptions: readonly GlassSelectOption[] = [
-    { value: 'ghcr', label: 'ghcr.io' },
-    { value: 'dockerhub', label: 'Docker Hub' },
-  ];
+  protected readonly pull: PullRefreshSource = {
+    busy: this.credentials.loading,
+    trigger: () => this.credentials.load(),
+  };
 
   protected readonly draft = form(this.model, (path) => {
     required(path.name, { message: 'Name is required.' });
@@ -280,21 +230,26 @@ export class RegistriesPage {
   });
 
   protected readonly summary = computed(() => {
-    const total = this.credentials.credentials().length;
-    return `${total} ${total === 1 ? 'credential' : 'credentials'}`;
+    const credentials = this.credentials.credentials();
+    const total = `${credentials.length} ${credentials.length === 1 ? 'credential' : 'credentials'}`;
+
+    /* Fleet cache only: a header label must not cost a 2 + N fan-out. */
+    const ids = new Set(credentials.map((credential) => credential.id));
+    const used = this.fleet
+      .summaries()
+      .filter(
+        ({ project }) => project.registryCredentialId && ids.has(project.registryCredentialId),
+      ).length;
+    return used ? `${total} · used by ${used} ${used === 1 ? 'project' : 'projects'}` : total;
   });
 
   constructor() {
-    registerPullRefresh({ busy: this.credentials.loading, trigger: () => this.credentials.load() });
+    /* The route-provided store outlives this page: reload and drop the last visit's error. */
+    this.credentials.clearCreateError();
+    this.credentials.load();
   }
 
-  protected pickRegistry(value: string): void {
-    this.draftRegistry.set(value as RegistryKind);
-  }
-
-  protected onSubmit(event: Event): void {
-    event.preventDefault();
-
+  protected create(): void {
     /* Signal Forms requires a promise-returning submit action. */
     void submit(this.draft, async () => {
       const draft = this.model();
@@ -308,10 +263,10 @@ export class RegistriesPage {
         .subscribe((credential) => {
           if (!credential) return;
           this.notifications.success(`Credential ${credential.name} added.`);
-          /* reset() clears touched and dirty too; setting the model alone would leave the
-             emptied fields flagged as touched and light up every required error. */
+          /* reset(), not a model write: submit left every field touched. */
           this.draft().reset({ name: '', username: '', token: '' });
           this.draftRegistry.set('ghcr');
+          this.adding.set(false);
           this.credentials.load();
         });
     });
@@ -334,6 +289,4 @@ export class RegistriesPage {
         if (result.success) this.credentials.load();
       });
   }
-
-  protected readonly fieldError = fieldError;
 }

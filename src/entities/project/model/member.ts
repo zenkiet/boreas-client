@@ -9,7 +9,14 @@ export function atLeastRole(role: ProjectRole, need: ProjectRole): boolean {
   return RANK[role] >= RANK[need];
 }
 
-/** A task grant only raises access above the project role; owner exists project-wide only. */
+export const ROLE_LABEL: Record<ProjectRole, string> = {
+  viewer: 'Viewer',
+  operator: 'Operator',
+  member: 'Member',
+  owner: 'Owner',
+};
+
+/** Owner is project-wide only; the API rejects it as a task grant. */
 export const GRANTABLE_ROLES = ['viewer', 'operator', 'member'] as const;
 
 export interface Member {

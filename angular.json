@@ -53,19 +53,18 @@
                 "input": "public"
               },
               {
-                "glob": "**/*",
-                "input": "node_modules/@taiga-ui/icons/src",
-                "output": "assets/taiga-ui/icons"
-              },
-              {
                 "glob": "dotlottie-player.wasm",
                 "input": "node_modules/@lottiefiles/dotlottie-web/dist",
                 "output": "animations"
               }
             ],
             "styles": [
-              "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "node_modules/@taiga-ui/addon-mobile/styles/taiga-ui-mobile.less",
+              "node_modules/@ionic/angular/css/core.css",
+              "node_modules/@ionic/angular/css/structure.css",
+              "node_modules/@ionic/angular/css/palettes/dark.class.css",
+              "node_modules/@rdlabo/ionic-theme-ios27/dist/css/default-variables.css",
+              "node_modules/@rdlabo/ionic-theme-ios27/dist/css/ionic-theme-ios27.css",
+              "node_modules/@rdlabo/ionic-theme-ios27/dist/css/ionic-theme-ios27-dark-class.css",
               "src/styles.css"
             ]
           },
@@ -74,7 +73,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "1MB",
+                  "maximumWarning": "1.1MB",
                   "maximumError": "2MB"
                 },
                 {

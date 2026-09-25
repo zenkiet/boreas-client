@@ -1,20 +1,22 @@
 import { Component, input, output } from '@angular/core';
-import { TuiButton, TuiIcon } from '@taiga-ui/core';
+import { IonButton } from '@ionic/angular/ion-button';
 
 @Component({
   selector: 'app-error-state',
-  imports: [TuiButton, TuiIcon],
+  imports: [IonButton],
   template: `
     <div class="state" role="alert">
       <span class="state__icon" aria-hidden="true">
-        <tui-icon class="icon-lg" icon="@tui.triangle-alert" />
+        <span class="icon-[light--triangle-exclamation]"></span>
       </span>
       <h2 class="state__title">{{ title() }}</h2>
       <p class="state__description">{{ message() }}</p>
-      <button tuiButton type="button" size="s" appearance="secondary" (click)="retry.emit()">
-        <tui-icon class="icon-sm" icon="@tui.refresh-cw" />
-        Try again
-      </button>
+      @if (retryable()) {
+        <ion-button fill="clear" size="small" (click)="retry.emit()">
+          <span slot="start" class="icon-[light--arrow-rotate-right]" aria-hidden="true"></span>
+          Try again
+        </ion-button>
+      }
     </div>
   `,
   styles: `
@@ -24,9 +26,9 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
       align-items: center;
       gap: 0.5rem;
       padding: 3rem 1.5rem;
-      border: 1px solid var(--tui-status-negative-pale-hover);
-      border-radius: var(--tui-radius-l);
-      background: var(--tui-background-base);
+      border: 1px solid var(--app-status-negative-pale-hover);
+      border-radius: var(--app-radius-l);
+      background: var(--app-background-base);
       text-align: center;
     }
 
@@ -37,16 +39,17 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
       inline-size: 2.75rem;
       block-size: 2.75rem;
       margin-block-end: 0.25rem;
-      border-radius: var(--tui-radius-m);
-      background: var(--tui-status-negative-pale);
-      color: var(--tui-status-negative);
+      border-radius: var(--app-radius-m);
+      background: var(--app-status-negative-pale);
+      color: var(--app-status-negative);
+      font-size: 1.375rem;
     }
 
     .state__title {
       margin: 0;
       font-size: 1.0625rem;
       font-weight: 600;
-      color: var(--tui-text-primary);
+      color: var(--app-text-primary);
     }
 
     .state__description {
@@ -54,12 +57,13 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core';
       margin: 0 0 0.5rem;
       font-size: 0.9375rem;
       line-height: 1.5;
-      color: var(--tui-text-secondary);
+      color: var(--app-text-secondary);
     }
   `,
 })
 export class ErrorState {
   readonly title = input('Something went wrong');
   readonly message = input.required<string>();
+  readonly retryable = input(true);
   readonly retry = output<void>();
 }

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Service, inject } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { map, Observable } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';

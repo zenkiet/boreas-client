@@ -1,27 +1,35 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, minLength, pattern, required, submit } from '@angular/forms/signals';
-import { RouterLink } from '@angular/router';
-import { TuiButton, TuiDataList, TuiDropdown, TuiError, TuiIcon, TuiLoader } from '@taiga-ui/core';
-import { TuiAppBar } from '@taiga-ui/layout';
+import { IonBackButton } from '@ionic/angular/ion-back-button';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonInputPasswordToggle } from '@ionic/angular/ion-input-password-toggle';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonList } from '@ionic/angular/ion-list';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonPopover } from '@ionic/angular/ion-popover';
+import { IonSelect } from '@ionic/angular/ion-select';
+import { IonSelectOption } from '@ionic/angular/ion-select-option';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
 import { filter, switchMap } from 'rxjs';
 
 import { User, UserRole } from '@entities/user';
 import { SessionStore } from '@features/auth';
 import { ManageUsersStore, UserCommandResult } from '@features/manage-users';
-import { fieldError } from '@shared/lib/forms/field-error';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
-import { BackLink } from '@shared/ui/back-link/back-link';
+import { FieldStatus } from '@shared/lib/forms/field-status.directive';
+import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { Callout } from '@shared/ui/callout/callout';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { ErrorState } from '@shared/ui/error-state/error-state';
-import { GlassSelect, GlassSelectOption } from '@shared/ui/glass-select/glass-select';
+import { EYE, EYE_SLASH } from '@shared/ui/glyph-urls';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
-/* Matches common backend username constraints; the server has the final say. */
+/* A client-side hint; the server has the final say. */
 const USERNAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,313 +42,273 @@ interface UserDraft {
 @Component({
   selector: 'app-users-page',
   imports: [
-    BackLink,
     Callout,
-    DatePipe,
     ErrorState,
+    FieldStatus,
     FormField,
-    GlassSelect,
     InsetGroup,
-    Reveal,
+    IonBackButton,
+    IonButton,
+    IonButtons,
+    IonInput,
+    IonInputPasswordToggle,
+    IonItem,
+    IonLabel,
+    IonList,
+    IonNote,
+    IonPopover,
+    IonSelect,
+    IonSelectOption,
+    IonSpinner,
+    PAGE_CHROME,
+    PULL_REFRESH,
     SkeletonRows,
-    RouterLink,
-    TuiAppBar,
-    TuiButton,
-    TuiDataList,
-    TuiDropdown,
-    TuiError,
-    TuiIcon,
-    TuiLoader,
   ],
-  providers: [ManageUsersStore],
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-3.5 md:gap-4">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack routerLink="/settings" aria-label="Back to settings"></a>
-          Users
-        </tui-app-bar>
-      </div>
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-buttons slot="start"><ion-back-button defaultHref="/settings" /></ion-buttons>
+        <ion-title>Users</ion-title>
+      </ion-toolbar>
+    </ion-header>
 
-      <div class="hidden md:block">
-        <app-back-link link="/settings" label="Settings" />
-        <h1 class="page-title mt-1.5">Users</h1>
-      </div>
+    <ion-content [fullscreen]="true">
+      <ion-refresher [appRefresh]="pull"><ion-refresher-content /></ion-refresher>
 
-      <h1 class="page-title md:hidden">Users</h1>
-
-      @if (users.error() && !users.hasLoaded()) {
-        <app-error-state [message]="users.error()!" (retry)="users.load()" />
-      } @else {
-        @if (users.loading() && !users.hasLoaded()) {
-          <!-- The form below is local and stays live; only the account rows wait. -->
-          <app-inset-group label="Users">
-            <app-skeleton-rows variant="member" label="Loading users" />
-          </app-inset-group>
+      <div class="mx-auto max-w-(--app-column)">
+        @if (users.error() && !users.hasLoaded()) {
+          <app-error-state class="m-5 block" [message]="users.error()!" (retry)="users.load()" />
         } @else {
-          <app-inset-group label="Users" [trailing]="summary()">
-            @for (user of users.users(); track user.id) {
-              <div class="row row-divider relative" [class.row--disabled]="user.disabled">
-                <span class="row__avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
-                <span class="min-w-0 flex-1">
-                  <span class="row__name">
+          @if (users.loading() && !users.hasLoaded()) {
+            <app-inset-group label="Accounts">
+              <app-skeleton-rows variant="member" label="Loading users" />
+            </app-inset-group>
+          } @else {
+            <app-inset-group label="Accounts" [trailing]="summary()">
+              @for (user of users.users(); track user.id) {
+                <ion-item [class.muted]="user.disabled">
+                  <span slot="start" class="avatar" aria-hidden="true">{{
+                    user.username.slice(0, 2)
+                  }}</span>
+                  <ion-label>
                     {{ user.username }}
                     @if (user.disabled) {
-                      <span class="row__muted">· disabled</span>
+                      <span class="tag">· disabled</span>
                     }
-                  </span>
-                  <span class="row__sub"
-                    >{{ user.email }} · joined {{ user.createdAt | date: 'MMM y' }}</span
-                  >
-                </span>
-                <span class="row__role" [attr.data-role]="user.role">{{ user.role }}</span>
-
-                @if (user.id !== session.user()?.id) {
-                  <button
-                    tuiIconButton
-                    type="button"
-                    size="s"
-                    appearance="flat-grayscale"
-                    [attr.aria-label]="'Actions for ' + user.username"
-                    [tuiDropdown]="menu"
-                  >
-                    <tui-icon class="icon-sm" icon="@tui.ellipsis" />
-                  </button>
-                  <ng-template #menu>
-                    <tui-data-list class="menu">
-                      <tui-opt-group>
-                        <button
-                          tuiOption
-                          type="button"
-                          [disabled]="users.busy()"
-                          (click)="toggleRole(user)"
-                        >
-                          {{ user.role === 'admin' ? 'Make user' : 'Make admin' }}
-                        </button>
-                        <button
-                          tuiOption
-                          type="button"
-                          [disabled]="users.busy()"
-                          (click)="toggleDisabled(user)"
-                        >
-                          {{ user.disabled ? 'Enable account' : 'Disable account' }}
-                        </button>
-                      </tui-opt-group>
-                      <tui-opt-group>
-                        <button
-                          tuiOption
-                          type="button"
-                          class="menu__destructive"
-                          [disabled]="users.busy()"
-                          (click)="deleteUser(user)"
-                        >
-                          Delete
-                        </button>
-                      </tui-opt-group>
-                    </tui-data-list>
-                  </ng-template>
-                } @else {
-                  <span class="row__muted">you</span>
-                }
-              </div>
-            }
-          </app-inset-group>
-        }
-
-        <div>
-          <app-inset-group label="New user">
-            <form class="grid grid-cols-1" novalidate (submit)="onSubmit($event)">
-              @if (users.createError(); as message) {
-                <div class="p-3">
-                  <app-callout tone="negative" role="alert">{{ message }}</app-callout>
-                </div>
+                  </ion-label>
+                  <ion-note>{{ user.email }}</ion-note>
+                  <span slot="end" class="role" [attr.data-role]="user.role">{{
+                    user.role === 'admin' ? 'Admin' : 'User'
+                  }}</span>
+                  @if (user.id !== session.user()?.id) {
+                    <ion-button
+                      slot="end"
+                      fill="clear"
+                      color="medium"
+                      [disabled]="users.busy()"
+                      [attr.aria-label]="'Actions for ' + user.username"
+                      (click)="openActions($event, user)"
+                    >
+                      <span
+                        slot="icon-only"
+                        class="icon-[regular--ellipsis]"
+                        aria-hidden="true"
+                      ></span>
+                    </ion-button>
+                  } @else {
+                    <span slot="end" class="tag you">you</span>
+                  }
+                </ion-item>
               }
+              <ion-item>
+                <button
+                  type="button"
+                  class="disclose"
+                  [attr.aria-expanded]="adding()"
+                  (click)="adding.set(!adding())"
+                >
+                  Add user…
+                </button>
+              </ion-item>
+              <ion-note>
+                Changing someone’s role, or disabling them, signs them out everywhere.
+              </ion-note>
+            </app-inset-group>
+          }
 
-              <div class="frow row-divider relative">
-                <label class="frow__label" for="user-username">Username</label>
-                <input
-                  id="user-username"
-                  class="frow__input"
+          @if (adding()) {
+            @if (users.createError(); as message) {
+              <app-callout class="m-5" tone="negative" role="alert">{{ message }}</app-callout>
+            }
+
+            <app-inset-group label="New user">
+              <ion-item>
+                <ion-input
+                  label="Username"
+                  labelPlacement="stacked"
                   autocomplete="off"
                   autocapitalize="off"
-                  spellcheck="false"
+                  [spellcheck]="false"
                   [formField]="draft.username"
                 />
-                @if (fieldError(draft.username()); as message) {
-                  <tui-error [error]="message" />
-                }
-              </div>
-
-              <div class="frow row-divider relative">
-                <label class="frow__label" for="user-email">Email</label>
-                <input
-                  id="user-email"
-                  class="frow__input"
+              </ion-item>
+              <ion-item>
+                <ion-input
+                  label="Email"
+                  labelPlacement="stacked"
                   type="email"
                   autocomplete="off"
                   autocapitalize="off"
-                  spellcheck="false"
+                  [spellcheck]="false"
                   [formField]="draft.email"
                 />
-                @if (fieldError(draft.email()); as message) {
-                  <tui-error [error]="message" />
-                }
-              </div>
-
-              <div class="frow row-divider relative">
-                <label class="frow__label" for="user-password">Password</label>
-                <input
-                  id="user-password"
-                  class="frow__input"
+              </ion-item>
+              <ion-item>
+                <ion-input
+                  label="Password"
+                  labelPlacement="stacked"
                   type="password"
+                  placeholder="At least 8 characters"
                   autocomplete="new-password"
                   [formField]="draft.password"
-                />
-                @if (fieldError(draft.password()); as message) {
-                  <tui-error [error]="message" />
-                }
-              </div>
-
-              <div class="frow frow--inline row-divider relative">
-                <span class="frow__inline-label">Role</span>
-                <app-glass-select
-                  ariaLabel="Role"
-                  [options]="roleOptions"
+                >
+                  <ion-input-password-toggle
+                    slot="end"
+                    color="medium"
+                    [showIcon]="eye"
+                    [hideIcon]="eyeSlash"
+                  />
+                </ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-select
+                  label="Role"
+                  interface="popover"
                   [value]="draftRole()"
                   [disabled]="users.busy()"
-                  (valueChange)="pickRole($event)"
-                />
-              </div>
-
-              <div class="row-divider relative flex justify-end p-3">
-                <button
-                  tuiButton
-                  type="submit"
-                  size="s"
-                  appearance="primary"
-                  [disabled]="users.busy()"
+                  (ionChange)="draftRole.set($event.detail.value)"
                 >
-                  @if (users.busy()) {
-                    <tui-loader size="s" [inheritColor]="true" />
-                  }
-                  Create user
-                </button>
-              </div>
-            </form>
-          </app-inset-group>
-          <p class="footnote">
-            Changing a password or role, or disabling an account, signs that user out everywhere.
-          </p>
-        </div>
-      }
-    </div>
+                  <ion-select-option value="user">user</ion-select-option>
+                  <ion-select-option value="admin">admin</ion-select-option>
+                </ion-select>
+              </ion-item>
+              <ion-item button [detail]="false" [disabled]="users.busy()" (click)="create()">
+                <ion-label color="primary">Create user</ion-label>
+                @if (users.busy()) {
+                  <ion-spinner slot="end" name="lines-small" />
+                }
+              </ion-item>
+            </app-inset-group>
+          }
+        }
+      </div>
+
+      <ion-popover
+        [attr.aria-label]="menu() ? 'Actions for ' + menu()!.user.username : null"
+        [isOpen]="menuOpen()"
+        [event]="menu()?.event"
+        [dismissOnSelect]="true"
+        (didDismiss)="menuOpen.set(false)"
+      >
+        <ng-template>
+          @if (menu(); as open) {
+            <ion-list [attr.aria-label]="'Actions for ' + open.user.username">
+              <p class="menu-title">{{ open.user.username }}</p>
+              <ion-item button lines="full" [detail]="false" (click)="toggleRole(open.user)">
+                <ion-label>{{ open.user.role === 'admin' ? 'Make user' : 'Make admin' }}</ion-label>
+                <span slot="end" class="icon-[light--user]" aria-hidden="true"></span>
+              </ion-item>
+              <ion-item button lines="none" [detail]="false" (click)="toggleDisabled(open.user)">
+                <ion-label>{{
+                  open.user.disabled ? 'Enable account' : 'Disable account'
+                }}</ion-label>
+                <span slot="end" class="icon-[light--ban]" aria-hidden="true"></span>
+              </ion-item>
+              <ion-item
+                button
+                lines="none"
+                class="menu-delete"
+                [detail]="false"
+                (click)="deleteUser(open.user)"
+              >
+                <ion-label color="danger">Delete</ion-label>
+                <span slot="end" class="text-danger icon-[light--trash]" aria-hidden="true"></span>
+              </ion-item>
+            </ion-list>
+          }
+        </ng-template>
+      </ion-popover>
+    </ion-content>
   `,
   styles: `
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6875rem 1rem;
-      min-block-size: 3.5rem;
+    .menu-title {
+      margin: 0;
+      padding: 0.75rem 1.25rem 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--app-text-tertiary);
     }
 
-    .row--disabled .row__name,
-    .row--disabled .row__sub {
-      color: var(--tui-text-tertiary);
+    ion-popover ion-item {
+      --min-height: 3rem;
+      --padding-start: 1.25rem;
+      --inner-padding-end: 1.25rem;
+      font-size: 1.0625rem;
     }
 
-    .row__avatar {
+    .menu-delete {
+      border-block-start: 0.375rem solid var(--app-fill);
+    }
+
+    /* Operator's call: a known AA contrast exception; do not copy it elsewhere. */
+    .muted {
+      opacity: 0.55;
+    }
+
+    .avatar {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      inline-size: 1.875rem;
-      block-size: 1.875rem;
-      flex: none;
+      inline-size: 2.25rem;
+      block-size: 2.25rem;
       border-radius: 999px;
       background: var(--app-accent-soft);
       color: var(--app-accent-text);
-      font-size: 0.6875rem;
+      font-size: 0.8125rem;
       font-weight: 700;
       text-transform: uppercase;
     }
 
-    .row__name {
-      display: block;
-      overflow: hidden;
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--tui-text-primary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .row__sub {
-      display: block;
-      overflow: hidden;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .row__muted {
-      font-size: 0.8125rem;
+    .tag {
+      font-size: 0.875rem;
       font-weight: 400;
-      color: var(--tui-text-tertiary);
+      color: var(--app-text-tertiary);
     }
 
-    .row__role {
-      flex: none;
-      border-radius: 999px;
-      padding: 0.125rem 0.5625rem;
-      font-size: 0.6875rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--tui-text-tertiary);
-      background: var(--tui-background-neutral-1);
+    /* Same width as the actions button, so role badges line up down the list. */
+    .you {
+      inline-size: 2.75rem;
+      text-align: center;
     }
 
-    .row__role[data-role='admin'] {
-      color: var(--tui-status-warning);
-      background: var(--tui-status-warning-pale);
+    .role {
+      border-radius: 0.625rem;
+      padding: 0.1875rem 0.5625rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--app-text-secondary);
+      background: var(--app-background-neutral-1);
     }
 
-    .menu {
-      inline-size: 12rem;
-    }
-
-    .menu__destructive {
-      color: var(--tui-status-negative);
-    }
-
-    .frow--inline {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-block-size: 3rem;
-    }
-
-    .frow__input {
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      padding: 0;
-      background: none;
-      font: inherit;
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
-    }
-
-    .frow__input:focus {
-      outline: none;
+    .role[data-role='admin'] {
+      color: var(--app-accent-text);
+      background: var(--app-accent-soft);
     }
   `,
 })
 export class UsersPage {
+  protected readonly eye = EYE;
+  protected readonly eyeSlash = EYE_SLASH;
   protected readonly users = inject(ManageUsersStore);
   protected readonly session = inject(SessionStore);
   private readonly confirmations = inject(ConfirmActionService);
@@ -349,10 +317,10 @@ export class UsersPage {
   private readonly model = signal<UserDraft>({ username: '', email: '', password: '' });
   protected readonly draftRole = signal<UserRole>('user');
 
-  protected readonly roleOptions: readonly GlassSelectOption[] = [
-    { value: 'user', label: 'user' },
-    { value: 'admin', label: 'admin' },
-  ];
+  protected readonly pull: PullRefreshSource = {
+    busy: this.users.loading,
+    trigger: () => this.users.load(),
+  };
 
   protected readonly draft = form(this.model, (path) => {
     required(path.username, { message: 'Username is required.' });
@@ -366,21 +334,28 @@ export class UsersPage {
   });
 
   protected readonly summary = computed(() => {
-    const total = this.users.users().length;
-    return `${total} ${total === 1 ? 'account' : 'accounts'}`;
+    const users = this.users.users();
+    const disabled = users.filter((user) => user.disabled).length;
+    return disabled ? `${users.length} · ${disabled} disabled` : String(users.length);
   });
 
+  protected readonly menu = signal<{ readonly user: User; readonly event: Event } | null>(null);
+  /* Separate from menu() so the popover keeps its rows while it animates out. */
+  protected readonly menuOpen = signal(false);
+  protected readonly adding = signal(false);
+
   constructor() {
-    registerPullRefresh({ busy: this.users.loading, trigger: () => this.users.load() });
+    /* The route-provided store outlives this page: read fresh, forget the last visit's error. */
+    this.users.clearCreateError();
+    this.users.load();
   }
 
-  protected pickRole(value: string): void {
-    this.draftRole.set(value as UserRole);
+  protected openActions(event: Event, user: User): void {
+    this.menu.set({ user, event });
+    this.menuOpen.set(true);
   }
 
-  protected onSubmit(event: Event): void {
-    event.preventDefault();
-
+  protected create(): void {
     /* Signal Forms requires a promise-returning submit action. */
     void submit(this.draft, async () => {
       const draft = this.model();
@@ -394,10 +369,10 @@ export class UsersPage {
         .subscribe((user) => {
           if (!user) return;
           this.notifications.success(`${user.username} created.`);
-          /* reset() clears touched and dirty too; setting the model alone would leave the
-             emptied fields flagged as touched and light up every required error. */
+          /* reset(), not a model write: submit left every field touched. */
           this.draft().reset({ username: '', email: '', password: '' });
           this.draftRole.set('user');
+          this.adding.set(false);
           this.users.load();
         });
     });
@@ -408,7 +383,7 @@ export class UsersPage {
     this.confirmSensitive(
       `Make ${user.username} ${role === 'admin' ? 'an administrator' : 'a regular user'}?`,
       'Changing the role signs them out everywhere.',
-      `Change role`,
+      role === 'admin' ? 'Make admin' : 'Make user',
     )
       .pipe(switchMap(() => this.users.update(user, { role }, `${user.username} is now ${role}.`)))
       .subscribe((result) => this.complete(result));
@@ -459,6 +434,4 @@ export class UsersPage {
     this.notifications.result(result);
     if (result.success) this.users.load();
   }
-
-  protected readonly fieldError = fieldError;
 }

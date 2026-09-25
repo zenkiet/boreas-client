@@ -24,7 +24,6 @@ import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { createLogger } from '@shared/lib/logging/logger';
 import { PushSubscriptionApi } from '../api/push-subscription.api';
 
-/** Firebase web-app options plus the Web Push certificate key that getToken() requires. */
 export interface FcmConfig extends FirebaseOptions {
   /** Console → Cloud Messaging → Web Push certificates; empty keeps web push off. */
   readonly vapidKey: string;
@@ -36,7 +35,7 @@ const STORAGE_KEY = 'boreas-push';
 /* The server INSERTs without upsert, so only a changed token may be posted again. */
 const REGISTERED_KEY = 'boreas-push-registered';
 
-/* A knob that snaps back explains nothing, so every refusal names its next step. */
+/* Every refusal names its next step: a toggle that snaps back explains nothing. */
 const BLOCKED_WEB =
   'Notifications are blocked for this site. Allow them in the browser settings, then try again.';
 const BLOCKED_NATIVE =
@@ -50,7 +49,6 @@ const blockedMessage = (): string => (Capacitor.isNativePlatform() ? BLOCKED_NAT
 
 export type PushPermission = NotificationPermission | 'unsupported';
 
-/** Foreground push payload, unified across the web SDK and the native plugin. */
 export interface PushMessage {
   readonly title: string;
   readonly body: string;
@@ -72,7 +70,6 @@ const toNativeMessage = (notification: PushNotificationSchema): PushMessage => (
   data: (notification.data as Record<string, string> | undefined) ?? {},
 });
 
-/** Push registration for every platform: FCM web SDK in browsers, the Capacitor plugin natively. */
 @Service()
 export class PushStore {
   private readonly config = inject(FCM_CONFIG, { optional: true });
@@ -89,9 +86,8 @@ export class PushStore {
   private readonly errorState = signal('');
 
   readonly permission = this.permissionState.asReadonly();
-  /** Device registration token, mirrored to the backend while signed in. */
   readonly token = this.tokenState.asReadonly();
-  /** Last foreground push; background delivery belongs to the OS and the service worker. */
+  /** Foreground only: the OS and the service worker deliver background pushes. */
   readonly message = this.messageState.asReadonly();
   readonly enabled = this.enabledState.asReadonly();
   readonly busy = this.busyState.asReadonly();
@@ -114,7 +110,7 @@ export class PushStore {
         this.api
           .subscribe(token)
           .pipe(
-            /* 409 means the token already sits on the server; adopt it instead of failing. */
+            /* 409: the token is already on the server; adopt it. */
             catchError((error: unknown) => {
               if (error instanceof HttpErrorResponse && error.status === 409) {
                 return of(undefined);
@@ -143,7 +139,7 @@ export class PushStore {
     });
   }
 
-  /** Boot hook for providePushNotifications: reconnects devices that opted in, never prompts. */
+  /** Boot hook: reconnects opted-in devices, never prompts. */
   init(): void {
     if (Capacitor.isNativePlatform()) {
       this.initNative();
@@ -152,7 +148,7 @@ export class PushStore {
     }
   }
 
-  /** Must run inside a user gesture: browsers only honor the first permission prompt in one. */
+  /** Call inside a user gesture: browsers only honor a permission prompt in one. */
   enable(): Observable<void> {
     const native = Capacitor.isNativePlatform();
 
@@ -175,7 +171,7 @@ export class PushStore {
     );
   }
 
-  /** Turns push off for this device; the browser/OS permission itself stays granted. */
+  /** The browser/OS permission stays granted. */
   disable(): Observable<void> {
     /* Opt-out is recorded first so a failed remote revoke cannot resurrect push at next boot. */
     this.setOptedIn(false);
@@ -207,7 +203,7 @@ export class PushStore {
       return;
     }
 
-    /* Listed by name so one production console line says which capability is absent. */
+    /* Named, so one production console line says which capability is absent. */
     const missing = (
       [
         ['vapidKey', Boolean(this.config?.vapidKey)],
@@ -255,7 +251,7 @@ export class PushStore {
     void PushNotifications.addListener('registrationError', ({ error }) => {
       this.errorState.set(error);
       this.enabledState.set(false);
-      /* Missing google-services.json / GoogleService-Info.plist lands here, silently until now. */
+      /* A missing google-services.json / GoogleService-Info.plist lands here. */
       this.logger.error('native registration failed', { error });
     });
     void PushNotifications.addListener('pushNotificationReceived', (notification) => {
@@ -279,7 +275,7 @@ export class PushStore {
       return EMPTY;
     }
 
-    /* Permission runs before the firebase import: Safari drops transient activation on async hops. */
+    /* Prompt before the firebase import: Safari drops transient activation on async hops. */
     return defer(() => view.Notification.requestPermission()).pipe(
       switchMap((permission) => {
         this.permissionState.set(permission);
@@ -287,7 +283,7 @@ export class PushStore {
           return this.connectWeb();
         }
 
-        /* Chrome answers "denied" with no prompt once a site is blocked; that must not read as a no-op. */
+        /* Chrome denies without a prompt once a site is blocked; that must not read as a no-op. */
         this.errorState.set(permission === 'denied' ? blockedMessage() : DISMISSED);
         this.logger.warn('web permission refused', { permission });
         return EMPTY;
@@ -310,7 +306,7 @@ export class PushStore {
     );
   }
 
-  /* Lazy import keeps firebase out of the initial bundle for users who never enable push. */
+  /* Lazy: users who never enable push never download firebase. */
   private connectWeb(): Observable<void> {
     return defer(() => forkJoin([import('firebase/app'), import('firebase/messaging')])).pipe(
       switchMap(([{ initializeApp }, fcm]) =>

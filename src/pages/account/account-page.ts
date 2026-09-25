@@ -1,68 +1,120 @@
+import { DatePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { TuiAppBar } from '@taiga-ui/layout';
+import { IonBackButton } from '@ionic/angular/ion-back-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonNote } from '@ionic/angular/ion-note';
+import { NavController } from '@ionic/angular/nav-controller';
 
 import { SessionStore } from '@features/auth';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { BackLink } from '@shared/ui/back-link/back-link';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
-import { PageHeader } from '@shared/ui/page-header/page-header';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 
 @Component({
   selector: 'app-account-page',
-  imports: [BackLink, InsetGroup, PageHeader, Reveal, RouterLink, TuiAppBar],
+  imports: [
+    DatePipe,
+    InsetGroup,
+    IonBackButton,
+    IonButtons,
+    IonItem,
+    IonLabel,
+    IonNote,
+    PAGE_CHROME,
+  ],
   template: `
-    <div appReveal class="mx-auto grid w-full max-w-3xl grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack routerLink="/settings" aria-label="Back to settings"></a>
-          <span>Account</span>
-        </tui-app-bar>
-      </div>
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-buttons slot="start"><ion-back-button defaultHref="/settings" /></ion-buttons>
+        <ion-title>Account</ion-title>
+      </ion-toolbar>
+    </ion-header>
 
-      <header class="hidden md:block">
-        <app-back-link link="/settings" label="Settings" />
-        <app-page-header title="Account" />
-      </header>
+    <ion-content [fullscreen]="true">
+      <div class="mx-auto max-w-(--app-column)">
+        <!-- Sign out must survive a failed profile load: on iPad this is the default pane. -->
+        @if (session.user(); as user) {
+          <div class="profile">
+            <span class="avatar" aria-hidden="true">{{ user.username.slice(0, 2) }}</span>
+            <span class="profile__name">{{ user.username }}</span>
+            <span class="profile__role">{{
+              user.role === 'admin' ? 'Administrator' : 'User'
+            }}</span>
+          </div>
 
-      @if (session.user(); as user) {
-        <app-inset-group>
-          <div class="lrow row-divider relative">
-            <span class="lrow__label">Username</span>
-            <span class="lrow__value">{{ user.username }}</span>
-          </div>
-          <div class="lrow row-divider relative">
-            <span class="lrow__label">Email</span>
-            <span class="lrow__value">{{ user.email }}</span>
-          </div>
-          <div class="lrow row-divider relative">
-            <span class="lrow__label">Role</span>
-            <span class="lrow__value">{{ user.role }}</span>
-          </div>
-        </app-inset-group>
-
-        <div>
           <app-inset-group>
-            <button type="button" class="lrow action-row row-divider relative" (click)="signOut()">
-              Sign out
-            </button>
+            <ion-item>
+              <ion-label>Username</ion-label>
+              <ion-note slot="end" class="font-mono">{{ user.username }}</ion-note>
+            </ion-item>
+            <ion-item>
+              <ion-label>Email</ion-label>
+              <ion-note slot="end">{{ user.email }}</ion-note>
+            </ion-item>
+            <ion-item>
+              <ion-label>Member since</ion-label>
+              <ion-note slot="end" class="tabular">{{ user.createdAt | date: 'MMM y' }}</ion-note>
+            </ion-item>
+            <ion-note>
+              Accounts live on your server. Ask an administrator to change your email or password.
+            </ion-note>
           </app-inset-group>
-          <p class="footnote">
-            Accounts live on your server. Ask an administrator to change your details or password.
-          </p>
-        </div>
-      }
-    </div>
+        }
+
+        <app-inset-group class="mt-3">
+          <ion-item button [detail]="false" (click)="signOut()">
+            <ion-label color="danger">Sign out</ion-label>
+          </ion-item>
+          <ion-note>Signs out this device only. Your API tokens keep working.</ion-note>
+        </app-inset-group>
+      </div>
+    </ion-content>
+  `,
+  styles: `
+    .profile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      margin-block: 0.5rem 0.625rem;
+    }
+
+    .avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: 5.5rem;
+      block-size: 5.5rem;
+      margin-block-end: 0.625rem;
+      border-radius: 999px;
+      background: linear-gradient(160deg, #3b82f6, #4f46e5);
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .profile__name {
+      font-size: 1.5rem;
+      line-height: 1.875rem;
+      font-weight: 700;
+    }
+
+    .profile__role {
+      font-size: 0.9375rem;
+      color: var(--app-text-secondary);
+    }
   `,
 })
 export class AccountPage {
-  private readonly router = inject(Router);
+  private readonly navCtrl = inject(NavController);
 
   protected readonly session = inject(SessionStore);
 
   protected signOut(): void {
-    this.session.signOut().subscribe(() => void this.router.navigate(['/login']));
+    /* Root, not a push: back from Login must not reopen a signed-out screen. */
+    this.session.signOut().subscribe(() => void this.navCtrl.navigateRoot('/login'));
   }
 }

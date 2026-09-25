@@ -1,48 +1,43 @@
 import { Component, computed, input } from '@angular/core';
-import { TuiIcon } from '@taiga-ui/core';
 
 export type CalloutTone = 'info' | 'positive' | 'warning' | 'negative';
 
 const TONE_ICON: Record<CalloutTone, string> = {
-  info: '@tui.info',
-  positive: '@tui.circle-check',
-  warning: '@tui.triangle-alert',
-  negative: '@tui.circle-alert',
+  info: 'icon-[light--circle-info]',
+  positive: 'icon-[light--circle-check]',
+  warning: 'icon-[light--triangle-exclamation]',
+  negative: 'icon-[light--circle-exclamation]',
 };
 
 @Component({
   selector: 'app-callout',
-  imports: [TuiIcon],
-  /* Block keeps a host role="alert" from collapsing to an inline box in grid or flex layouts. */
+  /* Block: a host role="alert" would otherwise collapse to an inline box. */
   host: { class: 'block' },
   template: `
-    <div class="callout" [attr.data-tone]="tone()" [attr.data-size]="size()">
-      <tui-icon class="callout__icon icon-sm" [icon]="icon() || defaultIcon()" aria-hidden="true" />
+    <div class="callout" [attr.data-tone]="tone()">
+      <span class="callout__icon" [class]="icon()" aria-hidden="true"></span>
       <div class="callout__body">
         <ng-content />
       </div>
     </div>
   `,
+  /* Only the icon takes the tone: toned text would fail AA on its own tint. */
   styles: `
     .callout {
       display: flex;
       align-items: flex-start;
-      gap: 0.5rem;
-      padding: 0.6875rem 0.875rem;
-      border: 1px solid transparent;
-      border-radius: var(--tui-radius-m);
-      font-size: 0.9375rem;
-      line-height: 1.45;
-    }
-
-    .callout[data-size='s'] {
-      padding: 0.5rem 0.625rem;
-      font-size: 0.8125rem;
+      gap: 0.75rem;
+      padding: 0.875rem 1rem;
+      border-radius: 1.375rem;
+      background: var(--pale);
+      font-size: 0.875rem;
+      line-height: 1.36;
     }
 
     .callout__icon {
-      margin-block-start: 0.0625rem;
       flex-shrink: 0;
+      font-size: 1.25rem;
+      color: var(--tone);
     }
 
     .callout__body {
@@ -50,34 +45,28 @@ const TONE_ICON: Record<CalloutTone, string> = {
     }
 
     .callout[data-tone='info'] {
-      border-color: var(--tui-status-info-pale-hover);
-      background: var(--tui-status-info-pale);
-      color: var(--tui-status-info);
+      --tone: var(--app-status-info);
+      --pale: var(--app-status-info-pale);
     }
 
     .callout[data-tone='positive'] {
-      border-color: var(--tui-status-positive-pale-hover);
-      background: var(--tui-status-positive-pale);
-      color: var(--tui-status-positive);
+      --tone: var(--app-status-positive);
+      --pale: var(--app-status-positive-pale);
     }
 
     .callout[data-tone='warning'] {
-      border-color: var(--tui-status-warning-pale-hover);
-      background: var(--tui-status-warning-pale);
-      color: var(--tui-status-warning);
+      --tone: var(--app-status-warning);
+      --pale: var(--app-status-warning-pale);
     }
 
     .callout[data-tone='negative'] {
-      border-color: var(--tui-status-negative-pale-hover);
-      background: var(--tui-status-negative-pale);
-      color: var(--tui-status-negative);
+      --tone: var(--ion-color-danger);
+      --pale: color-mix(in srgb, var(--ion-color-danger) 7%, transparent);
     }
   `,
 })
 export class Callout {
   readonly tone = input<CalloutTone>('info');
-  readonly size = input<'s' | 'm'>('m');
-  readonly icon = input('');
 
-  protected readonly defaultIcon = computed(() => TONE_ICON[this.tone()]);
+  protected readonly icon = computed(() => TONE_ICON[this.tone()]);
 }

@@ -1,100 +1,108 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { TuiAppBar } from '@taiga-ui/layout';
+import { IonBackButton } from '@ionic/angular/ion-back-button';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { NavController } from '@ionic/angular/nav-controller';
 
 import { UpdateTaskInput } from '@entities/task';
 import { EditTaskStore, TaskEditForm } from '@features/edit-task';
 import { ListProjectsStore } from '@features/list-projects';
 import { ViewTaskStore } from '@features/view-task';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { BackLink } from '@shared/ui/back-link/back-link';
+import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { ErrorState } from '@shared/ui/error-state/error-state';
-import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
-import { PageHeader } from '@shared/ui/page-header/page-header';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 @Component({
   selector: 'app-task-edit-page',
   imports: [
-    BackLink,
     ErrorState,
-    GlassIconButton,
     InsetGroup,
-    PageHeader,
-    Reveal,
-    RouterLink,
+    IonBackButton,
+    IonButton,
+    IonButtons,
+    IonSpinner,
+    PAGE_CHROME,
     SkeletonRows,
     TaskEditForm,
-    TuiAppBar,
   ],
   providers: [ViewTaskStore, EditTaskStore],
   template: `
-    <div appReveal class="mx-auto grid max-w-160 grid-cols-1 gap-3.5 md:gap-4">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack [routerLink]="taskLink()" aria-label="Back to task"></a>
-          Edit task
-          <!-- Keep validation-enabled: submitting empty fields must reveal their errors. -->
-          <button
-            tuiSlot="end"
-            appGlassIconButton
-            icon="@tui.check"
-            type="submit"
-            form="edit-task-form"
-            aria-label="Save changes"
-            [disabled]="edit.saving()"
-          ></button>
-        </tui-app-bar>
-      </div>
-
-      <div class="hidden md:block">
-        <app-back-link [link]="taskPath()" [label]="name()" />
-        <div class="mt-1.5">
-          <app-page-header
-            title="Edit task"
-            description="Changing the image or port recreates the container."
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-back-button
+            [defaultHref]="taskPath()"
+            [text]="name()"
+            [attr.aria-label]="'Back to ' + name()"
           />
-        </div>
-      </div>
+        </ion-buttons>
+        <ion-title>Edit task</ion-title>
+        <ion-buttons slot="end">
+          <!-- Mounts with the form: an ion-button rendered before its form never submits it.
+               Never validity-disabled: submitting empty fields must reveal their errors. -->
+          @if (detail.task()) {
+            <ion-button
+              type="submit"
+              fill="solid"
+              color="primary"
+              form="edit-task-form"
+              [attr.aria-label]="wide() ? null : 'Save changes'"
+              [disabled]="edit.saving()"
+            >
+              @if (edit.saving()) {
+                <ion-spinner name="lines-small" />
+              } @else if (wide()) {
+                Save
+              } @else {
+                <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
+              }
+            </ion-button>
+          }
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
 
-      @if (detail.error() && !detail.hasLoaded()) {
-        <app-error-state
-          title="Unable to load task"
-          [message]="detail.error()!"
-          (retry)="reload()"
-        />
-      } @else if (detail.task(); as task) {
-        <app-task-edit-form
-          formId="edit-task-form"
-          [task]="task"
-          [saving]="edit.saving()"
-          [error]="edit.error()"
-          (submitted)="save($event)"
-        />
-      } @else {
-        <app-inset-group label="Container">
-          <app-skeleton-rows variant="task" label="Loading task" />
-        </app-inset-group>
-      }
-    </div>
+    <ion-content [fullscreen]="true">
+      <div class="mx-auto max-w-(--app-column)">
+        @if (detail.error() && !detail.hasLoaded()) {
+          <app-error-state
+            class="m-5"
+            title="Unable to load task"
+            [message]="detail.error()!"
+            (retry)="reload()"
+          />
+        } @else if (detail.task(); as task) {
+          <app-task-edit-form
+            formId="edit-task-form"
+            [task]="task"
+            [saving]="edit.saving()"
+            [error]="edit.error()"
+            (submitted)="save($event)"
+          />
+        } @else {
+          <app-inset-group label="Container">
+            <app-skeleton-rows variant="task" label="Loading task" />
+          </app-inset-group>
+        }
+      </div>
+    </ion-content>
   `,
 })
 export class TaskEditPage {
+  protected readonly wide = wideScreen();
   protected readonly detail = inject(ViewTaskStore);
   protected readonly edit = inject(EditTaskStore);
   private readonly fleet = inject(ListProjectsStore);
   private readonly notifications = inject(NotifyService);
-  private readonly router = inject(Router);
+  private readonly navCtrl = inject(NavController);
 
   readonly slug = input('');
   readonly name = input('');
 
-  protected readonly taskLink = computed(() => ['/projects', this.slug(), 'tasks', this.name()]);
   protected readonly taskPath = computed(() => `/projects/${this.slug()}/tasks/${this.name()}`);
 
   constructor() {
@@ -106,12 +114,16 @@ export class TaskEditPage {
   }
 
   protected save(input: UpdateTaskInput): void {
+    if (Object.keys(input).length === 0) {
+      void this.navCtrl.navigateBack(this.taskPath());
+      return;
+    }
     this.edit.update(this.slug(), this.name(), input).subscribe((task) => {
       if (!task) return;
 
       this.fleet.invalidate();
       this.notifications.success(`Task ${task.name} updated.`);
-      void this.router.navigate(['/projects', this.slug(), 'tasks', this.name()]);
+      void this.navCtrl.navigateBack(this.taskPath());
     });
   }
 }

@@ -2,7 +2,13 @@ import { Injectable, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 
-import { ApiToken, ApiTokenApi, CreateApiTokenInput, CreatedApiToken } from '@entities/api-token';
+import {
+  ApiToken,
+  ApiTokenApi,
+  CreateApiTokenInput,
+  CreatedApiToken,
+  isRevocable,
+} from '@entities/api-token';
 import { mapApiError } from '@shared/api/api-error';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { CommandGate, CommandResult } from '@shared/api/command';
@@ -31,9 +37,8 @@ export class ManageTokensStore {
   readonly busy = this.gate.busy;
   readonly createError = this.gate.error;
 
-  readonly activeCount = computed(
-    () => this.tokens().filter((token) => token.status === 'active').length,
-  );
+  /** Tokens that still work or will (active and scheduled): what the lists count. */
+  readonly liveCount = computed(() => this.tokens().filter(isRevocable).length);
 
   /** 403 here means the caller authenticated with an API token, not a login session. */
   readonly sessionRequired = computed(() => {
@@ -43,6 +48,10 @@ export class ManageTokensStore {
 
   load(): void {
     this.listResource.reload();
+  }
+
+  clearCreateError(): void {
+    this.gate.clearError();
   }
 
   create(input: CreateApiTokenInput): Observable<CreatedApiToken | undefined> {

@@ -1,9 +1,5 @@
 import { ApiToken, CreateApiTokenInput, CreatedApiToken } from '../model/api-token';
-import {
-  ApiTokenDto,
-  CreateApiTokenRequestDto,
-  CreateApiTokenResponseDto,
-} from './api-token.dto';
+import { ApiTokenDto, CreateApiTokenRequestDto, CreateApiTokenResponseDto } from './api-token.dto';
 
 export function toApiToken(dto: ApiTokenDto): ApiToken {
   return {
@@ -21,9 +17,7 @@ export function toCreatedApiToken(dto: CreateApiTokenResponseDto): CreatedApiTok
   return { token: dto.token, apiToken: toApiToken(dto.api_token) };
 }
 
-export function toCreateApiTokenRequestDto(
-  input: CreateApiTokenInput,
-): CreateApiTokenRequestDto {
+export function toCreateApiTokenRequestDto(input: CreateApiTokenInput): CreateApiTokenRequestDto {
   return {
     name: input.name,
     valid_from: input.validFrom.toISOString(),

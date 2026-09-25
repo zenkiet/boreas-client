@@ -3,7 +3,6 @@ import { Service, inject, signal } from '@angular/core';
 
 const STORAGE_KEY = 'boreas-welcomed';
 
-/** Remembers that this device finished the welcome tour, so it only ever shows once. */
 @Service()
 export class WelcomeSeenStore {
   private readonly document = inject(DOCUMENT);

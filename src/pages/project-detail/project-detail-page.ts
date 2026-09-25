@@ -1,38 +1,59 @@
-import { DOCUMENT, DatePipe } from '@angular/common';
+import { DOCUMENT, DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { TuiButton, TuiIcon } from '@taiga-ui/core';
-import { TuiAppBar } from '@taiga-ui/layout';
-import { filter, switchMap } from 'rxjs';
+import type { SelectCustomEvent } from '@ionic/angular';
+import { IonBackButton } from '@ionic/angular/ion-back-button';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonList } from '@ionic/angular/ion-list';
+import { IonNote } from '@ionic/angular/ion-note';
+import { IonPopover } from '@ionic/angular/ion-popover';
+import { IonRouterLinkWithHref } from '@ionic/angular/ion-router-link';
+import { IonSegment } from '@ionic/angular/ion-segment';
+import { IonSegmentButton } from '@ionic/angular/ion-segment-button';
+import { IonSelect } from '@ionic/angular/ion-select';
+import { IonSelectOption } from '@ionic/angular/ion-select-option';
+import { NavController } from '@ionic/angular/nav-controller';
+import { EMPTY, defer, filter, from, switchMap } from 'rxjs';
 
 import { AddMemberInput, Member, Project, TaskDefaultsInput } from '@entities/project';
 import { toCredentialOptions } from '@entities/registry-credential';
-import { DEV_STATUSES, DEV_STATUS_LABEL, Task, TaskActionRequest } from '@entities/task';
+import { Task, TaskActionRequest } from '@entities/task';
+import { SessionStore } from '@features/auth';
 import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
-import { ListProjectsStore } from '@features/list-projects';
+import { ListAlertsStore } from '@features/list-alerts/model';
+import { ListProjectsStore } from '@features/list-projects/model';
 import { TaskList } from '@features/list-tasks';
 import {
   ManageProjectStore,
+  MemberForm,
   MemberList,
+  MemberRoleChange,
   ProjectCommandResult,
   ProjectDefaultsForm,
 } from '@features/manage-project';
+import { PinnedProjectsStore } from '@features/pin-project';
 import { ViewProjectStore } from '@features/view-project';
 import { ServerConfigStore } from '@shared/config/server-config.store';
-import { Reveal } from '@shared/lib/motion/reveal.directive';
-import { registerPullRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
-import { BackLink } from '@shared/ui/back-link/back-link';
+import { age } from '@shared/lib/format/age';
+import {
+  PULL_REFRESH,
+  PullRefreshSource,
+  onReturn,
+} from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
-import { GlassIconButton } from '@shared/ui/glass-icon-button/glass-icon-button';
-import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
-import { GlassSelect } from '@shared/ui/glass-select/glass-select';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
+import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
+import { NEW_TASK_DIALOG, SheetService } from '@shared/ui/sheet/sheet.service';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
-import { TUI_BREAKPOINT } from '@taiga-ui/core';
 
 const VIEWS = ['tasks', 'members', 'about'] as const;
 
@@ -41,334 +62,391 @@ type View = (typeof VIEWS)[number];
 @Component({
   selector: 'app-project-detail-page',
   imports: [
-    BackLink,
     Callout,
     DatePipe,
+    NgTemplateOutlet,
     EmptyState,
     ErrorState,
-    GlassIconButton,
-    GlassSegmented,
-    GlassSelect,
     InsetGroup,
+    IonBackButton,
+    IonButton,
+    IonButtons,
+    IonInput,
+    IonItem,
+    IonLabel,
+    IonList,
+    IonNote,
+    IonPopover,
+    IonRouterLinkWithHref,
+    IonSegment,
+    IonSegmentButton,
+    IonSelect,
+    IonSelectOption,
+    MemberForm,
     MemberList,
+    PAGE_CHROME,
     ProjectDefaultsForm,
-    Reveal,
+    PULL_REFRESH,
     RouterLink,
     SkeletonRows,
     TaskList,
-    TuiAppBar,
-    TuiButton,
-    TuiIcon,
   ],
   providers: [ViewProjectStore, ControlTaskStore, ManageProjectStore],
+  host: { class: 'desk-wide' },
   template: `
-    <!-- iOS push: chrome and the seeded title render before any data lands. -->
-    <div appReveal class="mx-auto grid w-full max-w-160 grid-cols-1 gap-3.5 pb-16 md:gap-4 md:pb-0">
-      <!-- The scroll edge prevents content showing through Taiga's transparent app bar. -->
-      <div
-        class="scroll-edge sticky top-0 z-10 -mx-4 -mt-[max(1rem,env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden"
-      >
-        <tui-app-bar tuiAppBarSize>
-          <a tuiSlot="start" tuiAppBarBack routerLink="/projects" aria-label="Back to projects"></a>
-          <span class="detail__bar-title font-mono">{{ slug() }}</span>
-          <a
-            tuiSlot="end"
-            appGlassIconButton
-            icon="@tui.plus"
-            [routerLink]="['/projects', slug(), 'tasks', 'new']"
-            aria-label="New task"
-          ></a>
-        </tui-app-bar>
-      </div>
-
-      <header class="hidden md:block">
-        <app-back-link link="/projects" label="Projects" />
-        <div class="mt-1.5 flex items-center justify-between gap-3">
-          <h1 class="detail__title">{{ displayName() }}</h1>
-          <a
-            tuiButton
-            size="s"
-            appearance="primary"
-            [routerLink]="['/projects', slug(), 'tasks', 'new']"
+    <ion-header [translucent]="true" class="wide-head" [class.condensed]="condensed()">
+      <ion-toolbar>
+        <!-- aria-hidden: the h1 already names the page. -->
+        <ion-title aria-hidden="true">{{ displayName() }}</ion-title>
+        <ion-buttons slot="start" class="desk-hide">
+          <ion-back-button defaultHref="/projects" text="Home" aria-label="Back to Home" />
+        </ion-buttons>
+        <nav slot="start" class="crumbs desk-only" aria-label="Breadcrumb">
+          <a routerLink="/projects" routerDirection="back">Home</a>
+          <span aria-hidden="true">›</span>
+          <span aria-current="page">{{ displayName() }}</span>
+        </nav>
+        <ion-buttons slot="end" class="narrow-only">
+          <ion-button (click)="newTask()" aria-label="New task">
+            <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
+          </ion-button>
+        </ion-buttons>
+        <ion-buttons slot="end" class="wide-only">
+          <ion-button
+            color="primary"
+            fill="solid"
+            class="act act--primary desk-hide"
+            (click)="newTask()"
           >
-            <tui-icon class="icon-sm" icon="@tui.plus" />
+            <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
             New task
-          </a>
-        </div>
-        <p class="detail__subtitle font-mono">/{{ slug() }}</p>
-      </header>
+          </ion-button>
+          <ion-button fill="solid" class="act" [id]="moreId()" aria-label="More actions">
+            <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+      @if (wide()) {
+        <ion-toolbar>
+          <div class="title-row">
+            <ng-container *ngTemplateOutlet="titleBlock" />
+            <ng-container *ngTemplateOutlet="sectionSwitch" />
+          </div>
+        </ion-toolbar>
+      }
+    </ion-header>
 
-      <h1 class="detail__title md:hidden">{{ displayName() }}</h1>
+    <ion-content
+      [fullscreen]="true"
+      [scrollEvents]="true"
+      (ionScroll)="condensed.set($event.detail.scrollTop > 48)"
+    >
+      <ion-refresher [appRefresh]="pull"><ion-refresher-content /></ion-refresher>
 
-      @if (detail.error() && detail.hasLoaded()) {
-        <app-callout tone="negative" role="alert">
-          {{ detail.error() }} Existing data is still shown.
-        </app-callout>
+      @if (!wide()) {
+        <div class="phone-title"><ng-container *ngTemplateOutlet="titleBlock" /></div>
+        <ion-toolbar class="phone-switch">
+          <ng-container *ngTemplateOutlet="sectionSwitch" />
+        </ion-toolbar>
       }
 
-      <app-glass-segmented
-        [items]="viewItems()"
-        [activeIndex]="viewIndex()"
-        (activeIndexChange)="setView($event)"
-      />
+      <div class="mx-auto max-w-(--app-column)">
+        @if (detail.error() && detail.hasLoaded()) {
+          <app-callout class="m-5" tone="negative" role="alert">
+            {{ detail.error() }} Existing data is still shown.
+          </app-callout>
+        }
 
-      @if (detail.error() && !detail.hasLoaded()) {
-        <app-error-state
-          title="Unable to load project"
-          [message]="detail.error()!"
-          (retry)="reload()"
-        />
-      } @else if (!detail.hasLoaded()) {
-        <!-- The redacted group follows the selected segment so switching stays honest. -->
-        <app-inset-group [label]="skeletonLabel()">
-          <app-skeleton-rows
-            [variant]="view() === 'members' ? 'member' : 'task'"
-            label="Loading project"
+        @if (detail.error() && !detail.hasLoaded()) {
+          <app-error-state
+            class="m-5 block"
+            title="Unable to load project"
+            [message]="detail.error()!"
+            (retry)="reload()"
           />
-        </app-inset-group>
-      } @else {
-        <!-- Sections hide, never unmount: the member form and scroll state survive switching. -->
-        <div [class.hidden]="view() !== 'tasks'">
-          <app-inset-group label="Tasks" [trailing]="taskSummary()">
+        } @else if (!detail.hasLoaded()) {
+          <app-inset-group [label]="skeletonLabel()">
+            <app-skeleton-rows
+              [variant]="view() === 'members' ? 'member' : 'task'"
+              label="Loading project"
+            />
+          </app-inset-group>
+        } @else {
+          <!-- Sections hide, never unmount: the member form and scroll state survive switching. -->
+          <div [class.hidden]="view() !== 'tasks'">
             @if (detail.tasks().length === 0) {
-              <app-empty-state
-                title="No tasks yet"
-                description="Create a task to start an isolated Docker environment behind the Boreas proxy."
-                [bordered]="false"
-              />
+              <app-inset-group label="Tasks">
+                <app-empty-state
+                  title="No tasks yet"
+                  description="A task is one container with its own URL. Start from the project’s defaults."
+                  [bordered]="false"
+                >
+                  <ion-button size="small" (click)="newTask()">
+                    <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+                    New task
+                  </ion-button>
+                </app-empty-state>
+              </app-inset-group>
             } @else {
               <app-task-list
                 [tasks]="detail.tasks()"
                 [pendingTaskIds]="commands.pendingTaskIds()"
-                [mobile]="mobile()"
-                [accessUrlFor]="accessUrlFor()"
-                [routeFor]="routeFor()"
                 (actionRequested)="handleTaskAction($event)"
                 (taskOpened)="openTask($event)"
               />
             }
+          </div>
 
-            <a
-              class="add-row row-divider relative"
-              [routerLink]="['/projects', slug(), 'tasks', 'new']"
-            >
-              <tui-icon class="icon-sm" icon="@tui.plus" />
-              New task
-            </a>
-          </app-inset-group>
-        </div>
-
-        <div [class.hidden]="view() !== 'members'">
-          @if (detail.members(); as members) {
-            <app-inset-group label="Members" [trailing]="memberSummary()">
-              <app-member-list
-                [members]="members"
-                [users]="manage.users()"
-                [busy]="manage.busy()"
-                (addRequested)="addMember($event)"
-                (removeRequested)="removeMember($event)"
-              />
-            </app-inset-group>
-          } @else {
-            <app-callout tone="info">
-              Members and access are managed by the project owner.
-            </app-callout>
-          }
-        </div>
-
-        @if (detail.project(); as project) {
-          <div class="grid grid-cols-1 gap-3.5" [class.hidden]="view() !== 'about'">
-            <app-inset-group label="About">
-              @if (canManage()) {
-                <div class="about__row row-divider relative">
-                  <label class="about__label" for="project-name">Display name</label>
-                  <div class="flex items-center gap-2">
-                    <input
-                      id="project-name"
-                      class="about__input"
-                      autocomplete="off"
-                      [value]="draftName()"
-                      (input)="typeName($event)"
-                    />
-                    @if (draftName() !== project.name) {
-                      <button
-                        tuiButton
-                        type="button"
-                        size="s"
-                        appearance="secondary"
-                        [disabled]="manage.busy()"
-                        (click)="saveName(project)"
-                      >
-                        Save
-                      </button>
-                    }
-                  </div>
-                </div>
-              } @else {
-                <div class="about__row about__row--inline row-divider relative">
-                  <span class="about__label about__label--inline">Display name</span>
-                  <span class="about__value">{{ project.name }}</span>
-                </div>
-              }
-
-              @if (credentialOptions(); as options) {
-                <div class="about__row about__row--inline row-divider relative">
-                  <span class="about__label about__label--inline">Registry credential</span>
-                  <app-glass-select
-                    ariaLabel="Registry credential"
-                    placeholder="None"
-                    [options]="options"
-                    [value]="project.registryCredentialId ?? ''"
-                    [disabled]="manage.busy()"
-                    (valueChange)="changeCredential(project, $event)"
-                  />
-                </div>
-              }
-
-              <div class="about__row about__row--inline row-divider relative">
-                <span class="about__label about__label--inline">Proxy prefix</span>
-                <span class="about__value font-mono">{{ proxyPrefix() }}</span>
-              </div>
-
-              <div class="about__row about__row--inline row-divider relative">
-                <span class="about__label about__label--inline">Created</span>
-                <span class="about__value tabular">{{ project.createdAt | date: 'MMM d, y' }}</span>
-              </div>
-            </app-inset-group>
-
-            @if (canManage()) {
-              <div>
-                <app-inset-group label="Task defaults">
-                  <app-project-defaults-form
-                    [defaults]="project.defaults"
+          <div [class.hidden]="view() !== 'members'">
+            @if (detail.members(); as members) {
+              <app-inset-group label="Members" [trailing]="memberSummary()">
+                <app-member-list
+                  [members]="members"
+                  [selfId]="session.user()?.id ?? ''"
+                  [busy]="manage.busy()"
+                  (removeRequested)="removeMember($event)"
+                  (roleChange)="changeRole($event)"
+                />
+                <ion-item>
+                  <button
+                    type="button"
+                    class="disclose"
+                    [attr.aria-expanded]="adding()"
+                    (click)="adding.set(!adding())"
+                  >
+                    Add member…
+                  </button>
+                </ion-item>
+                @if (adding()) {
+                  <app-member-form
+                    [members]="members"
+                    [users]="manage.users()"
                     [busy]="manage.busy()"
-                    (submitted)="saveDefaults(project, $event)"
+                    (addRequested)="addMember($event)"
                   />
-                </app-inset-group>
-                <p class="footnote">
-                  Prefill for the new-task form in this project. Existing tasks and their containers
-                  are never touched, and only the project owner can change these.
-                </p>
-              </div>
-            }
-
-            @if (canManage()) {
-              <app-inset-group label="Danger zone">
-                <button
-                  tuiButton
-                  type="button"
-                  size="m"
-                  appearance="flat-destructive"
-                  class="about__delete"
-                  [disabled]="manage.busy()"
-                  (click)="deleteProject(project)"
-                >
-                  <tui-icon class="icon-sm" icon="@tui.trash-2" />
-                  Delete project
-                </button>
-                <p class="about__hint">A project that still owns tasks cannot be deleted.</p>
+                }
+                <ion-note>
+                  Viewer sees · operator starts and stops · member edits tasks · owner manages the
+                  project.
+                </ion-note>
               </app-inset-group>
+            } @else {
+              <app-callout class="m-5" tone="info">
+                Members and access are managed by the project owner.
+              </app-callout>
             }
           </div>
+
+          @if (detail.project(); as project) {
+            <div [class.hidden]="view() !== 'about'">
+              <div class="about">
+                <app-inset-group label="Project">
+                  @if (canManage()) {
+                    <ion-item>
+                      <ion-input
+                        label="Display name"
+                        class="value-input text-end"
+                        autocomplete="off"
+                        [value]="draftName()"
+                        (ionInput)="draftName.set($event.detail.value ?? '')"
+                      />
+                      @if (draftName() !== project.name) {
+                        <ion-button
+                          slot="end"
+                          fill="clear"
+                          [disabled]="manage.busy()"
+                          (click)="saveName(project)"
+                        >
+                          Save
+                        </ion-button>
+                      }
+                    </ion-item>
+                  } @else {
+                    <ion-item>
+                      <ion-label>Display name</ion-label>
+                      <ion-note slot="end">{{ project.name }}</ion-note>
+                    </ion-item>
+                  }
+
+                  <ion-item>
+                    <ion-label>
+                      <span class="caption">Proxy prefix</span>
+                      <span class="prefix">{{ prefixLabel() }}</span>
+                    </ion-label>
+                    <ion-button
+                      slot="end"
+                      fill="clear"
+                      [attr.aria-label]="prefixCopied() ? 'Copied' : 'Copy proxy prefix'"
+                      (click)="copyPrefix()"
+                    >
+                      <span
+                        slot="icon-only"
+                        [class]="prefixCopied() ? 'icon-[light--check]' : 'icon-[light--copy]'"
+                        aria-hidden="true"
+                      ></span>
+                    </ion-button>
+                  </ion-item>
+
+                  @if (credentialOptions(); as options) {
+                    <ion-item>
+                      <ion-select
+                        label="Registry credential"
+                        interface="popover"
+                        placeholder="None"
+                        [value]="project.registryCredentialId ?? ''"
+                        [disabled]="manage.busy()"
+                        (ionChange)="changeCredential(project, $event)"
+                      >
+                        @for (option of options; track option.value) {
+                          <ion-select-option [value]="option.value">{{
+                            option.label
+                          }}</ion-select-option>
+                        }
+                      </ion-select>
+                    </ion-item>
+                  }
+
+                  <ion-item>
+                    <ion-label>Created</ion-label>
+                    <ion-note slot="end" class="tabular">{{
+                      project.createdAt | date: 'MMM d, y'
+                    }}</ion-note>
+                  </ion-item>
+                </app-inset-group>
+
+                @if (canManage()) {
+                  <app-inset-group label="Task defaults" trailing="Optional" class="defaults">
+                    <app-project-defaults-form
+                      [defaults]="project.defaults"
+                      [busy]="manage.busy()"
+                      (submitted)="saveDefaults(project, $event)"
+                    />
+                    <ion-note>
+                      These only prefill the new-task form. Existing tasks never change on their
+                      own.
+                    </ion-note>
+                  </app-inset-group>
+
+                  <app-inset-group label="Danger zone">
+                    <ion-item
+                      button
+                      [detail]="false"
+                      [disabled]="manage.busy() || detail.tasks().length > 0"
+                      (click)="deleteProject(project)"
+                    >
+                      <ion-label color="danger">Delete project…</ion-label>
+                    </ion-item>
+                    <ion-note>{{ deleteFooter() }}</ion-note>
+                  </app-inset-group>
+                }
+              </div>
+            </div>
+          }
         }
-      }
-    </div>
+      </div>
+    </ion-content>
+
+    <!-- Pins only show where the sidebar exists, so the menu lives in the iPad header. -->
+    <ion-popover aria-label="Project actions" [trigger]="moreId()" [dismissOnSelect]="true">
+      <ng-template>
+        <ion-list>
+          <ion-item button [detail]="false" (click)="pins.toggle(slug())">
+            <ion-label>{{ pinned() ? 'Unpin from sidebar' : 'Pin to sidebar' }}</ion-label>
+          </ion-item>
+        </ion-list>
+      </ng-template>
+    </ion-popover>
+
+    <ng-template #titleBlock>
+      <div>
+        <h1>{{ displayName() }}</h1>
+        <p class="subtitle">
+          <span class="slug">/{{ slug() }}</span>
+          @if (detail.hasLoaded()) {
+            · {{ taskCount() }}
+            @if (memberCount()) {
+              <span class="desk-only">· {{ memberCount() }}</span>
+            }
+            @if (lastDeploy(); as deploy) {
+              · <span [class.text-danger]="deploy.failed">{{ deploy.label }}</span>
+            }
+          }
+        </p>
+      </div>
+    </ng-template>
+
+    <ng-template #sectionSwitch>
+      <!-- Not a div: the global title-row rule stretches its div children. -->
+      <span class="seg-wrap">
+        <ion-segment [value]="view()" (ionChange)="setView($event.detail.value)">
+          <ion-segment-button value="tasks"><ion-label>Tasks</ion-label></ion-segment-button>
+          <ion-segment-button value="members"><ion-label>Members</ion-label></ion-segment-button>
+          <ion-segment-button value="about"><ion-label>About</ion-label></ion-segment-button>
+        </ion-segment>
+        <ion-button class="act act--primary desk-only" fill="solid" (click)="newTask()">
+          <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+          New task
+        </ion-button>
+      </span>
+    </ng-template>
   `,
   styles: `
-    .detail__bar-title {
-      min-inline-size: 0;
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      .about {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        /* The tall defaults column feeds row 2, so the danger zone sits right under About. */
+        grid-template-rows: auto 1fr;
+        align-items: start;
+      }
+
+      .defaults {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+      }
+    }
+
+    .caption {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--app-text-secondary);
+    }
+
+    .prefix {
+      display: block;
       overflow: hidden;
-      text-overflow: ellipsis;
+      font-family: var(--app-font-mono);
+      font-size: 0.875rem;
+      color: var(--ion-color-primary);
       white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
-    .detail__title {
-      margin: 0;
-      font-size: clamp(1.5rem, 4vw, 2.125rem);
-      font-weight: 700;
-      letter-spacing: -0.022em;
-      color: var(--tui-text-primary);
-      overflow-wrap: anywhere;
+    .subtitle {
+      display: block;
     }
 
-    .detail__subtitle {
-      margin: 0.375rem 0 0;
-      font-size: 0.9375rem;
-      color: var(--tui-text-tertiary);
+    .slug {
+      font-family: var(--app-font-mono);
+      font-size: 0.875rem;
+      color: var(--app-text-tertiary);
     }
 
-    .add-row {
+    .seg-wrap {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.6875rem 1rem;
-      font-size: 1.0625rem;
-      font-weight: 500;
-      color: var(--tui-text-action);
-      text-decoration: none;
-      transition: background-color var(--tui-duration);
+      gap: 0.625rem;
     }
 
-    .add-row:hover {
-      background: var(--tui-background-neutral-1);
-    }
+    @media (min-width: 80rem) {
+      .title-row h1 {
+        font-size: 2rem;
+        line-height: 2.4375rem;
+      }
 
-    .about__row {
-      display: grid;
-      gap: 0.125rem;
-      padding: 0.625rem 1rem;
-    }
-
-    .about__row--inline {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      min-block-size: 3rem;
-    }
-
-    .about__label {
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-    }
-
-    .about__label--inline {
-      font-size: 1rem;
-      color: var(--tui-text-primary);
-    }
-
-    .about__input {
-      flex: 1;
-      min-inline-size: 0;
-      margin: 0;
-      border: 0;
-      padding: 0;
-      background: none;
-      font: inherit;
-      font-size: 1.0625rem;
-      color: var(--tui-text-primary);
-    }
-
-    .about__input:focus {
-      outline: none;
-    }
-
-    .about__value {
-      font-size: 0.9375rem;
-      color: var(--tui-text-secondary);
-      overflow-wrap: anywhere;
-      text-align: end;
-    }
-
-    .about__delete {
-      margin: 0.375rem 1rem;
-    }
-
-    .about__hint {
-      margin: 0;
-      padding: 0 1rem 0.75rem;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
+      .seg-wrap ion-segment {
+        inline-size: 18.75rem;
+      }
     }
   `,
 })
@@ -380,20 +458,36 @@ export class ProjectDetailPage {
   private readonly confirmations = inject(ConfirmActionService);
   private readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
-  private readonly breakpoint = inject(TUI_BREAKPOINT);
+  private readonly navCtrl = inject(NavController);
+  private readonly sheets = inject(SheetService);
+  private readonly newTaskDialog = inject(NEW_TASK_DIALOG);
+  protected readonly wide = wideScreen();
   private readonly fleet = inject(ListProjectsStore);
+  private readonly deploys = inject(ListAlertsStore);
+  private readonly document = inject(DOCUMENT);
+  protected readonly session = inject(SessionStore);
 
   readonly slug = input('');
 
-  /* Seeded by the row that pushed here, so the title never waits for the fetch. */
-  private readonly seededName = readSeededName(inject(DOCUMENT));
+  protected readonly pins = inject(PinnedProjectsStore);
+  protected readonly pinned = computed(() => this.pins.slugs().includes(this.slug()));
+  /* Unique per instance: Ionic keeps several project pages in the DOM. */
+  protected readonly moreId = computed(() => 'project-more-' + this.slug());
 
-  protected readonly mobile = computed(() => this.breakpoint() === 'mobile');
+  private readonly seededName = readSeededName(this.document);
+
   /* Listing members is owner-only, so a non-null list IS the owner/admin signal. */
   protected readonly canManage = computed(() => this.detail.members() !== null);
   protected readonly view = signal<View>('tasks');
-  protected readonly viewIndex = computed(() => VIEWS.indexOf(this.view()));
   protected readonly draftName = signal('');
+  protected readonly condensed = signal(false);
+  protected readonly adding = signal(false);
+  protected readonly prefixCopied = signal(false);
+
+  protected readonly pull: PullRefreshSource = {
+    busy: this.detail.loading,
+    trigger: () => this.reload(),
+  };
 
   protected readonly displayName = computed(
     () => this.detail.project()?.name ?? (this.seededName || this.slug()),
@@ -404,55 +498,45 @@ export class ProjectDetailPage {
     return view === 'members' ? 'Members' : view === 'about' ? 'About' : 'Tasks';
   });
 
-  protected readonly viewItems = computed<readonly GlassSegmentedItem[]>(() => [
-    { label: 'Tasks' },
-    { label: 'Members' },
-    { label: 'About' },
-  ]);
+  protected readonly taskCount = computed(() => plural(this.detail.tasks().length, 'task'));
 
-  protected readonly taskSummary = computed(() => {
-    const tasks = this.detail.tasks();
-    const parts = DEV_STATUSES.map((status) => ({
-      status,
-      count: tasks.filter((task) => task.devStatus === status).length,
-    }))
-      .filter(({ count }) => count > 0)
-      .map(({ status, count }) => `${count} ${DEV_STATUS_LABEL[status].toLowerCase()}`);
-    return parts.length > 0 ? parts.join(' · ') : '0 tasks';
+  protected readonly memberCount = computed(() => {
+    const members = this.detail.members();
+    return members ? plural(members.length, 'member') : '';
   });
 
   protected readonly memberSummary = computed(() => {
     const members = this.detail.members();
-    return members ? `${members.length}` : '';
+    if (!members) return '';
+    return `${members.length} ${members.length === 1 ? 'person' : 'people'}`;
   });
 
-  protected readonly proxyPrefix = computed(
-    () => `${this.config.baseUrl()}/${this.detail.slug()}/`,
-  );
+  protected readonly lastDeploy = computed(() => {
+    const deploy = this.deploys.lastDeploys().get(this.slug());
+    if (!deploy) return null;
+    const when = `${age(deploy.at)} ago`;
+    return {
+      failed: deploy.failed,
+      label: deploy.failed ? `last deploy failed ${when}` : `last deploy ${when}`,
+    };
+  });
+
+  protected readonly prefixLabel = computed(() => `${this.config.host()}/${this.detail.slug()}/`);
+
+  protected readonly deleteFooter = computed(() => {
+    const count = this.detail.tasks().length;
+    return count > 0
+      ? `Delete its ${plural(count, 'task')} first; a project that still owns tasks cannot be deleted.`
+      : 'A project that still owns tasks cannot be deleted.';
+  });
 
   protected readonly credentialOptions = computed(() =>
     toCredentialOptions(this.manage.credentials()),
   );
 
-  /* Stable identities avoid rebinding row inputs in the OnPush list. */
-  protected readonly accessUrlFor = computed(() => {
-    const slug = this.detail.slug();
-    return (name: string) => this.commands.accessUrl(slug, name);
-  });
-
-  protected readonly routeFor = computed(() => {
-    const slug = this.detail.slug();
-    return (task: Task) => ['/projects', slug, 'tasks', task.name] as const;
-  });
-
   constructor() {
-    registerPullRefresh({
-      busy: this.detail.loading,
-      trigger: () => {
-        const slug = this.slug();
-        if (slug) this.detail.refresh(slug);
-      },
-    });
+    /* Pushed task screens create, edit and delete the tasks listed here. */
+    onReturn(() => this.reload());
 
     effect(() => {
       const slug = this.slug();
@@ -465,9 +549,22 @@ export class ProjectDetailPage {
     });
   }
 
-  protected setView(index: number): void {
-    const view = VIEWS[index];
-    if (view) this.view.set(view);
+  protected setView(value: unknown): void {
+    if (VIEWS.includes(value as View)) this.view.set(value as View);
+  }
+
+  protected newTask(): void {
+    if (!this.wide()) {
+      void this.navCtrl.navigateForward(['/projects', this.slug(), 'tasks', 'new']);
+      return;
+    }
+    from(this.newTaskDialog())
+      .pipe(
+        switchMap((page) =>
+          this.sheets.open(page, 'New task', { dialog: true, slug: this.slug() }),
+        ),
+      )
+      .subscribe();
   }
 
   protected reload(): void {
@@ -476,6 +573,18 @@ export class ProjectDetailPage {
 
   protected openTask(task: Task): void {
     void this.router.navigate(['/projects', this.detail.slug(), 'tasks', task.name]);
+  }
+
+  protected copyPrefix(): void {
+    const clipboard = this.document.defaultView?.navigator.clipboard;
+    const full = `${this.config.baseUrl()}/${this.detail.slug()}/`;
+    defer(() => (clipboard ? from(clipboard.writeText(full)) : EMPTY)).subscribe({
+      next: () => {
+        this.prefixCopied.set(true);
+        this.document.defaultView?.setTimeout(() => this.prefixCopied.set(false), 1600);
+      },
+      error: () => this.notifications.failure('The proxy prefix could not be copied.'),
+    });
   }
 
   /* Reversible lifecycle actions do not require confirmation. */
@@ -492,7 +601,7 @@ export class ProjectDetailPage {
         .confirm({
           title: `Delete ${task.name}?`,
           message:
-            'The container, environment metadata, and proxy route will be deleted. This action cannot be undone.',
+            'The container, its variables and its proxy route are removed. This can’t be undone.',
           confirmLabel: 'Delete task',
           destructive: true,
         })
@@ -509,10 +618,6 @@ export class ProjectDetailPage {
       .subscribe((result) => this.completeCommand(result));
   }
 
-  protected typeName(event: Event): void {
-    this.draftName.set((event.target as HTMLInputElement).value);
-  }
-
   protected saveName(project: Project): void {
     const name = this.draftName().trim();
     if (!name || name === project.name) return;
@@ -526,18 +631,38 @@ export class ProjectDetailPage {
       .subscribe((result) => this.completeCommand(result));
   }
 
-  protected changeCredential(project: Project, value: string): void {
-    if (value === (project.registryCredentialId ?? '')) return;
+  /* The select flips itself on pick; a refused update has to flip it back. */
+  protected changeCredential(project: Project, event: SelectCustomEvent<string>): void {
+    const current = project.registryCredentialId ?? '';
+    const value = event.detail.value;
+    if (value === current) return;
 
     this.manage
       .update(project.slug, { registryCredentialId: value || null })
-      .subscribe((result) => this.completeCommand(result));
+      .subscribe((result) => {
+        if (!result.success) event.target.value = current;
+        this.completeCommand(result);
+      });
   }
 
   protected addMember(input: AddMemberInput): void {
     this.manage
       .addMember(this.detail.slug(), input)
       .subscribe((result) => this.completeCommand(result));
+  }
+
+  protected changeRole({ member, event }: MemberRoleChange): void {
+    this.manage
+      .addMember(
+        this.detail.slug(),
+        { userId: member.userId, role: event.detail.value },
+        'Role updated.',
+      )
+      .subscribe((result) => {
+        /* The select flipped itself on pick; a refused change has to flip it back. */
+        if (!result.success) event.target.value = member.role;
+        this.completeCommand(result);
+      });
   }
 
   protected removeMember(member: Member): void {
@@ -573,12 +698,12 @@ export class ProjectDetailPage {
         this.notifications.result(result);
         if (result.success) {
           this.fleet.invalidate();
-          void this.router.navigate(['/projects']);
+          void this.navCtrl.navigateBack(['/projects']);
         }
       });
   }
 
-  /* Every command here — lifecycle, delete, rename, members — changes what Home shows. */
+  /* Every command here changes what Home shows. */
   private completeCommand(result: TaskCommandResult | ProjectCommandResult): void {
     this.notifications.result(result);
 
@@ -589,7 +714,11 @@ export class ProjectDetailPage {
   }
 }
 
-/* Deep links have no navigation state; the slug from the URL stands in instead. */
+function plural(count: number, noun: string): string {
+  return `${count} ${count === 1 ? noun : `${noun}s`}`;
+}
+
+/* Seeded by the pushing row so the title never waits; deep links fall back to the slug. */
 function readSeededName(document: Document): string {
   const state: unknown = document.defaultView?.history.state;
 

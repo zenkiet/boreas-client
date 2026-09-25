@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
-import { TuiIcon } from '@taiga-ui/core';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
 
 export type SkeletonRowVariant = 'task' | 'project' | 'member';
 
@@ -12,82 +13,33 @@ const WIDTHS: readonly (readonly [number, number])[] = [
   [42, 62],
 ];
 
-/** Redacted rows matching the real row metrics, so content lands without layout shift. */
+/** Real `ion-item`s, so loaded rows land in the same metrics without a layout shift. */
 @Component({
   selector: 'app-skeleton-rows',
-  imports: [TuiIcon],
+  imports: [IonItem, IonLabel],
+  /* Inside a group's role="list", its status line must sit in a listitem. */
+  host: { role: 'listitem' },
   template: `
     <span class="sr-only" role="status">{{ label() }}</span>
 
     <div class="skeleton-defer" aria-hidden="true">
       @for (width of rowWidths(); track $index) {
-        <div class="row row-divider relative">
-          @switch (variant()) {
-            @case ('task') {
-              <span class="skeleton skeleton--dot"></span>
-            }
-            @case ('member') {
-              <span class="skeleton skeleton--circle"></span>
-            }
-            @default {}
+        <ion-item [detail]="variant() !== 'member'">
+          @if (variant() === 'task') {
+            <span slot="start" class="skeleton skeleton--dot"></span>
+          } @else if (variant() === 'member') {
+            <span slot="start" class="skeleton skeleton--circle"></span>
           }
-
-          <span class="row__text">
+          <ion-label class="grid gap-1.5">
             <span class="skeleton skeleton--bar" [style.inline-size.%]="width[0]"></span>
             <span class="skeleton skeleton--sub" [style.inline-size.%]="width[1]"></span>
-          </span>
-
-          @switch (variant()) {
-            @case ('member') {
-              <span class="skeleton skeleton--badge"></span>
-            }
-            @default {
-              @if (variant() === 'project') {
-                <span class="row__dots">
-                  <span class="skeleton skeleton--dot"></span>
-                  <span class="skeleton skeleton--dot"></span>
-                  <span class="skeleton skeleton--dot"></span>
-                </span>
-              }
-              <tui-icon class="row__chevron" icon="@tui.chevron-right" />
-            }
+          </ion-label>
+          @if (variant() === 'member') {
+            <span slot="end" class="skeleton skeleton--badge"></span>
           }
-        </div>
+        </ion-item>
       }
     </div>
-  `,
-  styles: `
-    :host {
-      display: block;
-    }
-
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6875rem 1rem;
-      min-block-size: 3.75rem;
-    }
-
-    .row__text {
-      display: grid;
-      gap: 0.375rem;
-      flex: 1;
-      min-inline-size: 0;
-    }
-
-    .row__dots {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      flex: none;
-    }
-
-    .row__chevron {
-      flex: none;
-      font-size: 0.9375rem;
-      color: var(--tui-text-tertiary);
-    }
   `,
 })
 export class SkeletonRows {

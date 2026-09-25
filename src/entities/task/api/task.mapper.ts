@@ -24,7 +24,6 @@ export function toTask(dto: TaskDto): Task {
   };
 }
 
-/** Empty environments are omitted rather than sent as `{}`. */
 export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskRequestDto {
   const environment = input.environment ?? {};
 
@@ -37,7 +36,7 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
   };
 }
 
-/* Undefined fields are dropped by JSON serialization, preserving PATCH semantics. */
+/* undefined drops out of the JSON, so the PATCH carries only the fields that are set. */
 export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskRequestDto {
   return {
     description: input.description,

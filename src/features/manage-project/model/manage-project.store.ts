@@ -56,8 +56,13 @@ export class ManageProjectStore {
     return this.gate.run(this.projectApi.delete(slug), `Project ${slug} deleted.`);
   }
 
-  addMember(slug: string, input: AddMemberInput): Observable<ProjectCommandResult> {
-    return this.gate.run(this.projectApi.addMember(slug, input), 'Member added.');
+  /** The same POST adds or re-roles, so a role change only swaps the toast copy. */
+  addMember(
+    slug: string,
+    input: AddMemberInput,
+    done = 'Member added.',
+  ): Observable<ProjectCommandResult> {
+    return this.gate.run(this.projectApi.addMember(slug, input), done);
   }
 
   removeMember(slug: string, userId: string, username: string): Observable<ProjectCommandResult> {

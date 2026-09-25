@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated:** 02 September 2026
+**Last updated:** 27 September 2026
 
 This policy explains what the **Boreas** app does with data. It is published by
 **Kiet Le**, an individual developer, who is the data controller for
@@ -17,16 +17,19 @@ through Google.
 
 The App stores the following on the device, and nowhere else:
 
-| Stored value             | What it is                             | Why                                        |
-| ------------------------ | -------------------------------------- | ------------------------------------------ |
-| `boreas-server`          | The server address you entered         | So the App reconnects without asking again |
-| `boreas-token`           | Your session token for that server     | To stay signed in                          |
-| `boreas-theme`           | Light / dark / system choice           | Appearance                                 |
-| `boreas-log-level`       | Log console filter                     | Appearance                                 |
-| `boreas-welcomed`        | Whether you finished the intro         | So it is not shown twice                   |
-| `boreas-monitor`         | Last CPU / memory / network samples    | To draw the chart before new data arrives  |
-| `boreas-push`            | Whether you enabled notifications      | Your choice                                |
-| `boreas-push-registered` | Whether the device registered for push | To avoid registering twice                 |
+| Stored value             | What it is                                 | Why                                        |
+| ------------------------ | ------------------------------------------ | ------------------------------------------ |
+| `boreas-server`          | The server address you entered             | so the App reconnects without asking again |
+| `boreas-token`           | Your session token for that server         | to stay signed in                          |
+| `boreas-theme`           | Light, dark or automatic                   | for appearance                             |
+| `boreas-log-level`       | How much the App logs to the console       | only if set by hand, for troubleshooting   |
+| `boreas-welcomed`        | Whether you finished the intro             | so it is not shown twice                   |
+| `boreas-pins`            | Projects you pinned to the sidebar         | to keep them there                         |
+| `boreas-recent-tasks`    | The last five tasks you opened from Search | to offer them again                        |
+| `boreas-monitor`         | Last CPU, memory and network samples       | to draw the chart before new data arrives  |
+| `boreas-live-folded`     | Whether you folded or opened Home's chart  | to keep it that way next time              |
+| `boreas-push`            | Whether you enabled notifications          | to remember your choice                    |
+| `boreas-push-registered` | Whether the device registered for push     | to avoid registering twice                 |
 
 Uninstalling the App removes all of it.
 
@@ -68,20 +71,21 @@ children and we do not knowingly collect data from anyone.
 ## 6. Your rights
 
 Because the data described in section 1 never leaves your device, you control
-it directly: clear it in the App or uninstall the App.
+it directly: signing out removes your session token, and uninstalling the App
+removes all of it.
 
-## 8. Data on your own server
+## 7. Data on your own server
 
 If you operate a Boreas server for other people, **you** are the controller of
 the data on it, including the push tokens their devices send you. Your own
 privacy obligations apply to that data.
 
-## 9. Changes
+## 8. Changes
 
 We may update this policy. The current version always ships inside the App and
-is published at <https://raw.githubusercontent.com/zenkiet/boreas-client/refs/heads/main/public/legal/privacy.md>. The date at the top
+is published at <https://boreas.zenkiet.dev/legal/privacy>. The date at the top
 tells you when it last changed.
 
-## 10. Contact
+## 9. Contact
 
 **Zen Le** — **zenkiet0906@gmail.com**

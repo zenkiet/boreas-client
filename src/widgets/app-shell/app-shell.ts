@@ -7,234 +7,491 @@ import {
   effect,
   ElementRef,
   inject,
-  signal,
+  linkedSignal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { IonBadge } from '@ionic/angular/ion-badge';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonContent } from '@ionic/angular/ion-content';
+import { IonFab } from '@ionic/angular/ion-fab';
+import { IonFabButton } from '@ionic/angular/ion-fab-button';
+import { IonFooter } from '@ionic/angular/ion-footer';
+import { IonIcon } from '@ionic/angular/ion-icon';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonItemGroup } from '@ionic/angular/ion-item-group';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonList } from '@ionic/angular/ion-list';
+import { IonMenu } from '@ionic/angular/ion-menu';
+import { IonRouterLink } from '@ionic/angular/ion-router-link';
+import { IonRouterOutlet } from '@ionic/angular/ion-router-outlet';
+import { IonSearchbar } from '@ionic/angular/ion-searchbar';
+import { IonSplitPane } from '@ionic/angular/ion-split-pane';
+import { IonTabBar } from '@ionic/angular/ion-tab-bar';
+import { IonTabButton } from '@ionic/angular/ion-tab-button';
+import { IonToolbar } from '@ionic/angular/ion-toolbar';
+import { NavController } from '@ionic/angular/nav-controller';
 import {
-  ActivatedRouteSnapshot,
-  NavigationEnd,
-  Router,
-  RouterLink,
-  RouterOutlet,
-} from '@angular/router';
-import {
-  TUI_IOS_LOADER,
-  TUI_PULL_TO_REFRESH_COMPONENT,
-  TUI_PULL_TO_REFRESH_LOADED,
-  TuiPullToRefresh,
-} from '@taiga-ui/addon-mobile';
-import { TUI_BREAKPOINT, TuiButton, TuiIcon } from '@taiga-ui/core';
+  attachTabBarSearchable,
+  registerTabBarEffect,
+  TabBarSearchableType,
+  type TabBarSearchableFunction,
+} from '@rdlabo/ionic-theme-ios27';
 import { filter, map } from 'rxjs';
 
-import { ListAlertsStore } from '@features/list-alerts';
+import type { DeployOutcome } from '@entities/notification';
+import { taskKey, type Task } from '@entities/task/model';
+import { SessionStore } from '@features/auth';
+import { ListAlertsStore } from '@features/list-alerts/model';
+import { ListProjectsStore, type ProjectSummary } from '@features/list-projects/model';
+import { PinnedProjectsStore } from '@features/pin-project';
+import { SearchTasksStore, TaskFilterBar } from '@features/search-tasks/model';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
-import { PullToRefresh } from '@shared/lib/pull-to-refresh/pull-to-refresh';
-import { ThemeMode, ThemeStore } from '@shared/lib/theme/theme.store';
-import { GlassSegmented, GlassSegmentedItem } from '@shared/ui/glass-segmented/glass-segmented';
+import { ServerConfigStore } from '@shared/config/server-config.store';
+import { desktopScreen, WIDE_QUERY, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 
-interface NavItem {
-  readonly label: string;
-  readonly link: string;
-  readonly icon: string;
-  readonly iconActive?: string;
-}
-
-const THEME_CYCLE: Record<ThemeMode, ThemeMode> = {
-  system: 'light',
-  light: 'dark',
-  dark: 'system',
-};
-
-const THEME_ICON: Record<ThemeMode, string> = {
-  system: '@tui.monitor',
-  light: '@tui.sun',
-  dark: '@tui.moon',
-};
+import { CommandPaletteLauncher } from './command-palette/palette-launcher';
+import { NAV, TABS, type NavItem } from './nav';
 
 @Component({
   selector: 'app-shell',
-  imports: [GlassSegmented, RouterLink, RouterOutlet, TuiButton, TuiIcon, TuiPullToRefresh],
-  providers: [
-    {
-      provide: TUI_PULL_TO_REFRESH_LOADED,
-      useFactory: () => inject(PullToRefresh).loaded$,
-    },
-    { provide: TUI_PULL_TO_REFRESH_COMPONENT, useValue: TUI_IOS_LOADER },
+  host: { '(document:keydown)': 'onShortcut($event)' },
+  imports: [
+    IonBadge,
+    IonButton,
+    IonButtons,
+    IonContent,
+    IonFab,
+    IonFabButton,
+    IonFooter,
+    IonIcon,
+    IonItem,
+    IonItemGroup,
+    IonLabel,
+    IonList,
+    IonMenu,
+    IonRouterLink,
+    IonRouterOutlet,
+    IonSearchbar,
+    IonSplitPane,
+    IonTabBar,
+    IonTabButton,
+    IonToolbar,
+    RouterLink,
+    TaskFilterBar,
   ],
-  host: {
-    class: 'flex flex-col min-h-dvh bg-canvas overflow-x-hidden',
-  },
   template: `
-    @if (!mobile() && !onboarding()) {
-      <header class="shell__bar">
-        <div class="shell__bar-inner">
-          <a routerLink="/projects" class="shell__brand" aria-label="Boreas projects">
-            <img
-              class="shell__mark"
-              src="/brand-mark.png"
-              width="28"
-              height="28"
-              alt=""
-              aria-hidden="true"
-            />
-            Boreas
-          </a>
-
-          <nav class="flex items-center gap-0.5" aria-label="Sections">
-            @for (item of navItems; track item.link) {
-              <a
-                class="shell__nav-item"
-                [routerLink]="item.link"
-                [class.shell__nav-item--active]="activeTab() === $index"
-                [attr.aria-current]="activeTab() === $index ? 'page' : null"
-              >
-                {{ item.label }}
-                @if (item.link === '/notifications' && alertsUnseen()) {
-                  <span class="shell__nav-dot" aria-label="New alerts"></span>
+    <ion-split-pane contentId="main" [when]="wideQuery" [disabled]="chromeless()">
+      <ion-menu contentId="main" type="overlay" [swipeGesture]="false" [disabled]="chromeless()">
+        <ion-content>
+          <div class="side">
+            <div class="side__brand">
+              <img src="icon.svg" width="30" height="30" alt="" />
+              <span>Boreas</span>
+            </div>
+            <ion-list [inset]="true" aria-label="Sections">
+              <ion-item-group>
+                @for (item of nav; track item.link) {
+                  @if (item.link === '/search' && desktop()) {
+                    <!-- Desktop reaches the search page from the palette's first row. -->
+                    <ion-item
+                      button
+                      lines="none"
+                      [detail]="false"
+                      [class.nav-active]="navActive() === item.link"
+                      (click)="palette.open()"
+                    >
+                      <span slot="start" [class]="item.icon" aria-hidden="true"></span>
+                      <ion-label>{{ item.label }}</ion-label>
+                      <kbd slot="end" class="side__kbd" aria-hidden="true">{{
+                        palette.shortcut
+                      }}</kbd>
+                    </ion-item>
+                  } @else {
+                    <ion-item
+                      [routerLink]="item.link"
+                      routerDirection="root"
+                      lines="none"
+                      [detail]="false"
+                      [class.nav-active]="navActive() === item.link"
+                      [attr.aria-current]="navActive() === item.link ? 'page' : null"
+                    >
+                      <span slot="start" [class]="item.icon" aria-hidden="true"></span>
+                      <ion-label>
+                        {{ item.label }}
+                        @if (item.link === '/notifications' && unseen()) {
+                          <span class="sr-only">, {{ unseen() }} new</span>
+                        }
+                      </ion-label>
+                      @if (item.link === '/search') {
+                        <kbd slot="end" class="side__kbd" aria-hidden="true">/</kbd>
+                      }
+                      @if (item.link === '/notifications' && unseen()) {
+                        <ion-badge slot="end" class="count" aria-hidden="true">{{
+                          unseen()
+                        }}</ion-badge>
+                      }
+                    </ion-item>
+                  }
                 }
-              </a>
+              </ion-item-group>
+            </ion-list>
+            @if (pinned().length) {
+              <h2 id="side-pinned" class="side__label">Pinned</h2>
+              <ion-list [inset]="true" class="pins" aria-labelledby="side-pinned">
+                <ion-item-group>
+                  @for (pin of pinned(); track pin.slug) {
+                    <ion-item
+                      class="pin"
+                      [routerLink]="['/projects', pin.slug]"
+                      routerDirection="root"
+                      lines="none"
+                      [detail]="false"
+                      [class.nav-active]="openSlug() === pin.slug"
+                      [attr.aria-current]="openSlug() === pin.slug ? 'page' : null"
+                    >
+                      <i slot="start" class="pin__dot" [class]="pin.dot" aria-hidden="true"></i>
+                      <ion-label>{{ pin.name }}</ion-label>
+                      @if (pin.note) {
+                        <span slot="end" class="pin__note">{{ pin.note }}</span>
+                      }
+                    </ion-item>
+                  }
+                </ion-item-group>
+              </ion-list>
             }
-          </nav>
+            @if (session.user(); as user) {
+              <ion-item
+                class="side__account"
+                routerLink="/settings"
+                routerDirection="root"
+                lines="none"
+                [detail]="false"
+              >
+                <span slot="start" class="side__avatar" aria-hidden="true">{{
+                  user.username.slice(0, 2)
+                }}</span>
+                <ion-label>
+                  <span class="side__user">{{ user.username }}</span>
+                  <span class="side__host">{{ serverHost() }}</span>
+                </ion-label>
+              </ion-item>
+            }
+          </div>
+        </ion-content>
+      </ion-menu>
 
-          <button
-            tuiIconButton
-            type="button"
-            size="s"
-            appearance="flat-grayscale"
-            class="ms-auto"
-            [attr.aria-label]="themeLabel()"
-            [attr.title]="themeLabel()"
-            (click)="cycleTheme()"
+      <div class="ion-page" id="main">
+        <ion-router-outlet />
+        <!-- Hidden, never destroyed: the lens and the search morph are bound to these elements. -->
+        <ion-tab-bar
+          slot="bottom"
+          [class.tabs-hidden]="!tabs()"
+          [inert]="searching()"
+          [selectedTab]="tab().link"
+        >
+          @for (item of tabItems; track item.link) {
+            <ion-tab-button [tab]="item.link" (click)="open(item.link)">
+              <!-- ion-icon, not a span: the theme's search morph looks that tag up. -->
+              <ion-icon [class]="item.tab" aria-hidden="true" />
+              <ion-label>
+                {{ item.label }}
+                @if (item.link === '/notifications' && unseen()) {
+                  <span class="sr-only">, {{ unseen() }} new</span>
+                }
+              </ion-label>
+              @if (item.link === '/notifications' && unseen()) {
+                <ion-badge class="count" aria-hidden="true">
+                  {{ unseen() > 99 ? '99+' : unseen() }}
+                </ion-badge>
+              }
+            </ion-tab-button>
+          }
+        </ion-tab-bar>
+        <!-- Off the first paint: the search field and fab are ~110 kB of Ionic. -->
+        @defer (on idle) {
+          <ion-fab
+            vertical="bottom"
+            horizontal="end"
+            [class.tabs-hidden]="!tabs()"
+            [inert]="searching()"
           >
-            <tui-icon class="icon-sm" [icon]="themeIcon()" />
-          </button>
-        </div>
-      </header>
-    }
-
-    <tui-pull-to-refresh class="block flex-1" [styleHandler]="pullStyle" (pulled)="refreshPulled()">
-      <main class="w-full" [class]="mainClass()">
-        <router-outlet />
-      </main>
-    </tui-pull-to-refresh>
-
-    @if (mobile() && !onboarding() && !pushedPage()) {
-      <nav
-        class="app-shell__tab-bar"
-        aria-label="Sections"
-        [class.app-shell__dock--min]="minimized()"
-      >
-        <app-glass-segmented
-          [items]="dockItems()"
-          [stacked]="true"
-          [activeIndex]="activeTab()"
-          (activeIndexChange)="openTab($event)"
-        />
-      </nav>
-    }
+            <ion-fab-button #searchFab aria-label="Search" (click)="open('/search')">
+              <ion-icon class="icon-[regular--magnifying-glass]" aria-hidden="true" />
+            </ion-fab-button>
+          </ion-fab>
+          <ion-footer
+            #searchFooter
+            [translucent]="true"
+            [class.tabs-hidden]="!tabs()"
+            [inert]="!searching()"
+          >
+            <ion-toolbar>
+              <ion-buttons slot="start">
+                <ion-button
+                  #searchClose
+                  fill="default"
+                  aria-label="Close search"
+                  (click)="open(tab().link)"
+                >
+                  <ion-icon slot="icon-only" [class]="tab().tab" aria-hidden="true" />
+                </ion-button>
+              </ion-buttons>
+              <ion-searchbar
+                #searchField
+                appTaskFilterBar
+                placeholder="Tasks, projects, is:blocked"
+                [(query)]="search.query"
+              />
+            </ion-toolbar>
+          </ion-footer>
+        }
+      </div>
+    </ion-split-pane>
   `,
   styles: `
-    .app-shell__tab-bar {
-      position: fixed;
-      z-index: 10;
-      inset-inline: 0;
-      inset-block-end: max(env(safe-area-inset-bottom), 1.25rem);
+    /* One red in both schemes: the dark palette's pink danger would need black text. */
+    .count {
+      --background: #d70015;
+      --color: #fff;
+    }
+
+    /* Size it through --ios-theme-menu-width (styles.css): it also sets the main-pane inset. */
+    ion-menu::part(container) {
+      border: 0;
+      background: var(--ion-background-color);
+    }
+
+    ion-menu ion-content {
+      --background: transparent;
+    }
+
+    /* The theme floats the menu's scroll box; the panel below already floats, 10px in. */
+    ion-menu ion-content::part(scroll) {
+      margin: 0;
+    }
+
+    .side {
       display: flex;
-      justify-content: center;
-      pointer-events: none;
-      transition: transform var(--tui-duration) cubic-bezier(0.4, 0.1, 0.2, 1);
-      will-change: transform;
-      transform: translateZ(0);
+      flex-direction: column;
+      min-block-size: calc(100% - 1.25rem);
+      margin: 0.625rem;
+      border-radius: 1.75rem;
+      padding: 0.75rem;
+      background: var(--app-sheet);
+      --lens: rgba(120, 120, 128, 0.16);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.9),
+        0 0 0 0.5px rgba(15, 23, 42, 0.1),
+        0 8px 24px rgba(15, 23, 42, 0.1);
     }
 
-    .app-shell__tab-bar app-glass-segmented {
-      pointer-events: auto;
-      inline-size: min(21rem, calc(100vw - 2rem));
+    :host-context(.ion-palette-dark) .side {
+      --lens: rgba(255, 255, 255, 0.13);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.12),
+        0 0 0 0.5px rgba(255, 255, 255, 0.08),
+        0 8px 24px rgba(0, 0, 0, 0.45);
     }
 
-    .app-shell__dock--min {
-      transform: scale(0.86) translateZ(0);
-      transform-origin: bottom center;
-    }
-
-    .shell__bar {
-      position: sticky;
-      z-index: 9;
-      inset-block-start: 0;
-      border-block-end: 1px solid var(--tui-border-normal);
-      background: color-mix(in srgb, var(--tui-background-base) 82%, transparent);
-      backdrop-filter: blur(12px) saturate(180%);
-    }
-
-    .shell__bar-inner {
+    .side__brand {
       display: flex;
       align-items: center;
-      gap: 1.25rem;
-      max-inline-size: 80rem;
-      margin-inline: auto;
-      block-size: 3.25rem;
-      padding-inline: 1.5rem;
+      gap: 0.625rem;
+      block-size: 2.75rem;
+      margin-inline: 0.5rem 0;
+      font-size: 1.25rem;
+      font-weight: 700;
     }
 
-    .shell__brand {
+    .side__brand img {
+      border-radius: 0.4375rem;
+    }
+
+    /* No inset rounding: it clipped the first and last rows' lens into a different shape. */
+    ion-menu ion-list.list-inset {
+      margin: 0.875rem 0 0;
+      border-radius: 0;
+      overflow: visible;
+    }
+
+    ion-menu ion-list ion-item {
+      --min-height: 2.75rem;
+      font-size: 1.0625rem;
+    }
+
+    /* Rows sit 12px in: Ionic pads 16px, the theme's inset-group rule 18px on the right. */
+    ion-menu ion-list.list-inset.ios > ion-item-group > ion-item {
+      --padding-start: 0.75rem;
+    }
+
+    /* Every row, not just the selected one: the focus ring must match the lens. */
+    ion-menu ion-list.list-inset.ios > ion-item-group > ion-item::part(native) {
+      padding-right: 0.75rem;
+      border-radius: 0.875rem;
+    }
+
+    ion-menu ion-item > [slot='start'][class*='icon-['] {
+      font-size: 1.375rem;
+      margin-inline-end: 0.75rem;
+    }
+
+    .side__kbd {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 1.0625rem;
-      font-weight: 650;
-      letter-spacing: -0.015em;
-      color: var(--tui-text-primary);
-      text-decoration: none;
+      justify-content: center;
+      min-inline-size: 1.375rem;
+      block-size: 1.375rem;
+      padding: 0 0.375rem;
+      border-radius: 0.375rem;
+      background: var(--app-fill);
+      font-family: var(--app-font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--app-text-secondary);
     }
 
-    .shell__mark {
-      display: block;
-      inline-size: 1.75rem;
-      block-size: 1.75rem;
+    .side__label {
+      margin: 1.375rem 0.75rem 0.375rem;
+      font-size: 0.8125rem;
+      line-height: 1.125rem;
+      font-weight: 600;
+      color: var(--app-text-tertiary);
     }
 
-    .shell__nav-dot {
+    ion-menu ion-list.list-inset.pins {
+      margin-top: 0;
+    }
+
+    ion-menu ion-list ion-item.pin {
+      --min-height: 2.5rem;
+      font-size: 0.9375rem;
+    }
+
+    ion-menu ion-list ion-item.pin.nav-active::part(native) {
+      border-radius: 0.75rem;
+    }
+
+    .pin__dot {
       inline-size: 0.5rem;
       block-size: 0.5rem;
+      margin-inline: 0.4375rem 1.0625rem;
       border-radius: 999px;
-      background: var(--tui-background-accent-1);
     }
 
-    .shell__nav-item {
-      display: inline-flex;
+    .pin__note {
+      font-size: 0.8125rem;
+      color: var(--app-text-tertiary);
+    }
+
+    ion-menu ion-item + ion-item {
+      margin-block-start: 2px;
+    }
+
+    .side .count {
+      min-inline-size: 1.375rem;
+      block-size: 1.375rem;
+      border-radius: 0.6875rem;
+      padding: 0 0.4375rem;
+      font-size: 0.8125rem;
+      line-height: 1.375rem;
+    }
+
+    ion-tab-button .count {
+      font-size: 0.6875rem;
+    }
+
+    ion-tab-button ion-label {
+      font-weight: 600;
+    }
+
+    .side__account {
+      margin: auto 0 0;
+    }
+
+    .side__avatar {
+      display: flex;
       align-items: center;
-      gap: 0.375rem;
-      block-size: 1.875rem;
-      padding-inline: 0.625rem;
-      border-radius: var(--tui-radius-s);
+      justify-content: center;
+      inline-size: 2.25rem;
+      block-size: 2.25rem;
+      border-radius: 999px;
+      background: linear-gradient(160deg, #3b82f6, #4f46e5);
+      color: #fff;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .side__user {
+      display: block;
       font-size: 0.9375rem;
-      font-weight: 500;
-      color: var(--tui-text-secondary);
-      text-decoration: none;
-      transition:
-        background-color var(--tui-duration),
-        color var(--tui-duration);
+      font-weight: 600;
     }
 
-    .shell__nav-item:hover {
-      background: var(--tui-background-neutral-1);
-      color: var(--tui-text-primary);
+    .side__host {
+      display: block;
+      font-family: var(--app-font-mono);
+      font-size: 0.75rem;
+      color: var(--app-text-tertiary);
     }
 
-    .shell__nav-item--active,
-    .shell__nav-item--active:hover {
-      background: var(--app-accent-soft);
-      color: var(--app-accent-text);
+    /* The theme clears menu items' --background, so the selection paints the native part. */
+    .nav-active::part(native) {
+      border-radius: 0.875rem;
+      background: var(--lens);
+      color: var(--ion-color-primary);
+      font-weight: 600;
+    }
+
+    ion-footer {
+      position: absolute;
+      bottom: 0;
+    }
+
+    .tabs-hidden {
+      display: none;
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      ion-tab-bar,
+      ion-fab,
+      ion-footer {
+        display: none;
+      }
     }
   `,
 })
 export class AppShell {
+  private readonly navCtrl = inject(NavController);
   private readonly router = inject(Router);
-  private readonly breakpoint = inject(TUI_BREAKPOINT);
-  private readonly theme = inject(ThemeStore);
-  private readonly document = inject(DOCUMENT);
+  private readonly alerts = inject(ListAlertsStore);
+  private readonly tokens = inject(AuthTokenStore);
+  protected readonly session = inject(SessionStore);
+  private readonly config = inject(ServerConfigStore);
+  protected readonly serverHost = this.config.host;
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly search = inject(SearchTasksStore);
+  protected readonly palette = inject(CommandPaletteLauncher);
+  private readonly fleet = inject(ListProjectsStore);
+  private readonly pins = inject(PinnedProjectsStore);
+  private readonly document = inject(DOCUMENT);
+  private readonly wide = wideScreen();
+  protected readonly wideQuery = WIDE_QUERY;
+  protected readonly desktop = desktopScreen();
+
+  /* String refs: a class token would drag the deferred components back into main. */
+  private readonly tabBar = viewChild.required(IonTabBar, { read: ElementRef });
+  private readonly fab = viewChild('searchFab', { read: ElementRef });
+  private readonly footer = viewChild('searchFooter', { read: ElementRef });
+  private readonly closeSearch = viewChild('searchClose', { read: ElementRef });
+  private readonly searchField = viewChild('searchField', { read: ElementRef });
+
+  protected readonly nav = NAV;
+  protected readonly tabItems = TABS;
 
   private readonly url = toSignal(
     this.router.events.pipe(
@@ -244,133 +501,187 @@ export class AppShell {
     { initialValue: this.router.url },
   );
 
-  protected readonly mobile = computed(() => this.breakpoint() === 'mobile');
+  protected readonly chromeless = computed(() => /^\/(welcome|login)/.test(this.url()));
 
-  protected readonly onboarding = computed(
-    () => this.url().startsWith('/welcome') || this.url().startsWith('/login'),
+  protected readonly tabs = computed(
+    () => !this.chromeless() && !/^\/(projects|settings)\/.|^\/legal\//.test(this.url()),
   );
 
-  /* Routes opt out of pull-to-refresh with data.pullToRefresh: false (any ancestor counts). */
-  private readonly pullEnabled = computed(() => {
-    this.url();
-    for (
-      let route: ActivatedRouteSnapshot | null = this.router.routerState.snapshot.root;
-      route;
-      route = route.firstChild
-    ) {
-      if (route.data['pullToRefresh'] === false) return false;
-    }
-    return true;
-  });
-
-  protected readonly pushedPage = computed(() => {
-    const url = this.url();
-    return /^\/projects\/./.test(url) || /^\/settings\/./.test(url) || /^\/legal\//.test(url);
-  });
-
-  protected readonly mainClass = computed(() => {
-    if (this.onboarding()) {
-      return 'block';
-    }
-    const base =
-      'mx-auto max-w-[80rem] px-4 pt-[max(1rem,env(safe-area-inset-top))] md:px-6 md:py-6 md:pb-10';
-
-    return `${base} ${this.pushedPage() ? 'pb-6' : 'pb-20'}`;
-  });
-
-  private readonly alerts = inject(ListAlertsStore);
-  private readonly tokens = inject(AuthTokenStore);
-
-  protected readonly alertsUnseen = computed(() => this.alerts.unseenCount() > 0);
-
-  protected readonly navItems: readonly NavItem[] = [
-    { label: 'Home', link: '/projects', icon: '@tui.house', iconActive: '@tui.house-filled' },
-    { label: 'Search', link: '/search', icon: '@tui.search' },
-    { label: 'Alerts', link: '/notifications', icon: '@tui.bell', iconActive: '@tui.bell-filled' },
-    {
-      label: 'Settings',
-      link: '/settings',
-      icon: '@tui.settings-2',
-      iconActive: '@tui.settings-2-filled',
+  /* A pushed page keeps its root, so search stays open under a task opened from it. */
+  protected readonly root = linkedSignal<string, string>({
+    source: this.url,
+    computation: (url, previous) => {
+      const within = (at: string) => NAV.find(({ link }) => at.split(/[?#]/)[0].startsWith(link));
+      /* A cold load starts from "/", which has no section: then the page's own section wins. */
+      return (
+        NAV.find(({ link }) => url.split(/[?#]/)[0] === link)?.link ??
+        (previous && within(previous.source) ? previous.value : undefined) ??
+        within(url)?.link ??
+        NAV[0].link
+      );
     },
-  ];
-
-  protected readonly dockItems = computed<readonly GlassSegmentedItem[]>(() => {
-    const unseen = this.alerts.unseenCount();
-    return this.navItems.map((item) => ({
-      label: item.label,
-      icon: item.icon,
-      iconActive: item.iconActive,
-      badge: item.link === '/notifications' ? unseen : 0,
-      badgeLabel: `${unseen} new alert${unseen === 1 ? '' : 's'}`,
-    }));
   });
 
-  protected readonly activeTab = computed(() => {
-    const index = this.navItems.findIndex((item, i) => i > 0 && this.url().startsWith(item.link));
-    return index === -1 ? 0 : index;
-  });
+  protected readonly searching = computed(() => this.root() === '/search');
 
-  protected readonly minimized = signal(false);
-  private lastScrollY = 0;
-
-  private readonly badgeLoader = effect(() => {
-    if (this.tokens.authenticated()) this.alerts.ensureFresh();
-  });
-
-  private readonly pullHost = viewChild.required(TuiPullToRefresh, { read: ElementRef });
-
-  private readonly scrollListener = afterNextRender(() => {
-    const view = this.document.defaultView;
-    if (!view) {
-      return;
-    }
-    const handler = () => this.onScroll();
-    view.addEventListener('scroll', handler, { passive: true });
-    this.destroyRef.onDestroy(() => view.removeEventListener('scroll', handler));
-    const pullHost = this.pullHost().nativeElement;
-    const block = (event: TouchEvent) => {
-      if (!this.pullEnabled()) event.stopPropagation();
-    };
-    pullHost.addEventListener('touchstart', block, { capture: true, passive: true });
-    this.destroyRef.onDestroy(() =>
-      pullHost.removeEventListener('touchstart', block, { capture: true }),
-    );
-  });
-
-  private onScroll(): void {
-    const y = this.document.defaultView?.scrollY ?? 0;
-    const delta = y - this.lastScrollY;
-
-    if (Math.abs(delta) < 6) {
-      return;
-    }
-
-    this.lastScrollY = y;
-    this.minimized.set(y > 72 && delta > 0);
-  }
-
-  protected readonly themeIcon = computed(() => THEME_ICON[this.theme.mode()]);
-  protected readonly themeLabel = computed(
-    () => `Appearance: ${this.theme.mode()}. Switch to ${THEME_CYCLE[this.theme.mode()]}.`,
+  /* A project screen belongs to no section; its pinned row, if any, is the selection. */
+  protected readonly openSlug = computed(
+    () => /^\/projects\/(?!new(?:[/?#]|$))([^/?#]+)/.exec(this.url())?.[1],
   );
+  protected readonly navActive = computed(() => (this.openSlug() ? undefined : this.root()));
 
-  protected cycleTheme(): void {
-    this.theme.setMode(THEME_CYCLE[this.theme.mode()]);
-  }
-
-  protected openTab(index: number): void {
-    const item = this.navItems[index];
-    if (item) void this.router.navigate([item.link]);
-  }
-
-  private readonly pull = inject(PullToRefresh);
-
-  protected readonly pullStyle = (distance: number): Record<string, string> => ({
-    top: `${distance / 2}px`,
+  /* Only projects the current fleet lists, so another account's pin names never render. */
+  protected readonly pinned = computed(() => {
+    const bySlug = new Map(
+      this.fleet.summaries().map((summary) => [summary.project.slug, summary]),
+    );
+    const failed = this.alerts.latestDeploys();
+    return this.pins.slugs().flatMap((slug) => {
+      const summary = bySlug.get(slug);
+      return summary ? [pinRow(summary, failed)] : [];
+    });
   });
 
-  protected refreshPulled(): void {
-    void this.pull.refresh();
+  /* While searching, the collapsed bar still names the tab search was opened from. */
+  protected readonly tab = linkedSignal<string, NavItem>({
+    source: this.root,
+    computation: (root, previous) =>
+      TABS.find(({ link }) => link === root) ?? previous?.value ?? TABS[0],
+  });
+
+  protected readonly unseen = this.alerts.unseenCount;
+
+  private searchable?: TabBarSearchableFunction;
+  private searchOpen = false;
+
+  constructor() {
+    effect(() => {
+      if (this.tokens.authenticated()) this.alerts.ensureFresh();
+    });
+    /* The sidebar's pins need the fleet even when the app cold-starts away from Home. */
+    effect(() => {
+      if (this.tokens.authenticated() && this.wide() && this.pins.slugs().length) {
+        untracked(() => this.fleet.ensureFresh());
+      }
+    });
+    effect(() => {
+      this.searching();
+      untracked(() => this.morph());
+    });
+    afterNextRender(() => {
+      const bar: HTMLElement = this.tabBar().nativeElement;
+      let lens: { destroy(): void } | undefined;
+      const stop = whenHydrated(bar, () => (lens = registerTabBarEffect(bar)));
+      this.destroyRef.onDestroy(() => {
+        stop();
+        lens?.destroy();
+      });
+    });
+    effect((onCleanup) => {
+      const [bar, fab, footer, field] = [
+        this.tabBar(),
+        this.fab(),
+        this.footer(),
+        this.searchField(),
+      ];
+      if (!fab || !footer || !field) return;
+      const stop = untracked(() =>
+        whenHydrated(field.nativeElement, () => {
+          this.searchable = attachTabBarSearchable(
+            bar.nativeElement,
+            fab.nativeElement,
+            footer.nativeElement,
+          );
+          this.morph();
+        }),
+      );
+      onCleanup(stop);
+    });
   }
+
+  /* The URL owns search; the morph only follows it, so deep links and back land right. */
+  private morph(): void {
+    const open = this.searching();
+    const close = this.closeSearch();
+    const fab = this.fab();
+    if (!this.searchable || !close || !fab || open === this.searchOpen) return;
+    this.searchOpen = open;
+    const target = (open ? fab : close).nativeElement;
+    void this.searchable(
+      { target } as unknown as Event,
+      open ? TabBarSearchableType.Enter : TabBarSearchableType.Leave,
+    );
+  }
+
+  protected open(link: string): void {
+    void this.navCtrl.navigateRoot(link);
+  }
+
+  protected onShortcut(event: KeyboardEvent): void {
+    const command = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k';
+    const slash = event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey;
+    if ((!command && !slash) || this.chromeless()) return;
+
+    /* From iPad width ⌘K is the palette, but never over another overlay that owns the keys. */
+    if (command && this.wide() && this.tokens.authenticated()) {
+      if (this.document.querySelector(OPEN_OVERLAY)) return;
+      event.preventDefault();
+      this.palette.open();
+      return;
+    }
+
+    if (this.url().startsWith('/search')) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (slash && target?.closest('input, textarea, select, [contenteditable]')) return;
+    event.preventDefault();
+    this.open('/search');
+  }
+}
+
+/* Kept-mounted pickers wait in the DOM with .overlay-hidden. */
+const OPEN_OVERLAY =
+  'ion-alert:not(.overlay-hidden), ion-modal:not(.overlay-hidden), ion-popover:not(.overlay-hidden)';
+
+interface PinRow {
+  readonly slug: string;
+  readonly name: string;
+  readonly note: string;
+  readonly dot: string;
+}
+
+/* Rule order is the design's: worst state first. */
+function pinRow(
+  { project, tasks }: ProjectSummary,
+  deploys: ReadonlyMap<string, DeployOutcome>,
+): PinRow {
+  const blocked = tasks.filter((task: Task) => task.devStatus === 'blocked').length;
+  const rules: readonly (readonly [boolean, string, string])[] = [
+    [
+      tasks.some((task) => deploys.get(taskKey(project.slug, task.name))?.failed),
+      'failed',
+      'bg-danger',
+    ],
+    [tasks.some((task) => task.status === 'error'), 'error', 'bg-danger'],
+    [blocked > 0, `${blocked} blocked`, 'bg-blocked'],
+    [tasks.some((task) => task.status === 'stopped'), 'stopped', 'bg-label-3'],
+    [tasks.some((task) => task.devStatus === 'in_progress'), '', 'bg-progress'],
+    [tasks.length > 0, '', 'bg-ready'],
+  ];
+  const [, note, dot] = rules.find(([hit]) => hit) ?? [true, '', 'bg-fill'];
+  return { slug: project.slug, name: project.name, note, dot };
+}
+
+/* The theme needs the rendered element; custom-elements Ionic has no componentOnReady(). */
+function whenHydrated(el: HTMLElement, run: () => void): () => void {
+  if (el.classList.contains('hydrated')) {
+    run();
+    return () => undefined;
+  }
+  const observer = new MutationObserver(() => {
+    if (!el.classList.contains('hydrated')) return;
+    observer.disconnect();
+    run();
+  });
+  observer.observe(el, { attributeFilter: ['class'] });
+  return () => observer.disconnect();
 }

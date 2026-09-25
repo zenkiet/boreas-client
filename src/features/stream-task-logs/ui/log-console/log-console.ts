@@ -1,4 +1,4 @@
-import { SlicePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import {
   Component,
   ElementRef,
@@ -9,146 +9,210 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { TuiButton, TuiIcon, TuiLoader, TuiTextfield } from '@taiga-ui/core';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
 
 import { LogEntry } from '@entities/task-log';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
-let instances = 0;
-
 const FOLLOW_THRESHOLD = 24;
+/* Keyword heuristic, not stderr: nginx and most servers log routine notices there. */
+const ERROR_LINE = /(error|exception)\b|\b(err|fatal|panic|crit|critical|emerg|failed|failure)\b/i;
 
 @Component({
   selector: 'app-log-console',
-  imports: [InsetGroup, SlicePipe, TuiButton, TuiIcon, TuiLoader, TuiTextfield],
+  imports: [DatePipe, InsetGroup, IonButton, IonInput, IonItem, IonLabel, IonSpinner],
   template: `
     <app-inset-group label="Live logs" [trailing]="countLabel()">
-      <div class="toolbar row-divider relative">
-        <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search" class="min-w-0 flex-1">
-          <input
-            tuiInput
-            type="search"
-            autocomplete="off"
-            placeholder="Filter lines"
-            aria-label="Filter log lines"
-            [id]="filterId"
-            [value]="query()"
-            (input)="updateQuery($event)"
-          />
-        </tui-textfield>
-
-        <button
-          tuiButton
-          type="button"
-          size="s"
-          appearance="secondary"
+      <i
+        groupMark
+        class="me-2 inline-block size-2 rounded-full align-middle"
+        [class.bg-ok]="connected()"
+        [class.bg-label-3]="!connected()"
+        aria-hidden="true"
+      ></i>
+      <ion-item lines="full">
+        <span
+          slot="start"
+          class="filter-icon icon-[light--magnifying-glass]"
+          aria-hidden="true"
+        ></span>
+        <ion-input
+          type="search"
+          autocomplete="off"
+          placeholder="Filter lines"
+          aria-label="Filter log lines"
+          [clearInput]="true"
+          [value]="query()"
+          (ionInput)="query.set($event.detail.value ?? '')"
+        />
+        <!-- Static labels: aria-pressed carries the state. -->
+        <ion-button
+          slot="end"
+          fill="clear"
+          size="small"
+          class="toggle"
+          [class.toggle--on]="errorsOnly()"
+          [attr.aria-pressed]="errorsOnly()"
+          (click)="errorsOnly.set(!errorsOnly())"
+        >
+          Errors only
+        </ion-button>
+        <ion-button
+          slot="end"
+          fill="clear"
+          size="small"
+          class="toggle"
+          [class.toggle--on]="wrap()"
           [attr.aria-pressed]="wrap()"
           (click)="wrap.set(!wrap())"
         >
-          <tui-icon class="icon-sm" icon="@tui.wrap-text" />
-          {{ wrap() ? 'Wrap on' : 'Wrap off' }}
-        </button>
-      </div>
+          Wrap
+        </ion-button>
+        <ion-button
+          slot="end"
+          fill="clear"
+          size="small"
+          class="wide-only"
+          [disabled]="downloading()"
+          (click)="downloadRequested.emit()"
+        >
+          <span slot="start" class="icon-[light--arrow-down-to-line]" aria-hidden="true"></span>
+          Download
+        </ion-button>
+      </ion-item>
 
-      <div
-        #body
-        class="logs"
-        [class.logs--wrap]="wrap()"
-        role="log"
-        aria-live="polite"
-        aria-label="Task logs"
-        tabindex="0"
-        (scroll)="onScroll($event)"
-      >
-        @if (visibleEntries().length === 0) {
-          @if (connecting()) {
-            <!-- A stream is an indeterminate wait, the one place a spinner belongs. -->
-            <p class="logs__empty logs__empty--connecting" role="status">
-              <tui-loader size="s" />
-              Connecting to the log stream…
-            </p>
+      <!-- The group is Ionic's role="list": the log region needs a listitem around it. -->
+      <div role="listitem">
+        <div
+          #body
+          class="logs"
+          [class.logs--wrap]="wrap()"
+          role="log"
+          aria-live="polite"
+          aria-label="Task logs"
+          tabindex="0"
+          (scroll)="onScroll($event)"
+        >
+          @if (visibleEntries().length === 0) {
+            @if (connecting()) {
+              <!-- An indeterminate wait: the one place a spinner belongs. -->
+              <p class="logs__empty logs__empty--connecting" role="status">
+                <ion-spinner name="lines-small" />
+                Connecting to the log stream…
+              </p>
+            } @else {
+              <p class="logs__empty">
+                {{
+                  connected()
+                    ? query() || errorsOnly()
+                      ? 'No line matches the filter.'
+                      : 'Waiting for log output.'
+                    : 'Logs are unavailable while the stream is disconnected.'
+                }}
+              </p>
+            }
           } @else {
-            <p class="logs__empty">
-              {{
-                connected()
-                  ? query()
-                    ? 'No line matches the filter.'
-                    : 'Waiting for log output.'
-                  : 'Logs are unavailable while the stream is disconnected.'
-              }}
-            </p>
+            @for (entry of visibleEntries(); track $index) {
+              @let error = isError(entry);
+              <p class="logs__line" [class.logs__line--error]="error">
+                <span class="logs__time">{{ entry.timestamp | date: 'HH:mm:ss' }}</span>
+                @if (error) {
+                  <span class="sr-only">Error:</span>
+                }
+                <span class="logs__message">{{ entry.message }}</span>
+              </p>
+            }
           }
-        } @else {
-          @for (entry of visibleEntries(); track $index) {
-            <p class="logs__line" [attr.data-stream]="entry.stream">
-              <span class="logs__time">{{ entry.timestamp | slice: 11 : 19 }}</span>
-              <!-- Colour carries the stream visually, so the name is left for screen readers. -->
-              <span class="sr-only">{{ entry.stream }}</span>
-              <span class="logs__message">{{ entry.message }}</span>
-            </p>
-          }
-        }
+        </div>
       </div>
 
-      <!-- A plain download href cannot carry the bearer token, so the page fetches. -->
-      <button
-        type="button"
-        class="logs__action row-divider relative"
+      <!-- Not a link: a plain href cannot carry the bearer token. -->
+      <ion-item
+        button
+        class="narrow-only"
+        [detail]="false"
         [disabled]="downloading()"
         (click)="downloadRequested.emit()"
       >
-        <tui-icon class="icon-sm" icon="@tui.download" />
-        Download logs
-      </button>
+        <span
+          slot="start"
+          class="text-accent icon-[light--arrow-down-to-line]"
+          aria-hidden="true"
+        ></span>
+        <ion-label color="primary">Download full log</ion-label>
+      </ion-item>
     </app-inset-group>
   `,
   styles: `
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 0.75rem;
+    .filter-icon {
+      font-size: 1.125rem;
+      color: var(--app-text-tertiary);
     }
 
+    .toggle {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .toggle--on {
+      --background: var(--app-accent-soft);
+    }
+
+    /* A cap, not a height: a short log keeps Download right under its last line. */
     .logs {
-      min-block-size: var(--console-min, 18rem);
       max-block-size: var(--console-max, 32rem);
       overflow: auto;
       padding-block: 0.5rem;
-      background: var(--app-code-bg);
       font-family: var(--app-font-mono);
-      font-size: 0.8125rem;
-      line-height: 1.6;
+      font-size: 0.75rem;
+      line-height: 1.25rem;
       overscroll-behavior: contain;
     }
 
-    /* One entry, one line: long lines scroll sideways instead of wrapping into a paragraph. */
     .logs__line {
       display: flex;
-      gap: 0.75rem;
+      gap: 0.625rem;
       inline-size: max-content;
       min-inline-size: 100%;
       margin: 0;
-      padding: 0.0625rem 0.875rem;
+      padding: 0.125rem 1rem;
       white-space: pre;
-      color: var(--tui-text-primary);
+      color: var(--app-text-primary);
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      .logs {
+        font-size: 0.78125rem;
+        line-height: 1.3125rem;
+      }
+
+      .logs__line {
+        gap: 0.75rem;
+        padding: 0.0625rem 1.25rem;
+      }
     }
 
     .logs__line:hover {
-      background: var(--tui-background-neutral-1);
+      background: var(--app-background-neutral-1);
     }
 
-    .logs__line[data-stream='stderr'] {
-      background: var(--tui-status-negative-pale);
+    /* The rule keeps colour from being the only cue. */
+    .logs__line--error {
+      background: var(--app-status-negative-pale);
+      box-shadow: inset 2px 0 var(--app-status-negative);
     }
 
-    .logs__line[data-stream='stderr']:hover {
-      background: var(--tui-status-negative-pale-hover);
+    .logs__line--error:hover {
+      background: var(--app-status-negative-pale-hover);
     }
 
     .logs__time {
       flex: none;
-      color: var(--tui-text-tertiary);
+      color: var(--app-text-tertiary);
       user-select: none;
     }
 
@@ -163,39 +227,12 @@ const FOLLOW_THRESHOLD = 24;
       overflow-wrap: anywhere;
     }
 
-    /* Tailwind has no preflight, so reset the native button explicitly. */
-    .logs__action {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      inline-size: 100%;
-      margin: 0;
-      border: 0;
-      padding: 0.6875rem 1rem;
-      background: none;
-      font: inherit;
-      font-size: 1.0625rem;
-      font-weight: 500;
-      color: var(--tui-text-action);
-      cursor: pointer;
-      transition: background-color var(--tui-duration);
-    }
-
-    .logs__action:hover {
-      background: var(--tui-background-neutral-1);
-    }
-
-    .logs__action:disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-
     .logs__empty {
       margin: 0;
       padding: 4rem 1rem;
-      font-family: var(--tui-typography-family-text);
+      font-family: var(--app-font-text);
       font-size: 0.9375rem;
-      color: var(--tui-text-tertiary);
+      color: var(--app-text-tertiary);
       text-align: center;
     }
 
@@ -208,7 +245,6 @@ const FOLLOW_THRESHOLD = 24;
   `,
 })
 export class LogConsole {
-  private readonly uid = `log-console-${(instances += 1)}`;
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
 
   readonly entries = input.required<readonly LogEntry[]>();
@@ -217,27 +253,35 @@ export class LogConsole {
   readonly downloading = input(false);
   readonly downloadRequested = output<void>();
 
-  protected readonly filterId = `${this.uid}-filter`;
   protected readonly query = signal('');
+  protected readonly errorsOnly = signal(false);
   protected readonly wrap = signal(false);
 
   private readonly follow = signal(true);
 
   protected readonly visibleEntries = computed(() => {
     const query = this.query().trim().toLowerCase();
-    if (!query) {
+    const errorsOnly = this.errorsOnly();
+    if (!query && !errorsOnly) {
       return this.entries();
     }
 
-    return this.entries().filter((entry) => entry.message.toLowerCase().includes(query));
+    return this.entries().filter(
+      (entry) =>
+        (!errorsOnly || this.isError(entry)) &&
+        (!query || entry.message.toLowerCase().includes(query)),
+    );
   });
 
   protected readonly countLabel = computed(() => {
     const visible = this.visibleEntries().length;
     const total = this.entries().length;
     const noun = total === 1 ? 'line' : 'lines';
+    const count = (n: number) => n.toLocaleString('en');
 
-    return visible === total ? `${total} ${noun}` : `${visible} of ${total} ${noun}`;
+    return visible === total
+      ? `${count(total)} ${noun}`
+      : `${count(visible)} of ${count(total)} ${noun}`;
   });
 
   constructor() {
@@ -250,8 +294,8 @@ export class LogConsole {
     });
   }
 
-  protected updateQuery(event: Event): void {
-    this.query.set((event.target as HTMLInputElement).value);
+  protected isError(entry: LogEntry): boolean {
+    return ERROR_LINE.test(entry.message);
   }
 
   protected onScroll(event: Event): void {

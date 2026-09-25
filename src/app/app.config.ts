@@ -1,22 +1,27 @@
-import { DOCUMENT } from '@angular/common';
 import {
   ApplicationConfig,
   ErrorHandler,
   inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
-import { WA_IS_MOBILE } from '@ng-web-apis/platform';
-import { TUI_PLATFORM } from '@taiga-ui/cdk';
-import { provideTaiga } from '@taiga-ui/core';
+import { provideIonicAngular } from '@ionic/angular/provide';
+import {
+  iosTransitionAnimation,
+  popoverEnterAnimation,
+  popoverLeaveAnimation,
+} from '@rdlabo/ionic-theme-ios27';
 
 import { provideAppHttpClient } from '@shared/api/http';
 import { providePushNotifications } from '@shared/lib/push';
+import { ThemeStore } from '@shared/lib/theme/theme.store';
+import { NEW_PROJECT_DIALOG, NEW_TASK_DIALOG } from '@shared/ui/sheet/sheet.service';
 import { provideAndroidBackButton } from './android-back-button';
 import { routes } from './app.routes';
 import { AppErrorHandler } from './error-handler';
-
-const MOBILE_QUERY = '(max-width: 768px)';
+import { provideNavigationFailureToast, withNavigationFailures } from './navigation-error';
+import { provideSplash } from './splash';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -24,6 +29,9 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: AppErrorHandler },
     provideAppHttpClient(),
     provideAndroidBackButton(),
+    provideSplash(),
+    provideNavigationFailureToast(),
+    provideAppInitializer(() => void inject(ThemeStore)),
     providePushNotifications({
       apiKey: 'AIzaSyCRR2ROcaF0iIqEopsQ8ifeGZFylse_Lrc',
       authDomain: 'zen-boreas.firebaseapp.com',
@@ -34,16 +42,23 @@ export const appConfig: ApplicationConfig = {
       vapidKey:
         'BNxruyU5YFKqLZKtgOLcozHpF7Y9eNiaY-ajytpZv3wYBu-Y4p7zIHiZ5fvK65dhNyoi9vhC-7yCDM73kQDzLmY',
     }),
-    provideRouter(routes, withComponentInputBinding()),
-    provideTaiga({ apis: { liquidGlass: true } }),
     {
-      provide: TUI_PLATFORM,
-      useFactory: (): 'ios' | 'web' => {
-        const view = inject(DOCUMENT).defaultView;
-        const narrow = view?.matchMedia(MOBILE_QUERY).matches ?? false;
-
-        return inject(WA_IS_MOBILE) || narrow ? 'ios' : 'web';
-      },
+      provide: NEW_PROJECT_DIALOG,
+      useValue: () =>
+        import('@pages/project-create/project-create-page').then((m) => m.ProjectCreatePage),
     },
+    {
+      provide: NEW_TASK_DIALOG,
+      useValue: () => import('@pages/task-create/task-create-page').then((m) => m.TaskCreatePage),
+    },
+    provideRouter(routes, withComponentInputBinding(), withNavigationFailures()),
+    provideIonicAngular({
+      mode: 'ios',
+      useSetInputAPI: true,
+      backButtonText: '',
+      navAnimation: iosTransitionAnimation,
+      popoverEnter: popoverEnterAnimation,
+      popoverLeave: popoverLeaveAnimation,
+    }),
   ],
 };

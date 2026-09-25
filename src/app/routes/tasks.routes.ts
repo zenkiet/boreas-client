@@ -3,7 +3,7 @@ import { Routes } from '@angular/router';
 export const tasksRoutes: Routes = [
   {
     path: 'new',
-    title: 'Create task | Boreas',
+    title: 'New task | Boreas',
     loadComponent: () =>
       import('@pages/task-create/task-create-page').then(({ TaskCreatePage }) => TaskCreatePage),
   },

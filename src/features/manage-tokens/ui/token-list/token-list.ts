@@ -1,96 +1,85 @@
 import { DatePipe } from '@angular/common';
 import { Component, input, output } from '@angular/core';
-import { TuiButton, TuiIcon } from '@taiga-ui/core';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonItem } from '@ionic/angular/ion-item';
+import { IonLabel } from '@ionic/angular/ion-label';
+import { IonNote } from '@ionic/angular/ion-note';
 
 import { ApiToken, isRevocable } from '@entities/api-token';
 
 @Component({
   selector: 'app-token-list',
-  imports: [DatePipe, TuiButton, TuiIcon],
+  imports: [DatePipe, IonButton, IonItem, IonLabel, IonNote],
   template: `
     @for (token of tokens(); track token.id) {
-      <div class="row row-divider relative" [class.row--dead]="!revocable(token)">
-        <span class="dot" [attr.data-status]="token.status" aria-hidden="true"></span>
-        <span class="min-w-0 flex-1">
-          <span class="row__name">{{ token.name }}</span>
-          <span class="row__sub">{{ describe(token) }}</span>
-        </span>
+      <ion-item [class.dead]="!revocable(token)">
+        <span slot="start" class="dot" [attr.data-status]="token.status" aria-hidden="true"></span>
+        <ion-label
+          ><span class="name">{{ token.name }}</span></ion-label
+        >
+        <ion-note>{{ describe(token) }}</ion-note>
 
-        <!-- Resident, not revealed: one action with nothing to trade places with, and a
-             swipe-only strip is invisible to a mouse and undiscoverable on a finger. -->
+        <!-- Not a swipe action: a lone destructive action must show on every pointer type. -->
         @if (revocable(token)) {
-          <button
-            tuiButton
-            type="button"
-            size="s"
-            appearance="flat-destructive"
+          <ion-button
+            slot="end"
+            fill="clear"
+            color="danger"
+            class="revoke"
             [disabled]="busy()"
             [attr.aria-label]="'Revoke ' + token.name"
             (click)="revokeRequested.emit(token)"
           >
-            <tui-icon class="icon-sm" icon="@tui.ban" />
             Revoke
-          </button>
+          </ion-button>
         } @else {
-          <span class="row__meta tabular">{{ token.createdAt | date: 'MMM d' }}</span>
+          <ion-note slot="end" class="created tabular">{{
+            token.createdAt | date: 'MMM d'
+          }}</ion-note>
         }
-      </div>
+      </ion-item>
     }
   `,
   styles: `
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6875rem 1rem;
-      min-block-size: 3.5rem;
+    .name {
+      font-family: var(--app-font-mono);
+      font-size: 0.9375rem;
+      line-height: 1.25rem;
+      font-weight: 600;
     }
 
-    .row--dead .row__name {
-      color: var(--tui-text-tertiary);
+    .dead .name {
+      color: var(--app-text-tertiary);
+    }
+
+    .revoke {
+      font-size: 0.9375rem;
+      font-weight: 500;
+    }
+
+    /* The theme pins slotted end notes to the top of the row. */
+    .created {
+      align-self: center !important;
+      font-size: 0.875rem;
     }
 
     .dot {
-      inline-size: 0.4375rem;
-      block-size: 0.4375rem;
-      flex: none;
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
       border-radius: 999px;
-      background: var(--tui-status-neutral);
+      background: var(--app-status-neutral);
+    }
+
+    .dead .dot {
+      opacity: 0.6;
     }
 
     .dot[data-status='active'] {
-      background: var(--tui-status-positive);
+      background: var(--app-status-positive);
     }
 
     .dot[data-status='scheduled'] {
-      background: var(--tui-status-info);
-    }
-
-    .dot[data-status='revoked'] {
-      background: var(--tui-status-negative);
-    }
-
-    .row__name {
-      display: block;
-      overflow: hidden;
-      font-family: var(--app-font-mono);
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--tui-text-primary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .row__sub {
-      display: block;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
-    }
-
-    .row__meta {
-      flex: none;
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary);
+      background: var(--app-status-info);
     }
   `,
 })
@@ -109,8 +98,11 @@ export class TokenList {
       date.toLocaleDateString('en', { month: 'short', day: 'numeric' });
 
     switch (token.status) {
-      case 'active':
-        return `Active · expires ${format(token.validTo)}`;
+      case 'active': {
+        /* "Active · " would push the countdown past one line at 390; days left already says it. */
+        const days = Math.ceil((token.validTo.getTime() - Date.now()) / 86_400_000);
+        return `Expires ${format(token.validTo)} · ${days} ${days === 1 ? 'day' : 'days'} left`;
+      }
       case 'scheduled':
         return `Scheduled · starts ${format(token.validFrom)} → ${format(token.validTo)}`;
       case 'expired':

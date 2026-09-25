@@ -1,65 +1,27 @@
-import { Component, ElementRef, model, viewChild } from '@angular/core';
-import { FormField, form } from '@angular/forms/signals';
-import { TuiButton, TuiIcon, TuiTextfield } from '@taiga-ui/core';
+import { Directive, ElementRef, effect, inject, model } from '@angular/core';
 
-@Component({
-  selector: 'app-task-filter-bar',
-  imports: [FormField, TuiButton, TuiIcon, TuiTextfield],
+@Directive({
+  selector: 'ion-searchbar[appTaskFilterBar]',
   host: {
-    class: 'block',
+    'aria-keyshortcuts': '/',
+    '(ionInput)': 'onInput($event)',
+    '(keydown.escape)': 'query.set("")',
     '(document:keydown)': 'onDocumentKeydown($event)',
   },
-  template: `
-    <search>
-      <tui-textfield
-        tuiTextfieldSize="m"
-        iconStart="@tui.search"
-        class="w-full"
-        [tuiTextfieldCleaner]="false"
-      >
-        <input
-          #search
-          tuiInput
-          type="search"
-          autocomplete="off"
-          aria-label="Search tasks"
-          aria-keyshortcuts="/"
-          placeholder="Search tasks"
-          [formField]="field"
-          (keydown.escape)="clear()"
-        />
-        @if (query()) {
-          <button
-            tuiIconButton
-            type="button"
-            size="s"
-            appearance="flat-grayscale"
-            aria-label="Clear search"
-            (click)="clear()"
-          >
-            <tui-icon class="icon-sm" icon="@tui.x" />
-          </button>
-        }
-      </tui-textfield>
-    </search>
-  `,
-  /* Hide WebKit's native cancel so only the explicit clear action remains. */
-  styles: `
-    input[type='search']::-webkit-search-cancel-button {
-      -webkit-appearance: none;
-      appearance: none;
-    }
-  `,
 })
 export class TaskFilterBar {
-  private readonly search = viewChild<ElementRef<HTMLInputElement>>('search');
+  private readonly searchbar =
+    inject<ElementRef<{ value?: string | null; setFocus(): Promise<void> }>>(ElementRef);
 
   readonly query = model('');
-  protected readonly field = form(this.query);
 
-  protected clear(): void {
-    this.query.set('');
-    this.search()?.nativeElement.focus();
+  constructor() {
+    /* A host [value] binding is rejected on the custom element, so the value is pushed in. */
+    effect(() => (this.searchbar.nativeElement.value = this.query()));
+  }
+
+  protected onInput(event: Event): void {
+    this.query.set((event as CustomEvent<{ value?: string | null }>).detail.value ?? '');
   }
 
   protected onDocumentKeydown(event: KeyboardEvent): void {
@@ -74,6 +36,6 @@ export class TaskFilterBar {
     }
 
     event.preventDefault();
-    this.search()?.nativeElement.focus();
+    void this.searchbar.nativeElement.setFocus();
   }
 }
