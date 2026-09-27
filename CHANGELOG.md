@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.11.1](https://github.com/zenkiet/boreas-client/compare/efe9d7f126b9e58d54bc13c2e1de47383bd24e95..v0.11.1) - 2026-09-27
+#### ♻️ Code Refactoring
+- ♻️ improve duplicate code - ([efe9d7f](https://github.com/zenkiet/boreas-client/commit/efe9d7f126b9e58d54bc13c2e1de47383bd24e95)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.11.0](https://github.com/zenkiet/boreas-client/compare/6ab8495ab8dc1762f82e5235d1f2cdbc00ca93ac..v0.11.0) - 2026-09-27
 #### 🚀 Features
 - ✨ implement new design ios 27 - ([45bf42c](https://github.com/zenkiet/boreas-client/commit/45bf42cc28a0b8e4987c6e9c2b406c6cd71fae2b)) - [@zenkiet](https://github.com/zenkiet)
