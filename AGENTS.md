@@ -2,7 +2,7 @@
 
 Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-theme-ios27` Liquid Glass theme, Tailwind v4, Capacitor 8 for iOS and Android. It manages a Boreas server: projects, their tasks (containers), live metrics, logs and activity.
 
-- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, build). The initial bundle warns past 1.1 MB (now ~1.08 MB): a new warning means real growth.
+- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, build). jscpd's `minTokens` is 60 so the per-page Ionic import runs (kept apart for per-route chunks) never count; DTOs and mappers are ignored. The initial bundle warns past 1.1 MB (now ~1.08 MB): a new warning means real growth.
 - Commits: `<type>(scope): <emoji> subject`, checked by `scripts/validate-commit-msg.sh`.
 - Hard requirements: every screen passes AXE and WCAG AA (focus, contrast, ARIA).
 

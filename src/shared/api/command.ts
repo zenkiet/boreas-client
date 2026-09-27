@@ -30,7 +30,7 @@ export class CommandGate {
   readonly error: Signal<string | undefined> = this.errorState.asReadonly();
 
   /** The message for a command that arrives while another still runs. */
-  constructor(private readonly rejection: string) {}
+  constructor(private readonly rejection = 'Another action is already running.') {}
 
   /** For stores that outlive their page: the last failure must not greet the next visit. */
   clearError(): void {

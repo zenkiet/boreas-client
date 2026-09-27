@@ -1,34 +1,18 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { Observable, catchError, defer, finalize, of } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
 
 import { Task, TaskApi, UpdateTaskInput } from '@entities/task';
-import { mapApiError } from '@shared/api/api-error';
+import { CommandGate } from '@shared/api/command';
 
 @Injectable()
 export class EditTaskStore {
   private readonly api = inject(TaskApi);
-  private readonly savingState = signal(false);
-  private readonly errorState = signal<string | undefined>(undefined);
+  private readonly gate = new CommandGate();
 
-  readonly saving = this.savingState.asReadonly();
-  readonly error = this.errorState.asReadonly();
+  readonly saving = this.gate.busy;
+  readonly error = this.gate.error;
 
   update(project: string, name: string, input: UpdateTaskInput): Observable<Task | undefined> {
-    return defer(() => {
-      if (this.savingState()) {
-        return of(undefined);
-      }
-
-      this.savingState.set(true);
-      this.errorState.set(undefined);
-
-      return this.api.update(project, name, input).pipe(
-        catchError((error: unknown) => {
-          this.errorState.set(mapApiError(error).message);
-          return of(undefined);
-        }),
-        finalize(() => this.savingState.set(false)),
-      );
-    });
+    return this.gate.attempt(this.api.update(project, name, input));
   }
 }

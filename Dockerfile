@@ -11,6 +11,7 @@ WORKDIR /app
 RUN npm install --global "pnpm@${PNPM_VERSION}"
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 
 RUN --mount=type=cache,id=boreas-client-pnpm,target=/pnpm/store,sharing=locked \
     pnpm config set store-dir /pnpm/store \
