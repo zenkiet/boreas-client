@@ -14,8 +14,6 @@ import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { CommandGate, CommandResult } from '@shared/api/command';
 import { listView } from '@shared/api/resource-cache';
 
-export type TokenCommandResult = CommandResult;
-
 @Injectable()
 export class ManageTokensStore {
   private readonly api = inject(ApiTokenApi);
@@ -58,7 +56,7 @@ export class ManageTokensStore {
     return this.gate.attempt(this.api.create(input));
   }
 
-  revoke(token: ApiToken): Observable<TokenCommandResult> {
+  revoke(token: ApiToken): Observable<CommandResult> {
     return this.gate.run(this.api.revoke(token.id), `Token ${token.name} revoked.`);
   }
 }

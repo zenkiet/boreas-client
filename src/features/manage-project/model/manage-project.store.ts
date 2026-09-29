@@ -12,25 +12,27 @@ import {
 import { RegistryCredential, RegistryCredentialApi } from '@entities/registry-credential';
 import { User, UserApi } from '@entities/user';
 import { CommandGate, CommandResult } from '@shared/api/command';
-
-export type ProjectCommandResult = CommandResult;
+import { IS_ADMIN } from '@shared/api/role';
 
 @Injectable()
 export class ManageProjectStore {
   private readonly projectApi = inject(ProjectApi);
   private readonly credentialApi = inject(RegistryCredentialApi);
   private readonly userApi = inject(UserApi);
+  private readonly isAdmin = inject(IS_ADMIN);
   private readonly gate = new CommandGate('Another project action is already running.');
 
   readonly busy = this.gate.busy;
   readonly createError = this.gate.error;
 
-  /* Both lists 403 for non-admins; null hides the pickers that need them. */
+  /* Both lists are admin-only; null hides the pickers that need them. */
   private readonly usersResource = rxResource({
+    params: () => this.isAdmin() !== false || undefined,
     stream: () => this.userApi.list().pipe(catchError(() => of<readonly User[] | null>(null))),
   });
 
   private readonly credentialsResource = rxResource({
+    params: () => this.isAdmin() !== false || undefined,
     stream: () =>
       this.credentialApi
         .list()
@@ -48,11 +50,11 @@ export class ManageProjectStore {
     return this.gate.attempt(this.projectApi.create(input));
   }
 
-  update(slug: string, input: UpdateProjectInput): Observable<ProjectCommandResult> {
+  update(slug: string, input: UpdateProjectInput): Observable<CommandResult> {
     return this.gate.run(this.projectApi.update(slug, input), `Project ${slug} updated.`);
   }
 
-  delete(slug: string): Observable<ProjectCommandResult> {
+  delete(slug: string): Observable<CommandResult> {
     return this.gate.run(this.projectApi.delete(slug), `Project ${slug} deleted.`);
   }
 
@@ -61,11 +63,11 @@ export class ManageProjectStore {
     slug: string,
     input: AddMemberInput,
     done = 'Member added.',
-  ): Observable<ProjectCommandResult> {
+  ): Observable<CommandResult> {
     return this.gate.run(this.projectApi.addMember(slug, input), done);
   }
 
-  removeMember(slug: string, userId: string, username: string): Observable<ProjectCommandResult> {
+  removeMember(slug: string, userId: string, username: string): Observable<CommandResult> {
     return this.gate.run(
       this.projectApi.removeMember(slug, userId),
       `${username} removed from the project.`,

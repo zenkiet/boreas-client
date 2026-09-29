@@ -1,7 +1,18 @@
-import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  linkedSignal,
+  signal,
+  untracked,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import type { InfiniteScrollCustomEvent } from '@ionic/angular';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonButtons } from '@ionic/angular/ion-buttons';
+import { IonInfiniteScroll } from '@ionic/angular/ion-infinite-scroll';
+import { IonInfiniteScrollContent } from '@ionic/angular/ion-infinite-scroll-content';
 import { from, switchMap } from 'rxjs';
 
 import { TaskApi } from '@entities/task/api';
@@ -18,6 +29,7 @@ import {
   matchesChip,
   matchesFilter,
 } from '@features/list-alerts';
+import { ListProjectsStore } from '@features/list-projects';
 import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { TWO_PANE_QUERY, mediaQuery } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
@@ -46,6 +58,8 @@ interface FilterTag {
     InsetGroup,
     IonButton,
     IonButtons,
+    IonInfiniteScroll,
+    IonInfiniteScrollContent,
     PAGE_CHROME,
     PULL_REFRESH,
     RouterLink,
@@ -158,13 +172,21 @@ interface FilterTag {
                 (selected)="selectedId.set($event.id)"
                 (opened)="openTask($event)"
               />
+              <ion-infinite-scroll [disabled]="!alerts.hasMore()" (ionInfinite)="more($event)">
+                <ion-infinite-scroll-content />
+              </ion-infinite-scroll>
             }
           }
         </div>
 
         @if (twoPane() && selected(); as event) {
           <section id="activity-detail" class="split__detail" aria-label="Event detail">
-            <app-alert-detail [alert]="event" [visitUrl]="visitUrl()" (opened)="openTask($event)" />
+            <app-alert-detail
+              [alert]="event"
+              [projectName]="projectNames().get(event.project) ?? ''"
+              [visitUrl]="visitUrl()"
+              (opened)="openTask($event)"
+            />
           </section>
         }
       </div>
@@ -246,6 +268,7 @@ interface FilterTag {
 })
 export class AlertsPage {
   protected readonly alerts = inject(ListAlertsStore);
+  private readonly fleet = inject(ListProjectsStore);
   private readonly sheets = inject(SheetService);
   private readonly router = inject(Router);
   private readonly tasks = inject(TaskApi);
@@ -284,6 +307,17 @@ export class AlertsPage {
         : (shown[0]?.id ?? null),
   });
 
+  /* The feed carries slugs; names and the picker's list come from the fleet. */
+  protected readonly projectNames = computed(
+    () => new Map(this.fleet.summaries().map(({ project }) => [project.slug, project.name])),
+  );
+
+  /* Infinite scroll fires only on scroll: a filter that leaves too few rows pages up to 3 times. */
+  private readonly topUps = linkedSignal({
+    source: () => [this.filter(), this.chip()],
+    computation: () => 3,
+  });
+
   protected readonly selected = computed(
     () => this.shown().find((alert) => alert.id === this.selectedId()) ?? null,
   );
@@ -310,9 +344,20 @@ export class AlertsPage {
 
   constructor() {
     this.alerts.ensureFresh();
+    this.fleet.ensureFresh();
     effect(() => {
       if (this.alerts.hasLoaded()) this.alerts.markSeen();
     });
+    effect(() => {
+      const short = this.shown().length < 20 && this.alerts.hasMore();
+      if (!short || this.alerts.loadingMore() || this.topUps() === 0) return;
+      this.topUps.update((left) => left - 1);
+      untracked(() => this.alerts.loadMore().subscribe());
+    });
+  }
+
+  protected more(event: InfiniteScrollCustomEvent): void {
+    this.alerts.loadMore().subscribe({ complete: () => void event.target.complete() });
   }
 
   protected openFilter(): void {
@@ -324,7 +369,7 @@ export class AlertsPage {
             'Filter activity',
             {
               alerts: this.alerts.alerts().filter((alert) => matchesChip(alert, this.chip())),
-              projects: this.alerts.projects(),
+              projects: this.fleet.summaries().map(({ project }) => project.slug),
               value: this.filter(),
             },
             /* Room for the date rows the Date range toggle reveals. */

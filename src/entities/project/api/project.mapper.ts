@@ -25,8 +25,8 @@ export function toProject(dto: ProjectDto): Project {
       port: dto.default_port || DEFAULT_TASK_PORT,
       env: dto.default_env ?? {},
     },
+    myRole: dto.my_role,
     createdAt: new Date(dto.created_at),
-    updatedAt: new Date(dto.updated_at),
   };
 }
 

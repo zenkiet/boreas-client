@@ -6,9 +6,8 @@ import { IonNote } from '@ionic/angular/ion-note';
 import { IonRouterLink } from '@ionic/angular/ion-router-link';
 import { IonSearchbar } from '@ionic/angular/ion-searchbar';
 
-import { taskKey } from '@entities/task';
+import { failedToday, taskKey } from '@entities/task';
 import { TaskApi } from '@entities/task/api';
-import { ListAlertsStore } from '@features/list-alerts/model';
 import { ListProjectsStore } from '@features/list-projects/model';
 import {
   FleetTask,
@@ -247,7 +246,6 @@ type Scope = 'all' | 'tasks' | 'projects';
 export class SearchPage {
   protected readonly overview = inject(ListProjectsStore);
   protected readonly search = inject(SearchTasksStore);
-  private readonly alerts = inject(ListAlertsStore);
   private readonly tasks = inject(TaskApi);
   private readonly router = inject(Router);
   protected readonly wide = wideScreen();
@@ -269,9 +267,7 @@ export class SearchPage {
   protected readonly query = computed(() => parseQuery(this.search.query()));
   protected readonly blank = computed(() => this.search.query().trim() === '');
 
-  private readonly matches = computed(() =>
-    rankTasks(this.fleet(), this.query(), this.alerts.failedTodayKeys()),
-  );
+  private readonly matches = computed(() => rankTasks(this.fleet(), this.query()));
 
   protected readonly projects = computed(() =>
     matchProjects(this.overview.summaries(), this.query()),
@@ -322,10 +318,8 @@ export class SearchPage {
   protected readonly counts = computed(() => {
     if (!this.overview.hasLoaded()) return null;
     const fleet = this.fleet();
-    const failed = this.alerts.failedTodayKeys();
     return {
-      failed: fleet.filter(({ project, task }) => failed.has(taskKey(project.slug, task.name)))
-        .length,
+      failed: fleet.filter(({ task }) => failedToday(task)).length,
       blocked: fleet.filter(({ task }) => task.devStatus === 'blocked').length,
       stopped: fleet.filter(({ task }) => task.status === 'stopped').length,
     };
@@ -342,7 +336,6 @@ export class SearchPage {
   /* Not the constructor: Ionic keeps this page alive under pushed screens. */
   ionViewWillEnter(): void {
     this.overview.ensureFresh();
-    this.alerts.ensureFresh();
   }
 
   protected visitUrl({ project, task }: FleetTask): string {

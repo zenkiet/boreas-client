@@ -5,7 +5,7 @@ The old backend served flat, unauthenticated `/api/v1/tasks/{id}`. v2 is token-g
 ## Decisions (2026-08-17)
 
 - Home lists projects; a project pushes to Tasks | Members | About, and tasks push from there. Routes use the full vocabulary: `/projects/:slug/tasks/:name`.
-- Search is fleet-wide (one request per project) and results carry the project slug.
+- Search is fleet-wide and results carry the project slug.
 - Admin surfaces (users, registry credentials) live under Settings, hidden from non-admins.
 - Login is its own chromeless `/login` route; every 401 returns to it.
 
@@ -14,13 +14,13 @@ The old backend served flat, unauthenticated `/api/v1/tasks/{id}`. v2 is token-g
 | Old                                              | New                                                                      |
 | ------------------------------------------------ | ------------------------------------------------------------------------ |
 | `pages/dashboard`                                | `pages/projects` (Home) + `pages/project-detail`                         |
-| `features/list-tasks` store                      | `features/list-projects` (projects, stats, one task list per project)    |
+| `features/list-tasks` store                      | `features/list-projects` (the fleet: `GET /projects` with its tasks)     |
 | `Task.id` (slug-like)                            | `Task.name` within its project; `Task.id` is a UUID kept for tracking    |
 | `Task.cpuNano`, `memoryBytes`, `lastAccessed`    | removed by the API                                                       |
-| —                                                | `Task.description`, `Task.projectId`                                     |
-| `EventSource` log stream                         | HttpClient progressive SSE with the bearer header (`TaskLogApi.stream`)  |
+| —                                                | `Task.description`, `Task.myRole`                                        |
+| `EventSource` log stream                         | `fetch` SSE with the bearer header (`SseClient`, `shared/api/sse.ts`)    |
 | log download `<a href>`                          | blob fetch through the interceptor                                       |
-| `SystemStats.maxContainers`, `containerMemoryMb` | `totalProjects`; memory shows the host total                             |
+| `SystemStats.maxContainers`, `containerMemoryMb` | `totalMemoryMb` only: memory shows the host total                        |
 | —                                                | `entities/user`, `entities/project`, `entities/registry-credential`      |
 | —                                                | `features/auth`; token store, interceptor and guards in `shared/api`     |
 | —                                                | `pages/login`, `pages/project-create`, `pages/users`, `pages/registries` |
@@ -35,13 +35,16 @@ The old backend served flat, unauthenticated `/api/v1/tasks/{id}`. v2 is token-g
 - **v1.6**: `dev_status` (`blocked`, `in_progress`, `ready`). Create defaults to `in_progress`, old tasks were backfilled, the PATCH is metadata-only, and a bad value is a 400.
 - **v1.9**: `Task.note`, markdown in both list and detail payloads, stored verbatim. `""` clears and `null` leaves it unchanged; it never recreates the container or notifies, but it does bump `updated_at`.
 - `/health` reports the server `version` (1.11.0 when probed 2026-09-26); older servers omit it.
+- **Next (after 1.11.0; `dev` on localhost 2026-09-29), the minimum server for this client**, which has no fallback, so the backend deploys first:
+  - `GET /projects` is the fleet, `{projects, total}`: each project with `my_role` and `tasks[]` (`name`, `description`, `image`, `status`, `dev_status`, `my_role`, `last_deploy {status, at}`). Every project and task payload carries `my_role`; a grant raises the task's, and admins are owner everywhere. A grantee's `default_env` is blank in the list too.
+  - `GET /notifications?limit&before` (1–200, default 50, newest first) is one feed across projects whose rows carry `project` and `type`; `POST /notifications/seen {ids}` takes 1–200 ids and is idempotent.
+  - The log stream takes `since` (the last timestamp received; `tail` is then ignored). Streams send comment heartbeats and are meant for `fetch`.
+  - `GET /projects/{p}/tasks/{name}/metrics/stream`: the project stream's payload for one task, 409 before it has a container.
 
 ## Open follow-ups
 
-- **BE, security**: a grantee's `GET /projects/{p}` blanks `default_env`, but `GET /projects` returns it intact, so secrets leak through the list (found 2026-08-23). The client cannot work around it: the fleet reads the list.
 - **BE**: `boreas.zenkiet.dev` ends every metrics stream after ~60 s (an HTTP/2 protocol error on all projects at once). The 3 s reconnect hides it; SSE keep-alives or a longer proxy timeout would remove the churn.
 - **BE**: a global `/metrics/stream` carrying a project field would collapse N connections into one.
-- **BE**: accepting `?token=` or a cookie on the streams would let `EventSource` return; today the store reconnects past ~1.5 MB of cumulative body.
 - **BE**: the problem report cannot carry the client IP without a server-provided field.
 - Non-admin owners add members by raw user id, because `/users` is admin-only.
-- Skipped on purpose: role badges on Home (one members call per project) and label editing (the API accepts labels; nothing needs them yet).
+- Skipped on purpose: label editing (the API accepts labels; nothing needs them yet).

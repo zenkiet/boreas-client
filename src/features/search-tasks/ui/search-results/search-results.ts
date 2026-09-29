@@ -11,7 +11,7 @@ import { FleetTask } from '../../model/search-tasks.store';
   selector: 'app-search-results',
   imports: [IonItem, IonLabel, IonNote],
   template: `
-    @for (entry of entries(); track entry.task.id) {
+    @for (entry of entries(); track entry.project.slug + '/' + entry.task.name) {
       <ion-item button (click)="taskOpened.emit(entry)">
         <i slot="start" class="dot" [class]="dot[entry.task.devStatus]" aria-hidden="true"></i>
         <!-- A span, because the theme pins the label's own size. -->

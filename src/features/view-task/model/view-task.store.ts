@@ -26,7 +26,6 @@ export class ViewTaskStore {
   /* Keep stale data after reload failures, but never across task refs. */
   private readonly current = keepLastValue<Task>(this.snapshot, () => this.key());
 
-  readonly project = computed(() => this.ref()?.project ?? '');
   readonly task = this.current;
   readonly environment = computed(() => this.current()?.env ?? {});
   readonly loading = this.snapshot.isLoading;

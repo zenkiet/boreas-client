@@ -3,9 +3,11 @@ export {
   DEV_STATUSES,
   DEV_STATUS_DOT,
   DEV_STATUS_LABEL,
+  failedToday,
   isTransitioningTask,
+  newestDeploy,
   taskKey,
 } from './task';
-export type { DevStatus, Task } from './task';
+export type { DeployOutcome, DevStatus, FleetProject, Task, TaskSummary } from './task';
 export { describeCompletedAction } from './task-state-action';
 export type { TaskStateAction } from './task-state-action';

@@ -1,11 +1,10 @@
 import { CreateTaskInput, UpdateTaskInput } from '../model/create-task-input';
-import { Task } from '../model/task';
-import { CreateTaskRequestDto, TaskDto, UpdateTaskRequestDto } from './task.dto';
+import { FleetProject, Task } from '../model/task';
+import { CreateTaskRequestDto, FleetProjectDto, TaskDto, UpdateTaskRequestDto } from './task.dto';
 
 export function toTask(dto: TaskDto): Task {
   return {
     id: dto.id,
-    projectId: dto.project_id,
     name: dto.name,
     description: dto.description || undefined,
     note: dto.note || undefined,
@@ -13,14 +12,34 @@ export function toTask(dto: TaskDto): Task {
     status: dto.status,
     devStatus: dto.dev_status ?? 'in_progress',
     port: dto.port,
-    containerId: dto.container_id,
-    containerIp: dto.container_ip,
-    createdAt: new Date(dto.created_at),
     updatedAt: new Date(dto.updated_at),
-    labels: { ...(dto.labels ?? {}) },
     env: { ...(dto.env ?? {}) },
-    error: dto.error,
     pendingRecreate: dto.pending_recreate ?? false,
+    myRole: dto.my_role,
+  };
+}
+
+export function toFleetProject(dto: FleetProjectDto): FleetProject {
+  return {
+    project: {
+      id: dto.id,
+      slug: dto.slug,
+      name: dto.name || dto.slug,
+      myRole: dto.my_role,
+      registryCredentialId: dto.registry_credential_id,
+    },
+    tasks: (dto.tasks ?? []).map((task) => ({
+      name: task.name,
+      description: task.description || undefined,
+      image: task.image,
+      status: task.status,
+      devStatus: task.dev_status,
+      myRole: task.my_role,
+      lastDeploy: task.last_deploy && {
+        at: new Date(task.last_deploy.at),
+        failed: task.last_deploy.status === 'failure',
+      },
+    })),
   };
 }
 
@@ -36,7 +55,6 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
   };
 }
 
-/* undefined drops out of the JSON, so the PATCH carries only the fields that are set. */
 export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskRequestDto {
   return {
     description: input.description,
@@ -44,7 +62,6 @@ export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskReques
     dev_status: input.devStatus,
     image: input.image,
     port: input.port,
-    labels: input.labels ? { ...input.labels } : undefined,
     env: input.environment ? { ...input.environment } : undefined,
     auto_restart: input.autoRestart,
   };

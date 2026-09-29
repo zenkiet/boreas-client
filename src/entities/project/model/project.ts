@@ -1,3 +1,5 @@
+import { ProjectRole } from '@shared/api/role';
+
 export interface TaskDefaults {
   readonly image: string;
   readonly port: number;
@@ -18,8 +20,8 @@ export interface Project {
   readonly name: string;
   readonly registryCredentialId?: string;
   readonly defaults: TaskDefaults;
+  readonly myRole: ProjectRole;
   readonly createdAt: Date;
-  readonly updatedAt: Date;
 }
 
 export const RESERVED_PROJECT_SLUGS = ['api', 'health', 'metrics', 'static', 'admin'] as const;

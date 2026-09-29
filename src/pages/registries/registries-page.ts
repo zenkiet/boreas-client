@@ -16,7 +16,7 @@ import { filter, switchMap } from 'rxjs';
 
 import { RegistryCredential, RegistryKind } from '@entities/registry-credential';
 import { ListProjectsStore } from '@features/list-projects/model';
-import { CredentialCommandResult, ManageCredentialsStore } from '@features/manage-credentials';
+import { ManageCredentialsStore } from '@features/manage-credentials';
 import { FieldStatus } from '@shared/lib/forms/field-status.directive';
 import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { Callout } from '@shared/ui/callout/callout';
@@ -284,7 +284,7 @@ export class RegistriesPage {
         filter(Boolean),
         switchMap(() => this.credentials.delete(credential)),
       )
-      .subscribe((result: CredentialCommandResult) => {
+      .subscribe((result) => {
         this.notifications.result(result);
         if (result.success) this.credentials.load();
       });

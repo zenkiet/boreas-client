@@ -5,9 +5,8 @@ import { Observable } from 'rxjs';
 import { CreateUserInput, UpdateUserInput, User, UserApi } from '@entities/user';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { CommandGate, CommandResult } from '@shared/api/command';
+import { IS_ADMIN } from '@shared/api/role';
 import { listView } from '@shared/api/resource-cache';
-
-export type UserCommandResult = CommandResult;
 
 @Injectable()
 export class ManageUsersStore {
@@ -15,10 +14,11 @@ export class ManageUsersStore {
   private readonly gate = new CommandGate('Another user action is already running.');
 
   private readonly session = inject(AuthTokenStore);
+  private readonly isAdmin = inject(IS_ADMIN);
 
-  /* Outlives its page, so keyed on the token: a switched account never sees the old list. */
+  /* Outlives its page, so keyed on the token; idle for anyone known not to be an admin. */
   private readonly listResource = rxResource({
-    params: () => this.session.token() || undefined,
+    params: () => (this.isAdmin() !== false && this.session.token()) || undefined,
     stream: () => this.api.list(),
   });
 
@@ -43,11 +43,11 @@ export class ManageUsersStore {
     return this.gate.attempt(this.api.create(input));
   }
 
-  update(user: User, input: UpdateUserInput, description: string): Observable<UserCommandResult> {
+  update(user: User, input: UpdateUserInput, description: string): Observable<CommandResult> {
     return this.gate.run(this.api.update(user.id, input), description);
   }
 
-  delete(user: User): Observable<UserCommandResult> {
+  delete(user: User): Observable<CommandResult> {
     return this.gate.run(this.api.delete(user.id), `${user.username} deleted.`);
   }
 }

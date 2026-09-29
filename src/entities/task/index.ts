@@ -6,11 +6,13 @@ export {
   DEV_STATUS_LABEL,
   countByDevStatus,
   describeDevStatus,
+  failedToday,
   isTransitioningTask,
+  newestDeploy,
   sortByDevStatus,
   taskKey,
 } from './model/task';
-export type { DevStatus, Task } from './model/task';
+export type { DeployOutcome, DevStatus, FleetProject, Task, TaskSummary } from './model/task';
 export { describeCompletedAction } from './model/task-state-action';
 export type { TaskStateAction } from './model/task-state-action';
 export { TaskMenu } from './ui/task-menu/task-menu';

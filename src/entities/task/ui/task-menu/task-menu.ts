@@ -3,6 +3,7 @@ import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 import { IonList } from '@ionic/angular/ion-list';
 
+import { atLeastRole } from '@shared/api/role';
 import { Task, isTransitioningTask } from '../../model/task';
 
 export type TaskAction = 'start' | 'stop' | 'restart' | 'edit' | 'delete';
@@ -34,18 +35,20 @@ export interface TaskActionRequest {
             aria-hidden="true"
           ></span>
         </ion-item>
-        <ion-item
-          button
-          lines="full"
-          class="narrow-only"
-          [detail]="false"
-          [disabled]="disabled()"
-          (click)="emit('stop')"
-        >
-          <ion-label>Stop</ion-label>
-          <span slot="end" class="icon-[light--stop]" aria-hidden="true"></span>
-        </ion-item>
-      } @else {
+        @if (operate()) {
+          <ion-item
+            button
+            lines="full"
+            class="narrow-only"
+            [detail]="false"
+            [disabled]="disabled()"
+            (click)="emit('stop')"
+          >
+            <ion-label>Stop</ion-label>
+            <span slot="end" class="icon-[light--stop]" aria-hidden="true"></span>
+          </ion-item>
+        }
+      } @else if (operate()) {
         <ion-item
           button
           lines="full"
@@ -58,33 +61,37 @@ export interface TaskActionRequest {
           <span slot="end" class="icon-[light--play]" aria-hidden="true"></span>
         </ion-item>
       }
-      <ion-item
-        button
-        lines="full"
-        class="narrow-only"
-        [detail]="false"
-        [disabled]="disabled()"
-        (click)="emit('restart')"
-      >
-        <ion-label>Restart</ion-label>
-        <span slot="end" class="icon-[light--arrow-rotate-right]" aria-hidden="true"></span>
-      </ion-item>
-      <!-- Editing is always allowed; only the recreate it may trigger waits for a settle. -->
-      <ion-item button lines="none" class="narrow-only" [detail]="false" (click)="emit('edit')">
-        <ion-label>Edit task</ion-label>
-        <span slot="end" class="icon-[light--pencil]" aria-hidden="true"></span>
-      </ion-item>
-      <ion-item
-        button
-        lines="none"
-        class="delete"
-        [detail]="false"
-        [disabled]="disabled()"
-        (click)="emit('delete')"
-      >
-        <ion-label color="danger">Delete</ion-label>
-        <span slot="end" class="text-danger icon-[light--trash]" aria-hidden="true"></span>
-      </ion-item>
+      @if (operate()) {
+        <ion-item
+          button
+          lines="full"
+          class="narrow-only"
+          [detail]="false"
+          [disabled]="disabled()"
+          (click)="emit('restart')"
+        >
+          <ion-label>Restart</ion-label>
+          <span slot="end" class="icon-[light--arrow-rotate-right]" aria-hidden="true"></span>
+        </ion-item>
+      }
+      @if (edit()) {
+        <!-- Not disabled mid-transition: only the recreate an edit may trigger waits for a settle. -->
+        <ion-item button lines="none" class="narrow-only" [detail]="false" (click)="emit('edit')">
+          <ion-label>Edit task</ion-label>
+          <span slot="end" class="icon-[light--pencil]" aria-hidden="true"></span>
+        </ion-item>
+        <ion-item
+          button
+          lines="none"
+          class="delete"
+          [detail]="false"
+          [disabled]="disabled()"
+          (click)="emit('delete')"
+        >
+          <ion-label color="danger">Delete</ion-label>
+          <span slot="end" class="text-danger icon-[light--trash]" aria-hidden="true"></span>
+        </ion-item>
+      }
     </ion-list>
   `,
   styles: `
@@ -116,6 +123,8 @@ export class TaskMenu {
   readonly actionRequested = output<TaskActionRequest>();
 
   protected readonly disabled = computed(() => isTransitioningTask(this.task()) || this.pending());
+  protected readonly operate = computed(() => atLeastRole(this.task().myRole, 'operator'));
+  protected readonly edit = computed(() => atLeastRole(this.task().myRole, 'member'));
 
   protected emit(action: TaskAction): void {
     this.actionRequested.emit({ action, task: this.task() });

@@ -1,6 +1,7 @@
 import {
   ApplicationConfig,
   ErrorHandler,
+  computed,
   inject,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
@@ -13,7 +14,9 @@ import {
   popoverLeaveAnimation,
 } from '@rdlabo/ionic-theme-ios27';
 
+import { SessionStore } from '@features/auth';
 import { provideAppHttpClient } from '@shared/api/http';
+import { IS_ADMIN } from '@shared/api/role';
 import { providePushNotifications } from '@shared/lib/push';
 import { ThemeStore } from '@shared/lib/theme/theme.store';
 import { NEW_PROJECT_DIALOG, NEW_TASK_DIALOG } from '@shared/ui/sheet/sheet.service';
@@ -50,6 +53,16 @@ export const appConfig: ApplicationConfig = {
     {
       provide: NEW_TASK_DIALOG,
       useValue: () => import('@pages/task-create/task-create-page').then((m) => m.TaskCreatePage),
+    },
+    {
+      provide: IS_ADMIN,
+      useFactory: () => {
+        const session = inject(SessionStore);
+        return computed(() => {
+          const user = session.user();
+          return user && user.role === 'admin';
+        });
+      },
     },
     provideRouter(routes, withComponentInputBinding(), withNavigationFailures()),
     provideIonicAngular({

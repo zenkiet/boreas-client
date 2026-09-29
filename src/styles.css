@@ -300,6 +300,11 @@ ion-input .input-clear-icon ion-icon {
   }
 }
 
+/* A role can hide every action in a group; the theme would still draw its empty capsule. */
+ion-buttons:empty {
+  display: none !important;
+}
+
 @media (max-width: 79.99rem) {
   .desk-only {
     display: none !important;

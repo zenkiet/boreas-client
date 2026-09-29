@@ -66,6 +66,7 @@ let instances = 0;
           [attr.aria-invalid]="issues().length > 0"
           [attr.aria-describedby]="message() ? messageId : null"
           [value]="text()"
+          [readOnly]="locked()"
           (input)="updateText($event)"
           (focus)="focused.set(true)"
           (blur)="focused.set(false)"
@@ -83,7 +84,7 @@ let instances = 0;
           aria-hidden="true"
         ></span>
         <span class="grow">{{ note.text }}</span>
-        @if (note.fix; as fix) {
+        @if (!locked() && note.fix; as fix) {
           <button
             type="button"
             class="env__fix"
@@ -356,6 +357,7 @@ export class EnvironmentEditor {
   readonly label = input('');
   readonly inset = input(false);
   readonly footer = input(false);
+  readonly locked = input(false);
   /** Emitted only for a buffer without issues. */
   readonly environmentChange = output<Record<string, string>>();
   readonly errorsChange = output<readonly string[]>();
@@ -373,6 +375,7 @@ export class EnvironmentEditor {
   protected readonly issues = computed(() => this.parsed().issues);
 
   protected readonly lines = computed(() => {
+    if (this.locked() && !this.text()) return [[{ text: 'No variables', tone: 'ghost' } as const]];
     const rows = this.text().split(/\r?\n/);
     const kinds = new Map(this.issues().map((issue) => [issue.line, issue.kind]));
     const masked = this.mirror && !this.focused();

@@ -20,14 +20,16 @@ import { noteToPreviewHtml } from '@shared/lib/markdown/note-markdown';
         <div class="foot">
           <span class="grow">Updated {{ updated() }}</span>
           <!-- sr-only, not aria-label: the accessible name must match the visible text. -->
-          <a class="edit" [routerLink]="editLink()">
-            <span class="icon-[regular--pencil]" aria-hidden="true"></span>
-            <span>Edit<span class="sr-only xl:not-sr-only"> note</span></span>
-          </a>
+          @if (editLink(); as link) {
+            <a class="edit" [routerLink]="link">
+              <span class="icon-[regular--pencil]" aria-hidden="true"></span>
+              <span>Edit<span class="sr-only xl:not-sr-only"> note</span></span>
+            </a>
+          }
         </div>
       </article>
-    } @else {
-      <ion-item [routerLink]="editLink()">
+    } @else if (editLink(); as link) {
+      <ion-item [routerLink]="link">
         <ion-label color="primary">Add note</ion-label>
       </ion-item>
     }
@@ -255,7 +257,8 @@ import { noteToPreviewHtml } from '@shared/lib/markdown/note-markdown';
 export class TaskNoteCard {
   readonly note = input('');
   readonly updatedAt = input.required<Date>();
-  readonly editLink = input.required<readonly string[]>();
+  /** null hides Edit and Add note: the caller may not change the task. */
+  readonly editLink = input.required<readonly string[] | null>();
 
   protected readonly html = computed(() =>
     this.note().trim() ? noteToPreviewHtml(this.note()) : '',

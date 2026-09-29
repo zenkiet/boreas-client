@@ -86,12 +86,10 @@ export class PushStore {
   private readonly errorState = signal('');
 
   readonly permission = this.permissionState.asReadonly();
-  readonly token = this.tokenState.asReadonly();
   /** Foreground only: the OS and the service worker deliver background pushes. */
   readonly message = this.messageState.asReadonly();
   readonly enabled = this.enabledState.asReadonly();
   readonly busy = this.busyState.asReadonly();
-  readonly error = this.errorState.asReadonly();
   readonly hint = computed(() =>
     this.permissionState() === 'denied' ? blockedMessage() : this.errorState(),
   );

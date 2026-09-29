@@ -1,6 +1,6 @@
 import { Injectable, Signal, computed, effect, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { EMPTY, combineLatest, filter, interval, of, scan, switchMap } from 'rxjs';
+import { EMPTY, combineLatest, interval, of, scan, switchMap } from 'rxjs';
 
 import { ProjectApi } from '@entities/project';
 import { EMPTY_WINDOW, NO_SAMPLES, advance, holdSample } from '@entities/system-stats';
@@ -13,7 +13,6 @@ export interface UsageTarget {
   readonly task: string;
 }
 
-/** No per-task endpoint, so it filters the project's metrics stream to the task. */
 @Injectable()
 export class TaskUsageStore {
   private readonly logger = createLogger('task-usage');
@@ -25,10 +24,11 @@ export class TaskUsageStore {
     combineLatest([this.screen, toObservable(this.target)]).pipe(
       switchMap(([on, target]) =>
         on && target
-          ? metricsFeed(this.api, target.slug, this.logger).pipe(
-              filter(([, sample]) => sample.task === target.task),
-              scan(holdSample, NO_SAMPLES),
-            )
+          ? metricsFeed(
+              this.api.taskMetricsStream(target.slug, target.task),
+              target.slug,
+              this.logger,
+            ).pipe(scan(holdSample, NO_SAMPLES))
           : of(NO_SAMPLES),
       ),
     ),

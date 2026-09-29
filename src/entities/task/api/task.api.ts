@@ -4,28 +4,39 @@ import { Observable, map } from 'rxjs';
 
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { CreateTaskInput, UpdateTaskInput } from '../model/create-task-input';
-import { Task } from '../model/task';
+import { FleetProject, Task } from '../model/task';
 import { TaskStateAction } from '../model/task-state-action';
 import {
   DeleteTaskResponseDto,
+  FleetResponseDto,
   TaskListResponseDto,
   TaskResponseDto,
   TaskStateResponseDto,
 } from './task.dto';
-import { toCreateTaskRequestDto, toTask, toUpdateTaskRequestDto } from './task.mapper';
+import {
+  toCreateTaskRequestDto,
+  toFleetProject,
+  toTask,
+  toUpdateTaskRequestDto,
+} from './task.mapper';
 
 @Service()
 export class TaskApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);
 
-  /* Read per call so requests follow server changes without a reload. */
   private root(project: string): string {
     return `${this.config.baseUrl()}/api/v1/projects/${encodeURIComponent(project)}/tasks`;
   }
 
   private taskUrl(project: string, name: string): string {
     return `${this.root(project)}/${encodeURIComponent(name)}`;
+  }
+
+  fleet(): Observable<readonly FleetProject[]> {
+    return this.http
+      .get<FleetResponseDto>(`${this.config.baseUrl()}/api/v1/projects`)
+      .pipe(map((response) => (response.projects ?? []).map(toFleetProject)));
   }
 
   list(project: string): Observable<readonly Task[]> {
@@ -58,14 +69,12 @@ export class TaskApi {
       .pipe(map((response) => response.message));
   }
 
-  /** Environment updates ride this too; the dedicated /env endpoints are gone. */
   update(project: string, name: string, input: UpdateTaskInput): Observable<Task> {
     return this.http
       .patch<TaskResponseDto>(this.taskUrl(project, name), toUpdateTaskRequestDto(input))
       .pipe(map((response) => toTask(response.task)));
   }
 
-  /** The per-task proxy route lives on the server root, not under /api. */
   accessUrl(project: string, name: string): string {
     return `${this.config.baseUrl()}/${encodeURIComponent(project)}/${encodeURIComponent(name)}/`;
   }

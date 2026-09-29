@@ -1,7 +1,6 @@
 import { LogEntry } from '../model/log-entry';
 import { TaskLogEntryDto } from './task-log.dto';
 
-/** Null for malformed frames — a bad frame must not break a hot socket. */
 export function toLogEntry(raw: string): LogEntry | null {
   try {
     const dto = JSON.parse(raw) as TaskLogEntryDto;
@@ -9,7 +8,7 @@ export function toLogEntry(raw: string): LogEntry | null {
       return null;
     }
 
-    return { timestamp: dto.timestamp, stream: dto.stream, message: dto.message };
+    return { timestamp: dto.timestamp, message: dto.message };
   } catch {
     return null;
   }

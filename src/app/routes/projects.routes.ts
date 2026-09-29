@@ -1,4 +1,7 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
+
+import { IS_ADMIN } from '@shared/api/role';
 
 export const projectsRoutes: Routes = [
   {
@@ -10,6 +13,7 @@ export const projectsRoutes: Routes = [
   {
     path: 'new',
     title: 'New project | Boreas',
+    canActivate: [() => inject(IS_ADMIN)() !== false || inject(Router).parseUrl('/projects')],
     loadComponent: () =>
       import('@pages/project-create/project-create-page').then(
         ({ ProjectCreatePage }) => ProjectCreatePage,

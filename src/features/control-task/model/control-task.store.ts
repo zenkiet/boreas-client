@@ -11,8 +11,6 @@ import {
 } from '@entities/task/model';
 import { CommandResult, toCommandResult } from '@shared/api/command';
 
-export type TaskCommandResult = CommandResult;
-
 /** Commands for one project's tasks; pending state is keyed by task name. */
 @Injectable()
 export class ControlTaskStore {
@@ -25,7 +23,11 @@ export class ControlTaskStore {
     return this.pendingTaskIdsState().has(name);
   }
 
-  changeState(project: string, task: Task, action: TaskStateAction): Observable<TaskCommandResult> {
+  changeState(
+    project: string,
+    task: Pick<Task, 'name'>,
+    action: TaskStateAction,
+  ): Observable<CommandResult> {
     return this.execute(
       task.name,
       this.api.changeState(project, task.name, action),
@@ -33,7 +35,7 @@ export class ControlTaskStore {
     );
   }
 
-  setDevStatus(project: string, task: Task, status: DevStatus): Observable<TaskCommandResult> {
+  setDevStatus(project: string, task: Task, status: DevStatus): Observable<CommandResult> {
     return this.execute(
       task.name,
       this.api.update(project, task.name, { devStatus: status }),
@@ -41,7 +43,7 @@ export class ControlTaskStore {
     );
   }
 
-  setNote(project: string, task: Task, note: string): Observable<TaskCommandResult> {
+  setNote(project: string, task: Task, note: string): Observable<CommandResult> {
     return this.execute(
       task.name,
       this.api.update(project, task.name, { note }),
@@ -49,7 +51,7 @@ export class ControlTaskStore {
     );
   }
 
-  delete(project: string, task: Task): Observable<TaskCommandResult> {
+  delete(project: string, task: Task): Observable<CommandResult> {
     return this.execute(
       task.name,
       this.api.delete(project, task.name),
@@ -62,7 +64,7 @@ export class ControlTaskStore {
     name: string,
     command: Observable<unknown>,
     successMessage: string,
-  ): Observable<TaskCommandResult> {
+  ): Observable<CommandResult> {
     return defer(() => {
       if (this.isPending(name)) {
         return of({ success: false, message: `An action is already running for task ${name}.` });

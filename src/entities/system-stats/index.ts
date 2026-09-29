@@ -3,8 +3,6 @@ export { SystemStatsApi } from './api/system-stats.api';
 export {
   EMPTY_WINDOW,
   NO_SAMPLES,
-  STALE_MS,
-  WINDOW,
   advance,
   fleetSeries,
   fromSnapshot,
@@ -12,12 +10,4 @@ export {
   projectLoads,
   toSnapshot,
 } from './model/live-metrics';
-export type {
-  FleetWindow,
-  HeldSamples,
-  MetricPoint,
-  ProjectLoad,
-  ProjectLoads,
-  TaskSample,
-} from './model/live-metrics';
-export type { SystemStats } from './model/system-stats';
+export type { MetricPoint, ProjectLoad, ProjectLoads, TaskSample } from './model/live-metrics';

@@ -17,7 +17,7 @@ import { IonSelect } from '@ionic/angular/ion-select';
 import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import { EMPTY, defer, from } from 'rxjs';
 
-import type { DeployOutcome } from '@entities/notification';
+import type { DeployOutcome } from '@entities/task';
 import { DEV_STATUS_LABEL, DevStatus, Task } from '@entities/task';
 import { toByteSize } from '@shared/lib/format/bytes';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
@@ -43,19 +43,25 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
     <!-- Phones already say Overview in the section switch right above. -->
     <app-inset-group [label]="wide() ? 'Overview' : ''">
       <ion-item>
-        <ion-select
-          label="Status"
-          interface="popover"
-          [interfaceOptions]="statusMenu"
-          [value]="task().devStatus"
-          (ionChange)="statusChange.emit($event)"
-        >
-          @for (option of statusOptions; track option.status) {
-            <ion-select-option [value]="option.status" [description]="option.description">
-              {{ option.label }}
-            </ion-select-option>
-          }
-        </ion-select>
+        @if (editable()) {
+          <ion-select
+            label="Status"
+            interface="popover"
+            [interfaceOptions]="statusMenu"
+            [value]="task().devStatus"
+            (ionChange)="statusChange.emit($event)"
+          >
+            @for (option of statusOptions; track option.status) {
+              <ion-select-option [value]="option.status" [description]="option.description">
+                {{ option.label }}
+              </ion-select-option>
+            }
+          </ion-select>
+        } @else {
+          <!-- A label, not a disabled select: dimmed text fails AA. -->
+          <ion-label class="row-label">Status</ion-label>
+          <span class="value">{{ devLabel[task().devStatus] }}</span>
+        }
       </ion-item>
 
       <ion-item>
@@ -194,6 +200,8 @@ export class TaskOverview {
   readonly proxyUrl = input.required<string>();
   readonly lastDeploy = input<DeployOutcome | null>(null);
   readonly usage = input<{ readonly cpu: number; readonly mem: number } | null>(null);
+  /** Below member the status is shown, not offered. */
+  readonly editable = input(true);
   readonly copyFailed = output<void>();
   readonly imageCopyFailed = output<void>();
   /** The raw event, so the page can flip the select back on a refused change. */
@@ -202,6 +210,7 @@ export class TaskOverview {
   protected readonly wide = wideScreen();
   protected readonly statusOptions = STATUS_OPTIONS;
   protected readonly statusMenu = STATUS_MENU;
+  protected readonly devLabel = DEV_STATUS_LABEL;
 
   /* Every task shares the host; the path is what tells them apart. */
   protected readonly proxyLabel = computed(() => this.proxyUrl().replace(/^https?:\/\/[^/]+/, '…'));

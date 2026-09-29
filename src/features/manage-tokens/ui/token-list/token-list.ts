@@ -88,9 +88,7 @@ export class TokenList {
   readonly busy = input(false);
   readonly revokeRequested = output<ApiToken>();
 
-  protected revocable(token: ApiToken): boolean {
-    return isRevocable(token);
-  }
+  protected readonly revocable = isRevocable;
 
   /* Status alone reads as jargon; the date it turns on is what operators check. */
   protected describe(token: ApiToken): string {

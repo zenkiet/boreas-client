@@ -1,9 +1,7 @@
-export { matchProjects, parseQuery, rankTasks, splitMatch } from './model/search-query';
-export type { ProjectMatch, SearchQuery, StateToken } from './model/search-query';
+export { matchProjects, parseQuery, rankTasks } from './model/search-query';
 export { SearchTasksStore } from './model/search-tasks.store';
 export type { FleetTask, RecentTask } from './model/search-tasks.store';
 export { SearchResults } from './ui/search-results/search-results';
 export { SearchSuggestions } from './ui/search-suggestions/search-suggestions';
-export type { SuggestionCounts } from './ui/search-suggestions/search-suggestions';
 export { TaskFilterBar } from './ui/task-filter-bar/task-filter-bar';
 export { TopHit } from './ui/top-hit/top-hit';
