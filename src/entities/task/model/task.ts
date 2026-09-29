@@ -1,3 +1,5 @@
+import { ProjectRole } from '@shared/api/role';
+
 export type TaskStatus = 'creating' | 'starting' | 'running' | 'stopped' | 'error' | 'unknown';
 
 /* Severity order; lists sort by it so blockers surface first. */
@@ -21,7 +23,6 @@ export const DEV_STATUS_DOT: Record<DevStatus, string> = {
 /** Identified by name within its project; the id is only a stable tracking key. */
 export interface Task {
   readonly id: string;
-  readonly projectId: string;
   readonly name: string;
   readonly description?: string;
   readonly note?: string;
@@ -29,14 +30,55 @@ export interface Task {
   readonly status: TaskStatus;
   readonly devStatus: DevStatus;
   readonly port: number;
-  readonly containerId?: string;
-  readonly containerIp?: string;
-  readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly labels: Readonly<Record<string, string>>;
   readonly env: Readonly<Record<string, string>>;
-  readonly error?: string;
   readonly pendingRecreate: boolean;
+  /** Project role, raised by a grant on this task. */
+  readonly myRole: ProjectRole;
+}
+
+/** When a task last deployed, and whether that deploy failed. */
+export interface DeployOutcome {
+  readonly at: Date;
+  readonly failed: boolean;
+}
+
+/** A task as the fleet embeds it: enough for rows, dots, search and the palette's verbs. */
+export interface TaskSummary {
+  readonly name: string;
+  readonly description?: string;
+  readonly image: string;
+  readonly status: TaskStatus;
+  readonly devStatus: DevStatus;
+  readonly myRole: ProjectRole;
+  readonly lastDeploy?: DeployOutcome;
+}
+
+/** One project of GET /projects; entities cannot import each other, so it names its own fields. */
+export interface FleetProject {
+  readonly project: {
+    readonly id: string;
+    readonly slug: string;
+    readonly name: string;
+    readonly myRole: ProjectRole;
+    readonly registryCredentialId?: string;
+  };
+  readonly tasks: readonly TaskSummary[];
+}
+
+export function newestDeploy(tasks: readonly TaskSummary[]): DeployOutcome | undefined {
+  return tasks.reduce<DeployOutcome | undefined>(
+    (newest, { lastDeploy }) =>
+      lastDeploy && (!newest || lastDeploy.at > newest.at) ? lastDeploy : newest,
+    undefined,
+  );
+}
+
+/** Its newest deploy failed on the local today; nothing ticks at midnight, the next load does. */
+export function failedToday(task: TaskSummary): boolean {
+  return (
+    !!task.lastDeploy?.failed && task.lastDeploy.at.toDateString() === new Date().toDateString()
+  );
 }
 
 export function sortByDevStatus(tasks: readonly Task[]): readonly Task[] {
@@ -48,17 +90,17 @@ export function sortByDevStatus(tasks: readonly Task[]): readonly Task[] {
 }
 
 /** A task mid-transition rejects further commands until it settles. */
-export function isTransitioningTask(task: Task): boolean {
+export function isTransitioningTask(task: TaskSummary): boolean {
   return task.status === 'creating' || task.status === 'starting';
 }
 
-export function countByDevStatus(tasks: readonly Task[]): Record<DevStatus, number> {
+export function countByDevStatus(tasks: readonly TaskSummary[]): Record<DevStatus, number> {
   const counts: Record<DevStatus, number> = { blocked: 0, in_progress: 0, ready: 0 };
   for (const task of tasks) counts[task.devStatus] += 1;
   return counts;
 }
 
-export function describeDevStatus(tasks: readonly Task[], separator = ' · '): string {
+export function describeDevStatus(tasks: readonly TaskSummary[], separator = ' · '): string {
   const counts = countByDevStatus(tasks);
   const parts = DEV_STATUSES.filter((status) => counts[status] > 0).map(
     (status) => `${counts[status]} ${DEV_STATUS_LABEL[status].toLowerCase()}`,

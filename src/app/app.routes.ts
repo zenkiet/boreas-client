@@ -14,13 +14,11 @@ export const routes: Routes = [
   },
   {
     path: 'welcome',
-    data: { pullToRefresh: false },
     loadChildren: () => import('./routes/onboarding.routes').then((m) => m.onboardingRoutes),
   },
   {
     path: 'login',
     title: 'Sign in | Boreas',
-    data: { pullToRefresh: false },
     canActivate: [serverConfiguredGuard, welcomeSeenGuard],
     loadComponent: () => import('@pages/login/login-page').then(({ LoginPage }) => LoginPage),
   },
@@ -48,7 +46,6 @@ export const routes: Routes = [
   },
   {
     path: 'legal',
-    data: { pullToRefresh: false },
     loadChildren: () => import('./routes/legal.routes').then((m) => m.legalRoutes),
   },
   /* Pre-projects bookmarks land on the new home. */

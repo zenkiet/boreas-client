@@ -6,17 +6,13 @@ export interface ProjectDto {
   default_image: string;
   default_port: number;
   default_env: Record<string, string> | null;
+  my_role: ProjectRoleDto;
   created_at: string;
   updated_at: string;
 }
 
 export interface ProjectResponseDto {
   project: ProjectDto;
-}
-
-export interface ProjectsResponseDto {
-  projects: ProjectDto[] | null;
-  total: number;
 }
 
 export interface CreateProjectRequestDto {

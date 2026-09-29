@@ -21,10 +21,9 @@ import { EMPTY, defer, filter, from, switchMap } from 'rxjs';
 
 import { AddMemberInput, Member, Project, TaskDefaultsInput } from '@entities/project';
 import { toCredentialOptions } from '@entities/registry-credential';
-import { Task, TaskActionRequest } from '@entities/task';
+import { Task, TaskActionRequest, newestDeploy } from '@entities/task';
 import { SessionStore } from '@features/auth';
-import { ControlTaskStore, TaskCommandResult } from '@features/control-task';
-import { ListAlertsStore } from '@features/list-alerts/model';
+import { ControlTaskStore } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects/model';
 import { TaskList } from '@features/list-tasks';
 import {
@@ -32,11 +31,12 @@ import {
   MemberForm,
   MemberList,
   MemberRoleChange,
-  ProjectCommandResult,
   ProjectDefaultsForm,
 } from '@features/manage-project';
 import { PinnedProjectsStore } from '@features/pin-project';
 import { ViewProjectStore } from '@features/view-project';
+import { CommandResult } from '@shared/api/command';
+import { atLeastRole } from '@shared/api/role';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { age } from '@shared/lib/format/age';
 import {
@@ -107,20 +107,24 @@ type View = (typeof VIEWS)[number];
           <span aria-current="page">{{ displayName() }}</span>
         </nav>
         <ion-buttons slot="end" class="narrow-only">
-          <ion-button (click)="newTask()" aria-label="New task">
-            <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
-          </ion-button>
+          @if (canCreate()) {
+            <ion-button (click)="newTask()" aria-label="New task">
+              <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
+            </ion-button>
+          }
         </ion-buttons>
         <ion-buttons slot="end" class="wide-only">
-          <ion-button
-            color="primary"
-            fill="solid"
-            class="act act--primary desk-hide"
-            (click)="newTask()"
-          >
-            <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
-            New task
-          </ion-button>
+          @if (canCreate()) {
+            <ion-button
+              color="primary"
+              fill="solid"
+              class="act act--primary desk-hide"
+              (click)="newTask()"
+            >
+              <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+              New task
+            </ion-button>
+          }
           <ion-button fill="solid" class="act" [id]="moreId()" aria-label="More actions">
             <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
           </ion-button>
@@ -181,10 +185,12 @@ type View = (typeof VIEWS)[number];
                   description="A task is one container with its own URL. Start from the project’s defaults."
                   [bordered]="false"
                 >
-                  <ion-button size="small" (click)="newTask()">
-                    <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
-                    New task
-                  </ion-button>
+                  @if (canCreate()) {
+                    <ion-button size="small" (click)="newTask()">
+                      <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+                      New task
+                    </ion-button>
+                  }
                 </app-empty-state>
               </app-inset-group>
             } @else {
@@ -383,10 +389,12 @@ type View = (typeof VIEWS)[number];
           <ion-segment-button value="members"><ion-label>Members</ion-label></ion-segment-button>
           <ion-segment-button value="about"><ion-label>About</ion-label></ion-segment-button>
         </ion-segment>
-        <ion-button class="act act--primary desk-only" fill="solid" (click)="newTask()">
-          <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
-          New task
-        </ion-button>
+        @if (canCreate()) {
+          <ion-button class="act act--primary desk-only" fill="solid" (click)="newTask()">
+            <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+            New task
+          </ion-button>
+        }
       </span>
     </ng-template>
   `,
@@ -463,7 +471,6 @@ export class ProjectDetailPage {
   private readonly newTaskDialog = inject(NEW_TASK_DIALOG);
   protected readonly wide = wideScreen();
   private readonly fleet = inject(ListProjectsStore);
-  private readonly deploys = inject(ListAlertsStore);
   private readonly document = inject(DOCUMENT);
   protected readonly session = inject(SessionStore);
 
@@ -476,8 +483,17 @@ export class ProjectDetailPage {
 
   private readonly seededName = readSeededName(this.document);
 
-  /* Listing members is owner-only, so a non-null list IS the owner/admin signal. */
-  protected readonly canManage = computed(() => this.detail.members() !== null);
+  /* The fleet carries the role and each task's newest deploy before the project loads. */
+  private readonly listed = computed(() =>
+    this.fleet.summaries().find(({ project }) => project.slug === this.slug()),
+  );
+
+  protected readonly canManage = computed(() => this.detail.project()?.myRole === 'owner');
+  /* Unknown shows it: the server still decides. */
+  protected readonly canCreate = computed(() => {
+    const role = this.detail.project()?.myRole ?? this.listed()?.project.myRole;
+    return !role || atLeastRole(role, 'member');
+  });
   protected readonly view = signal<View>('tasks');
   protected readonly draftName = signal('');
   protected readonly condensed = signal(false);
@@ -512,7 +528,8 @@ export class ProjectDetailPage {
   });
 
   protected readonly lastDeploy = computed(() => {
-    const deploy = this.deploys.lastDeploys().get(this.slug());
+    const listed = this.listed();
+    const deploy = listed && newestDeploy(listed.tasks);
     if (!deploy) return null;
     const when = `${age(deploy.at)} ago`;
     return {
@@ -542,6 +559,8 @@ export class ProjectDetailPage {
       const slug = this.slug();
       if (slug) this.detail.refresh(slug);
     });
+    /* A deep link starts here, not on Home: the subtitle's last deploy needs the fleet. */
+    this.fleet.ensureFresh();
 
     effect(() => {
       const project = this.detail.project();
@@ -569,6 +588,7 @@ export class ProjectDetailPage {
 
   protected reload(): void {
     if (this.slug()) this.detail.refresh(this.slug());
+    this.fleet.ensureFresh();
   }
 
   protected openTask(task: Task): void {
@@ -704,7 +724,7 @@ export class ProjectDetailPage {
   }
 
   /* Every command here changes what Home shows. */
-  private completeCommand(result: TaskCommandResult | ProjectCommandResult): void {
+  private completeCommand(result: CommandResult): void {
     this.notifications.result(result);
 
     if (result.success) {

@@ -1,24 +1,25 @@
-import { OperatorFunction, mergeMap, scan } from 'rxjs';
+import { type OperatorFunction, map, mergeMap, scan } from 'rxjs';
 
-/* Not in sse.ts: that ships in main through ProjectApi, and only lazy stores parse. */
+/* Apart from sse.ts and free of Angular, so scripts/check-sse.ts runs it under plain node. */
 
-/** Each complete `data:` payload once, from the cumulative bodies `streamSse` emits. */
+/** Each frame's `data:` lines once, from decoded chunks cut anywhere; a heartbeat frame is ''. */
 export function sseData(): OperatorFunction<string, string> {
-  return (bodies) =>
-    bodies.pipe(
+  return (chunks) =>
+    chunks.pipe(
       scan(
-        ({ consumed }, body) => {
-          const end = body.lastIndexOf('\n\n');
-          if (end < consumed) return { consumed, fresh: [] };
-          const fresh = body
-            .slice(consumed, end + 2)
-            .split('\n')
-            .filter((line) => line.startsWith('data:'))
-            .map((line) => line.slice(5).trimStart());
-          return { consumed: end + 2, fresh };
+        ({ rest }, chunk) => {
+          const frames = (rest + chunk).split(/\r?\n\r?\n/);
+          return { rest: frames.pop() ?? '', frames };
         },
-        { consumed: 0, fresh: [] as readonly string[] },
+        { rest: '', frames: [] as string[] },
       ),
-      mergeMap(({ fresh }) => fresh),
+      mergeMap(({ frames }) => frames),
+      map((frame) =>
+        frame
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(line.startsWith('data: ') ? 6 : 5))
+          .join('\n'),
+      ),
     );
 }

@@ -36,10 +36,8 @@ import {
   TaskMenu,
   TaskStateAction,
   isTransitioningTask,
-  taskKey,
 } from '@entities/task';
 import { ControlTaskStore } from '@features/control-task';
-import { ListAlertsStore } from '@features/list-alerts/model';
 import { ListProjectsStore } from '@features/list-projects/model';
 import {
   ManageGrantsStore,
@@ -50,6 +48,7 @@ import {
 import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
 import { TaskUsage, TaskUsageStore } from '@features/track-stats';
 import { ViewTaskStore } from '@features/view-task';
+import { atLeastRole } from '@shared/api/role';
 import {
   PULL_REFRESH,
   PullRefreshSource,
@@ -145,63 +144,76 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                 Open
               </ion-button>
             }
+            @if (operate()) {
+              <ion-button
+                class="act"
+                fill="solid"
+                [disabled]="actionDisabled(task)"
+                (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
+              >
+                <span
+                  slot="start"
+                  [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
+                  aria-hidden="true"
+                ></span>
+                {{ task.status === 'running' ? 'Stop' : 'Start' }}
+              </ion-button>
+              <ion-button
+                class="act"
+                fill="solid"
+                [disabled]="actionDisabled(task)"
+                (click)="changeState('restart')"
+              >
+                <span
+                  slot="start"
+                  class="icon-[light--arrow-rotate-right]"
+                  aria-hidden="true"
+                ></span>
+                Restart
+              </ion-button>
+            }
+            <!-- Delete is all the wide menu holds, so both need member. -->
+            @if (edit()) {
+              <ion-button class="act" fill="solid" [routerLink]="editLink()">
+                <span slot="start" class="icon-[light--pencil]" aria-hidden="true"></span>
+                Edit
+              </ion-button>
+              <ion-button
+                class="act act--icon"
+                fill="solid"
+                aria-label="More actions"
+                (click)="openMenu($event)"
+              >
+                <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
+              </ion-button>
+            }
+          }
+        </ion-buttons>
+        <ion-buttons slot="end" class="narrow-only">
+          @if (detail.task(); as task) {
+            @if (operate()) {
+              <ion-button
+                [disabled]="actionDisabled(task)"
+                [attr.aria-label]="task.status === 'running' ? 'Stop task' : 'Start task'"
+                (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
+              >
+                <span
+                  slot="icon-only"
+                  [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
+                  aria-hidden="true"
+                ></span>
+              </ion-button>
+            }
+          }
+          @if (narrowMenu()) {
             <ion-button
-              class="act"
-              fill="solid"
-              [disabled]="actionDisabled(task)"
-              (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
-            >
-              <span
-                slot="start"
-                [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
-                aria-hidden="true"
-              ></span>
-              {{ task.status === 'running' ? 'Stop' : 'Start' }}
-            </ion-button>
-            <ion-button
-              class="act"
-              fill="solid"
-              [disabled]="actionDisabled(task)"
-              (click)="changeState('restart')"
-            >
-              <span slot="start" class="icon-[light--arrow-rotate-right]" aria-hidden="true"></span>
-              Restart
-            </ion-button>
-            <ion-button class="act" fill="solid" [routerLink]="editLink()">
-              <span slot="start" class="icon-[light--pencil]" aria-hidden="true"></span>
-              Edit
-            </ion-button>
-            <ion-button
-              class="act act--icon"
-              fill="solid"
               aria-label="More actions"
+              [disabled]="!detail.task()"
               (click)="openMenu($event)"
             >
               <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
             </ion-button>
           }
-        </ion-buttons>
-        <ion-buttons slot="end" class="narrow-only">
-          @if (detail.task(); as task) {
-            <ion-button
-              [disabled]="actionDisabled(task)"
-              [attr.aria-label]="task.status === 'running' ? 'Stop task' : 'Start task'"
-              (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
-            >
-              <span
-                slot="icon-only"
-                [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
-                aria-hidden="true"
-              ></span>
-            </ion-button>
-          }
-          <ion-button
-            aria-label="More actions"
-            [disabled]="!detail.task()"
-            (click)="openMenu($event)"
-          >
-            <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
-          </ion-button>
         </ion-buttons>
       </ion-toolbar>
       @if (wide()) {
@@ -242,15 +254,17 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                 Changes are waiting for a container recreate. They apply on the next start or
                 restart.
               </p>
-              <ion-button
-                class="mt-2"
-                size="small"
-                fill="outline"
-                [disabled]="actionDisabled(task)"
-                (click)="changeState('restart')"
-              >
-                Restart now
-              </ion-button>
+              @if (operate()) {
+                <ion-button
+                  class="mt-2"
+                  size="small"
+                  fill="outline"
+                  [disabled]="actionDisabled(task)"
+                  (click)="changeState('restart')"
+                >
+                  Restart now
+                </ion-button>
+              }
             </app-callout>
           }
         }
@@ -281,34 +295,37 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                   <app-inset-group>
                     <app-environment-editor
                       class="tall"
-                      [footer]="true"
+                      [footer]="edit()"
+                      [locked]="!edit()"
                       [environment]="detail.environment()"
                       [resetKey]="environmentResetKey()"
                       (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
                       (errorsChange)="environmentErrors.set($event)"
                     />
                   </app-inset-group>
-                  <div class="apply">
-                    <p class="apply__note">
-                      Applying replaces the whole map and recreates the container.
-                    </p>
-                    <ion-button
-                      expand="block"
-                      class="cta"
-                      [disabled]="
-                        !environmentDirty() ||
-                        detail.savingEnvironment() ||
-                        environmentErrors().length > 0
-                      "
-                      (click)="applyEnvironment()"
-                    >
-                      @if (detail.savingEnvironment()) {
-                        <ion-spinner name="lines-small" />
-                      } @else {
-                        Apply and restart
-                      }
-                    </ion-button>
-                  </div>
+                  @if (edit()) {
+                    <div class="apply">
+                      <p class="apply__note">
+                        Applying replaces the whole map and recreates the container.
+                      </p>
+                      <ion-button
+                        expand="block"
+                        class="cta"
+                        [disabled]="
+                          !environmentDirty() ||
+                          detail.savingEnvironment() ||
+                          environmentErrors().length > 0
+                        "
+                        (click)="applyEnvironment()"
+                      >
+                        @if (detail.savingEnvironment()) {
+                          <ion-spinner name="lines-small" />
+                        } @else {
+                          Apply and restart
+                        }
+                      </ion-button>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -324,11 +341,14 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                       [proxyUrl]="detail.proxyUrl()"
                       [lastDeploy]="lastDeploy()"
                       [usage]="usage.points().at(-1) ?? null"
+                      [editable]="edit()"
                       (copyFailed)="
-                        notify('The proxy URL could not be copied to the clipboard.', false)
+                        notifications.failure('The proxy URL could not be copied to the clipboard.')
                       "
                       (imageCopyFailed)="
-                        notify('The image reference could not be copied to the clipboard.', false)
+                        notifications.failure(
+                          'The image reference could not be copied to the clipboard.'
+                        )
                       "
                       (statusChange)="changeDevStatus(task, $event)"
                     />
@@ -386,13 +406,15 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                         <app-task-usage [points]="usage.points()" />
                       </app-inset-group>
                     }
-                    <app-inset-group class="order-3" label="Note">
-                      <app-task-note-card
-                        [note]="task.note ?? ''"
-                        [updatedAt]="task.updatedAt"
-                        [editLink]="noteLink()"
-                      />
-                    </app-inset-group>
+                    @if (task.note?.trim() || edit()) {
+                      <app-inset-group class="order-3" label="Note">
+                        <app-task-note-card
+                          [note]="task.note ?? ''"
+                          [updatedAt]="task.updatedAt"
+                          [editLink]="edit() ? noteLink() : null"
+                        />
+                      </app-inset-group>
+                    }
                   </div>
                 </div>
               } @else {
@@ -606,11 +628,10 @@ export class TaskDetailPage {
   protected readonly usage = inject(TaskUsageStore);
   private readonly commands = inject(ControlTaskStore);
   private readonly confirmations = inject(ConfirmActionService);
-  private readonly notifications = inject(NotifyService);
+  protected readonly notifications = inject(NotifyService);
   private readonly router = inject(Router);
   private readonly navCtrl = inject(NavController);
   private readonly fleet = inject(ListProjectsStore);
-  private readonly deploys = inject(ListAlertsStore);
   protected readonly logs = inject(LogStreamStore);
   protected readonly desktop = desktopScreen();
   protected readonly wide = wideScreen();
@@ -639,8 +660,23 @@ export class TaskDetailPage {
   ]);
   protected readonly projectPath = computed(() => `/projects/${this.slug()}`);
 
+  /* Below the role an action is hidden, not disabled: the server would refuse it. */
+  private readonly role = computed(() => this.detail.task()?.myRole ?? 'viewer');
+  protected readonly operate = computed(() => atLeastRole(this.role(), 'operator'));
+  protected readonly edit = computed(() => atLeastRole(this.role(), 'member'));
+  /* Below operator the phone menu only holds Open, which needs a running task. */
+  protected readonly narrowMenu = computed(() => {
+    const task = this.detail.task();
+    return !task || this.operate() || task.status === 'running';
+  });
+
+  /* The fleet carries the project name and each task's newest deploy; the full task has neither. */
+  private readonly listed = computed(() =>
+    this.fleet.summaries().find(({ project }) => project.slug === this.slug()),
+  );
+
   protected readonly lastDeploy = computed(
-    () => this.deploys.latestDeploys().get(taskKey(this.slug(), this.name())) ?? null,
+    () => this.listed()?.tasks.find(({ name }) => name === this.name())?.lastDeploy ?? null,
   );
 
   /* Untracked: a resize must never reset the section someone picked. */
@@ -654,11 +690,7 @@ export class TaskDetailPage {
     this.desktop() && this.view() === 'info' ? 'logs' : this.view(),
   );
 
-  protected readonly projectName = computed(
-    () =>
-      this.fleet.summaries().find(({ project }) => project.slug === this.slug())?.project.name ??
-      this.slug(),
-  );
+  protected readonly projectName = computed(() => this.listed()?.project.name ?? this.slug());
 
   protected readonly menuOpen = signal(false);
   protected readonly condensed = signal(false);
@@ -679,6 +711,8 @@ export class TaskDetailPage {
     this.detail.track(this.slug, this.name);
     /* Edit and note screens change this task underneath the cached page. */
     onReturn(() => this.reload());
+    /* A deep link starts here, not on Home: the back label and last deploy need the fleet. */
+    this.fleet.ensureFresh();
 
     this.usage.watch(
       computed(() => {
@@ -687,17 +721,21 @@ export class TaskDetailPage {
       }),
     );
 
+    /* Listing grants is owner-only; anyone else would only collect a 403. */
+    const owner = computed(() => this.detail.task()?.myRole === 'owner');
     effect(() => {
       const slug = this.slug();
       const name = this.name();
-      if (slug && name) this.grants.load(slug, name);
+      if (slug && name && owner()) this.grants.load(slug, name);
     });
 
-    // A loaded task first, or an unknown route name would reconnect forever.
-    effect(() => {
-      const task = this.detail.task();
-      if (task) this.logs.connect(this.slug(), task.name);
-    });
+    // A loaded task first, or an unknown route name would open a stream for nothing.
+    this.logs.watch(
+      computed(() => {
+        const task = this.detail.task();
+        return task ? { project: this.slug(), name: task.name } : undefined;
+      }),
+    );
 
     effect(() => {
       if (!this.environmentDirty() && this.detail.hasLoaded()) {
@@ -707,15 +745,11 @@ export class TaskDetailPage {
     });
   }
 
-  /* A covered page keeps its stream otherwise; the reload on return reconnects it. */
-  ionViewDidLeave(): void {
-    this.logs.disconnect();
-  }
-
   protected reload(): void {
     const slug = this.slug();
     const name = this.name();
     if (slug && name) this.detail.refresh(slug, name);
+    this.fleet.ensureFresh();
   }
 
   protected openMenu(event: Event): void {
@@ -725,7 +759,7 @@ export class TaskDetailPage {
 
   protected downloadLogs(): void {
     this.logs.download().subscribe((success) => {
-      if (!success) this.notify('The log file could not be downloaded.', false);
+      if (!success) this.notifications.failure('The log file could not be downloaded.');
     });
   }
 
@@ -756,7 +790,7 @@ export class TaskDetailPage {
     if (status === task.devStatus) return;
 
     this.commands.setDevStatus(this.slug(), task, status).subscribe((result) => {
-      this.notify(result.message, result.success);
+      this.notifications.result(result);
 
       if (result.success) {
         /* Home and the project list draw this as dot colours. */
@@ -774,7 +808,7 @@ export class TaskDetailPage {
     const task = this.detail.task();
     if (!task) return;
     this.commands.changeState(this.slug(), task, action).subscribe((result) => {
-      this.notify(result.message, result.success);
+      this.notifications.result(result);
 
       if (result.success) {
         /* Home's cached fleet draws task status. */
@@ -800,7 +834,7 @@ export class TaskDetailPage {
         switchMap((task) => this.commands.delete(this.slug(), task)),
       )
       .subscribe((result) => {
-        this.notify(result.message, result.success);
+        this.notifications.result(result);
 
         if (result.success) {
           this.fleet.invalidate();
@@ -812,7 +846,7 @@ export class TaskDetailPage {
   /* Only a success drops the draft: a refusal must never cost the unapplied edits. */
   protected applyEnvironment(): void {
     this.detail.updateEnvironment(this.draftEnvironment()).subscribe((result) => {
-      this.notify(result.message, result.success);
+      this.notifications.result(result);
       if (result.success) this.environmentDirty.set(false);
     });
   }
@@ -823,7 +857,7 @@ export class TaskDetailPage {
 
   protected addGrant(input: AddMemberInput): void {
     this.grants.add(input).subscribe((result) => {
-      this.notify(result.message, result.success);
+      this.notifications.result(result);
       if (result.success) this.grants.reload();
     });
   }
@@ -832,7 +866,7 @@ export class TaskDetailPage {
     this.grants
       .add({ userId: member.userId, role: event.detail.value }, 'Role updated.')
       .subscribe((result) => {
-        this.notify(result.message, result.success);
+        this.notifications.result(result);
         if (result.success) this.grants.reload();
         else event.target.value = member.role;
       });
@@ -851,12 +885,8 @@ export class TaskDetailPage {
         switchMap(() => this.grants.remove(grant.userId, grant.username)),
       )
       .subscribe((result) => {
-        this.notify(result.message, result.success);
+        this.notifications.result(result);
         if (result.success) this.grants.reload();
       });
-  }
-
-  protected notify(message: string, success: boolean): void {
-    this.notifications.result({ message, success });
   }
 }

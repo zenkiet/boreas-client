@@ -9,9 +9,8 @@ import {
 } from '@entities/registry-credential';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { CommandGate, CommandResult } from '@shared/api/command';
+import { IS_ADMIN } from '@shared/api/role';
 import { listView } from '@shared/api/resource-cache';
-
-export type CredentialCommandResult = CommandResult;
 
 @Injectable()
 export class ManageCredentialsStore {
@@ -19,10 +18,11 @@ export class ManageCredentialsStore {
   private readonly gate = new CommandGate('Another credential action is already running.');
 
   private readonly session = inject(AuthTokenStore);
+  private readonly isAdmin = inject(IS_ADMIN);
 
-  /* Outlives its page, so keyed on the token: a switched account never sees the old list. */
+  /* Outlives its page, so keyed on the token; idle for anyone known not to be an admin. */
   private readonly listResource = rxResource({
-    params: () => this.session.token() || undefined,
+    params: () => (this.isAdmin() !== false && this.session.token()) || undefined,
     stream: () => this.api.list(),
   });
 
@@ -49,7 +49,7 @@ export class ManageCredentialsStore {
     return this.gate.attempt(this.api.create(input));
   }
 
-  delete(credential: RegistryCredential): Observable<CredentialCommandResult> {
+  delete(credential: RegistryCredential): Observable<CommandResult> {
     return this.gate.run(this.api.delete(credential.id), `Credential ${credential.name} deleted.`);
   }
 }

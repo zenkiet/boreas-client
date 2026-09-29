@@ -18,15 +18,15 @@ import {
   DEV_STATUS_DOT,
   isTransitioningTask,
   taskKey,
-  type Task,
   type TaskStateAction,
+  type TaskSummary,
 } from '@entities/task/model';
 import { ControlTaskStore } from '@features/control-task';
-import { ListAlertsStore } from '@features/list-alerts/model';
 import { ListProjectsStore } from '@features/list-projects/model';
 /* Root barrel on purpose: growing the eager model entry would cost every page load. */
 import { matchProjects, parseQuery, rankTasks } from '@features/search-tasks';
 import { SearchTasksStore, type FleetTask } from '@features/search-tasks/model';
+import { atLeastRole } from '@shared/api/role';
 import { NotifyService } from '@shared/ui/notify/notify';
 
 import { NAV } from '../nav';
@@ -320,7 +320,6 @@ export class CommandPalette {
   private readonly modals = inject(ModalController);
   private readonly navCtrl = inject(NavController);
   private readonly fleet = inject(ListProjectsStore);
-  private readonly alerts = inject(ListAlertsStore);
   private readonly search = inject(SearchTasksStore);
   private readonly control = inject(ControlTaskStore);
   private readonly notifications = inject(NotifyService);
@@ -365,7 +364,6 @@ export class CommandPalette {
 
   constructor() {
     this.fleet.ensureFresh();
-    this.alerts.ensureFresh();
 
     afterRenderEffect(() =>
       this.document
@@ -426,10 +424,9 @@ export class CommandPalette {
     const verbs = typed.length < 2 ? [] : VERBS.filter(({ action }) => action.startsWith(typed));
     if (!verbs.length) return [];
 
-    const deploys = this.alerts.latestDeploys();
-    return rankTasks(this.entries(), parseQuery(rest.join(' ')), this.alerts.failedTodayKeys())
+    return rankTasks(this.entries(), parseQuery(rest.join(' ')))
       .map((entry, order) => {
-        const failed = deploys.get(taskKey(entry.project.slug, entry.task.name))?.failed ?? false;
+        const failed = entry.task.lastDeploy?.failed ?? false;
         return { entry, order, failed, weight: entry.task.status === 'error' ? 0 : failed ? 1 : 2 };
       })
       .sort((a, b) => a.weight - b.weight || a.order - b.order)
@@ -460,7 +457,7 @@ export class CommandPalette {
 
   private tasks(raw: string): readonly PaletteOption[] {
     const query = parseQuery(raw);
-    return rankTasks(this.entries(), query, this.alerts.failedTodayKeys())
+    return rankTasks(this.entries(), query)
       .slice(0, TASKS_MAX)
       .map((entry) => this.taskOption('Tasks', entry, whyFound(entry, query.text)));
   }
@@ -537,7 +534,6 @@ export class CommandPalette {
     void this.navCtrl.navigateRoot(link);
   }
 
-  /* Optimistic: the client cannot know its role, so a 403 comes back as a toast. */
   private command({ project, task }: FleetTask, action: TaskStateAction): void {
     this.control.changeState(project.slug, task, action).subscribe((result) => {
       this.notifications.result(result);
@@ -546,14 +542,14 @@ export class CommandPalette {
   }
 }
 
-/* Must match the verbs TaskMenu offers for this state. */
-function available(task: Task, action: TaskStateAction): boolean {
-  if (isTransitioningTask(task)) return false;
+/* Must match the verbs TaskMenu offers for this state and role. */
+function available(task: TaskSummary, action: TaskStateAction): boolean {
+  if (isTransitioningTask(task) || !atLeastRole(task.myRole, 'operator')) return false;
   return action === 'restart' || (task.status === 'running') === (action === 'stop');
 }
 
 /* Running is the normal state, so lists only speak about the others. */
-function abnormal(task: Task): string {
+function abnormal(task: TaskSummary): string {
   return task.status === 'running' ? '' : task.status;
 }
 

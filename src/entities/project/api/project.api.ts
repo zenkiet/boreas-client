@@ -2,16 +2,11 @@ import { HttpClient } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
-import { streamSse } from '@shared/api/sse';
+import { SseClient } from '@shared/api/sse';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { AddMemberInput, Member } from '../model/member';
 import { CreateProjectInput, Project, UpdateProjectInput } from '../model/project';
-import {
-  GrantsResponseDto,
-  MembersResponseDto,
-  ProjectResponseDto,
-  ProjectsResponseDto,
-} from './project.dto';
+import { GrantsResponseDto, MembersResponseDto, ProjectResponseDto } from './project.dto';
 import {
   toAddMemberRequestDto,
   toCreateProjectRequestDto,
@@ -24,6 +19,7 @@ import {
 export class ProjectApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);
+  private readonly sse = inject(SseClient);
 
   /* Read per call so requests follow server changes without a reload. */
   private get root(): string {
@@ -32,13 +28,6 @@ export class ProjectApi {
 
   private projectUrl(slug: string): string {
     return `${this.root}/${encodeURIComponent(slug)}`;
-  }
-
-  /** Administrators see every project; other users only their memberships. */
-  list(): Observable<readonly Project[]> {
-    return this.http
-      .get<ProjectsResponseDto>(this.root)
-      .pipe(map((response) => (response.projects ?? []).map(toProject)));
   }
 
   get(slug: string): Observable<Project> {
@@ -102,7 +91,13 @@ export class ProjectApi {
   }
 
   metricsStream(slug: string): Observable<string> {
-    return streamSse(this.http, `${this.projectUrl(slug)}/metrics/stream`);
+    return this.sse.open(`${this.projectUrl(slug)}/metrics/stream`);
+  }
+
+  taskMetricsStream(slug: string, task: string): Observable<string> {
+    return this.sse.open(
+      `${this.projectUrl(slug)}/tasks/${encodeURIComponent(task)}/metrics/stream`,
+    );
   }
 
   private grantsUrl(slug: string, task: string): string {

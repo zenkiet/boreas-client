@@ -6,7 +6,6 @@ import { IonBackButton } from '@ionic/angular/ion-back-button';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonButtons } from '@ionic/angular/ion-buttons';
 import { marked } from 'marked';
-import { of } from 'rxjs';
 
 import { DEFAULT_SERVER_URL } from '@shared/config/server-config.store';
 import { ErrorState } from '@shared/ui/error-state/error-state';
@@ -252,8 +251,7 @@ export class LegalDocPage {
   /* Relative URL: the docs ship with the build and read offline. */
   protected readonly content = rxResource({
     params: () => this.entry()?.file,
-    stream: ({ params }) =>
-      params ? this.http.get(`legal/${params}.md`, { responseType: 'text' }) : of(''),
+    stream: ({ params }) => this.http.get(`legal/${params}.md`, { responseType: 'text' }),
   });
 
   /* The title and date line render above the card, so strip them from the body. */

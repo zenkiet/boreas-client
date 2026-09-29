@@ -9,11 +9,21 @@ import { AuthTokenStore } from './auth-token.store';
 const API_PATH = '/api/v1/';
 const LOGIN_PATH = '/api/v1/auth/login';
 
-export const authInterceptor: HttpInterceptorFn = (request, next) => {
+/** The one 401 path, shared with the fetch-based SSE reader. Call in an injection context. */
+export function expireSession(): () => void {
   const tokens = inject(AuthTokenStore);
   const navCtrl = inject(NavController);
+  return () => {
+    if (!tokens.authenticated()) return;
+    tokens.clear();
+    void navCtrl.navigateRoot('/login');
+  };
+}
 
-  const token = tokens.token();
+export const authInterceptor: HttpInterceptorFn = (request, next) => {
+  const token = inject(AuthTokenStore).token();
+  const expire = expireSession();
+
   const outgoing =
     token && request.url.includes(API_PATH) && !request.url.endsWith(LOGIN_PATH)
       ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
@@ -24,11 +34,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
       if (
         error instanceof HttpErrorResponse &&
         error.status === 401 &&
-        !request.url.endsWith(LOGIN_PATH) &&
-        tokens.authenticated()
+        !request.url.endsWith(LOGIN_PATH)
       ) {
-        tokens.clear();
-        void navCtrl.navigateRoot('/login');
+        expire();
       }
 
       return throwError(() => error);

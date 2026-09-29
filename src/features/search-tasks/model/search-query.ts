@@ -1,5 +1,4 @@
-import type { Project } from '@entities/project';
-import { DEV_STATUSES, Task, taskKey } from '@entities/task/model';
+import { DEV_STATUSES, FleetProject, failedToday } from '@entities/task/model';
 import { FleetTask } from './search-tasks.store';
 
 /** `failed` is a deploy that failed today; the rest are dev or container states. */
@@ -13,7 +12,7 @@ export interface SearchQuery {
 }
 
 export interface ProjectMatch {
-  readonly project: Project;
+  readonly project: FleetProject['project'];
   readonly note: string;
 }
 
@@ -45,16 +44,12 @@ export function parseQuery(raw: string): SearchQuery {
   return { text: words.join(' '), states, project };
 }
 
-export function rankTasks(
-  entries: readonly FleetTask[],
-  query: SearchQuery,
-  failedToday: ReadonlySet<string>,
-): readonly FleetTask[] {
+export function rankTasks(entries: readonly FleetTask[], query: SearchQuery): readonly FleetTask[] {
   return entries
     .filter(
       (entry) =>
         (!query.project || entry.project.slug.toLowerCase() === query.project) &&
-        query.states.every((state) => holds(entry, state, failedToday)),
+        query.states.every((state) => holds(entry, state)),
     )
     .map((entry, order) => ({ entry, order, rank: rankOf(entry, query.text) }))
     .filter(({ rank }) => rank >= 0)
@@ -70,7 +65,7 @@ export function rankTasks(
 
 /** State tokens are about tasks, so any of them turns project matches off. */
 export function matchProjects(
-  summaries: readonly { readonly project: Project; readonly tasks: readonly Task[] }[],
+  summaries: readonly FleetProject[],
   query: SearchQuery,
 ): readonly ProjectMatch[] {
   if (query.states.length > 0 || (!query.text && !query.project)) return [];
@@ -118,11 +113,7 @@ function rankOf({ project, task }: FleetTask, text: string): number {
   return -1;
 }
 
-function holds(
-  { project, task }: FleetTask,
-  state: StateToken,
-  failedToday: ReadonlySet<string>,
-): boolean {
+function holds({ task }: FleetTask, state: StateToken): boolean {
   switch (state) {
     case 'blocked':
       return task.devStatus === 'blocked';
@@ -131,7 +122,7 @@ function holds(
     case 'ready':
       return task.devStatus === 'ready';
     case 'failed':
-      return failedToday.has(taskKey(project.slug, task.name));
+      return failedToday(task);
     default:
       return task.status === state;
   }

@@ -17,7 +17,8 @@ import { filter, switchMap } from 'rxjs';
 
 import { User, UserRole } from '@entities/user';
 import { SessionStore } from '@features/auth';
-import { ManageUsersStore, UserCommandResult } from '@features/manage-users';
+import { ManageUsersStore } from '@features/manage-users';
+import { CommandResult } from '@shared/api/command';
 import { FieldStatus } from '@shared/lib/forms/field-status.directive';
 import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { Callout } from '@shared/ui/callout/callout';
@@ -430,7 +431,7 @@ export class UsersPage {
       .pipe(filter(Boolean));
   }
 
-  private complete(result: UserCommandResult): void {
+  private complete(result: CommandResult): void {
     this.notifications.result(result);
     if (result.success) this.users.load();
   }

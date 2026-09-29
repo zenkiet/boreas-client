@@ -22,7 +22,6 @@ export const settingsRoutes: Routes = [
         canMatch: [wide],
         title: 'Settings | Boreas',
         loadComponent: () => import('../settings-split').then(({ SettingsSplit }) => SettingsSplit),
-        data: { pullToRefresh: false },
       },
       /* iPad: a deep link to a pane redirects into the split instead of pushing. */
       {
@@ -41,20 +40,17 @@ export const settingsRoutes: Routes = [
         title: 'Settings | Boreas',
         loadComponent: () =>
           import('@pages/settings/settings-page').then(({ SettingsPage }) => SettingsPage),
-        data: { pullToRefresh: false },
       },
       {
         path: 'account',
         title: 'Account | Boreas',
         loadComponent: () =>
           import('@pages/account/account-page').then(({ AccountPage }) => AccountPage),
-        data: { pullToRefresh: false },
       },
       {
         path: 'about',
         title: 'About | Boreas',
         loadComponent: () => import('@pages/about/about-page').then(({ AboutPage }) => AboutPage),
-        data: { pullToRefresh: false },
       },
       {
         path: 'users',
@@ -80,7 +76,6 @@ export const settingsRoutes: Routes = [
           import('@pages/token-create/token-create-page').then(
             ({ TokenCreatePage }) => TokenCreatePage,
           ),
-        data: { pullToRefresh: false },
       },
     ],
   },

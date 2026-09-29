@@ -42,8 +42,6 @@ import {
 } from '@rdlabo/ionic-theme-ios27';
 import { filter, map } from 'rxjs';
 
-import type { DeployOutcome } from '@entities/notification';
-import { taskKey, type Task } from '@entities/task/model';
 import { SessionStore } from '@features/auth';
 import { ListAlertsStore } from '@features/list-alerts/model';
 import { ListProjectsStore, type ProjectSummary } from '@features/list-projects/model';
@@ -535,10 +533,9 @@ export class AppShell {
     const bySlug = new Map(
       this.fleet.summaries().map((summary) => [summary.project.slug, summary]),
     );
-    const failed = this.alerts.latestDeploys();
     return this.pins.slugs().flatMap((slug) => {
       const summary = bySlug.get(slug);
-      return summary ? [pinRow(summary, failed)] : [];
+      return summary ? [pinRow(summary)] : [];
     });
   });
 
@@ -555,8 +552,9 @@ export class AppShell {
   private searchOpen = false;
 
   constructor() {
+    /* Untracked: ensureFresh reads isLoading, so a failing load would re-fire this in a loop. */
     effect(() => {
-      if (this.tokens.authenticated()) this.alerts.ensureFresh();
+      if (this.tokens.authenticated()) untracked(() => this.alerts.ensureFresh());
     });
     /* The sidebar's pins need the fleet even when the app cold-starts away from Home. */
     effect(() => {
@@ -650,17 +648,10 @@ interface PinRow {
 }
 
 /* Rule order is the design's: worst state first. */
-function pinRow(
-  { project, tasks }: ProjectSummary,
-  deploys: ReadonlyMap<string, DeployOutcome>,
-): PinRow {
-  const blocked = tasks.filter((task: Task) => task.devStatus === 'blocked').length;
+function pinRow({ project, tasks }: ProjectSummary): PinRow {
+  const blocked = tasks.filter((task) => task.devStatus === 'blocked').length;
   const rules: readonly (readonly [boolean, string, string])[] = [
-    [
-      tasks.some((task) => deploys.get(taskKey(project.slug, task.name))?.failed),
-      'failed',
-      'bg-danger',
-    ],
+    [tasks.some((task) => task.lastDeploy?.failed), 'failed', 'bg-danger'],
     [tasks.some((task) => task.status === 'error'), 'error', 'bg-danger'],
     [blocked > 0, `${blocked} blocked`, 'bg-blocked'],
     [tasks.some((task) => task.status === 'stopped'), 'stopped', 'bg-label-3'],

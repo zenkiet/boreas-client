@@ -1,112 +1,69 @@
-import { Service, computed, effect, inject, signal } from '@angular/core';
+import { Service, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { EMPTY, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
+import { EMPTY, Observable, catchError, defer, finalize, map, tap } from 'rxjs';
 
-import { DeployOutcome, Notification, NotificationApi, isDeploy } from '@entities/notification';
-import { ProjectApi } from '@entities/project';
-import { taskKey } from '@entities/task/model';
+import { Notification, NotificationApi } from '@entities/notification';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
-import { keepLastValue, resourceError } from '@shared/api/resource-cache';
+import { listView } from '@shared/api/resource-cache';
 import { PushStore } from '@shared/lib/push';
-import { localDay } from './alert-filter';
 
-/** Tagged at merge: the API payload has no project field. */
-export interface ProjectAlert extends Notification {
-  readonly project: string;
-}
+export type ProjectAlert = Notification;
 
-interface AlertsSnapshot {
-  readonly projects: readonly string[];
-  readonly alerts: readonly ProjectAlert[];
-}
-
+/* A full page means more may follow; 100 keeps the badge's 99+ reachable from the first one. */
+const PAGE = 100;
+/* The seen endpoint's cap. */
+const SEEN_BATCH = 200;
 const STALE_AFTER_MS = 30_000;
+
+interface Feed {
+  readonly alerts: readonly Notification[];
+  readonly more: boolean;
+}
 
 @Service()
 export class ListAlertsStore {
-  private readonly projectApi = inject(ProjectApi);
-  private readonly notificationApi = inject(NotificationApi);
+  private readonly api = inject(NotificationApi);
   private readonly tokens = inject(AuthTokenStore);
   private readonly push = inject(PushStore);
 
   private loadedAt = 0;
-  private readonly sessionSeenIds = signal<ReadonlySet<string>>(new Set());
+  private readonly loadingMoreState = signal(false);
 
-  /* No cross-project endpoint, so one list per project. */
-  private readonly snapshot = rxResource({
+  private readonly newest = rxResource({
     /* Keyed by token: idle until sign-in, refetched for whoever signs in next. */
     params: () => this.tokens.token() || undefined,
-    stream: () =>
-      this.projectApi.list().pipe(
-        switchMap((projects) =>
-          projects.length === 0
-            ? of<AlertsSnapshot>({ projects: [], alerts: [] })
-            : forkJoin(
-                projects.map((project) =>
-                  this.notificationApi.list(project.slug).pipe(
-                    /* One broken project must not blank the whole feed. */
-                    catchError(() => of<readonly Notification[]>([])),
-                    map((alerts) => alerts.map((alert) => ({ ...alert, project: project.slug }))),
-                  ),
-                ),
-              ).pipe(
-                map((lists) => ({
-                  projects: projects.map((project) => project.slug),
-                  alerts: lists
-                    .flat()
-                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
-                })),
-              ),
-        ),
-        tap(() => (this.loadedAt = Date.now())),
-      ),
+    stream: () => this.api.list(PAGE).pipe(tap(() => (this.loadedAt = Date.now()))),
   });
 
-  /* The last good snapshot survives reloads, never a token change. */
-  private readonly current = keepLastValue<AlertsSnapshot>(this.snapshot, () =>
-    this.tokens.token(),
-  );
+  private readonly first = listView<Notification>(this.newest, () => this.tokens.token());
 
-  readonly alerts = computed(() => this.current()?.alerts ?? []);
-  readonly projects = computed(() => this.current()?.projects ?? []);
-  readonly loading = this.snapshot.isLoading;
-  readonly hasLoaded = computed(() => this.current() !== undefined);
-  readonly error = resourceError(this.snapshot);
-
-  /** By project slug. */
-  readonly lastDeploys = computed(() => {
-    const deploys = new Map<string, DeployOutcome>();
-    for (const alert of this.alerts()) {
-      if (isDeploy(alert) && !deploys.has(alert.project)) {
-        deploys.set(alert.project, toOutcome(alert));
-      }
-    }
-    return deploys as ReadonlyMap<string, DeployOutcome>;
+  /* A reload keeps the older pages it overlaps; past a gap it starts over. */
+  private readonly feed = linkedSignal<readonly Notification[], Feed>({
+    source: this.first.items,
+    computation: (fresh, previous) => {
+      const kept = previous?.value;
+      const ids = new Set(fresh.map(({ id }) => id));
+      return kept?.alerts.some(({ id }) => ids.has(id))
+        ? { alerts: [...fresh, ...kept.alerts.filter(({ id }) => !ids.has(id))], more: kept.more }
+        : { alerts: fresh, more: fresh.length === PAGE };
+    },
   });
 
-  /** By `taskKey`. */
-  readonly latestDeploys = computed(() => {
-    const deploys = new Map<string, DeployOutcome>();
-    for (const alert of this.alerts()) {
-      const key = taskKey(alert.project, alert.taskName);
-      if (isDeploy(alert) && !deploys.has(key)) deploys.set(key, toOutcome(alert));
-    }
-    return deploys as ReadonlyMap<string, DeployOutcome>;
+  /* Clears the badge at once while rows keep their loaded weight; another account starts clean. */
+  private readonly posted = linkedSignal<string, ReadonlySet<string>>({
+    source: this.tokens.token,
+    computation: () => new Set(),
   });
 
-  /** Does not tick at midnight; the next load moves "today" on. */
-  readonly failedTodayKeys = computed(() => {
-    const today = localDay(new Date());
-    return new Set(
-      this.alerts()
-        .filter((alert) => alert.kind === 'deploy_failed' && localDay(alert.createdAt) === today)
-        .map((alert) => taskKey(alert.project, alert.taskName)),
-    ) as ReadonlySet<string>;
-  });
+  readonly alerts = computed(() => this.feed().alerts);
+  readonly hasMore = computed(() => this.feed().more);
+  readonly loadingMore = this.loadingMoreState.asReadonly();
+  readonly loading = this.first.loading;
+  readonly hasLoaded = this.first.hasLoaded;
+  readonly error = this.first.error;
 
   readonly unseenCount = computed(
-    () =>
-      this.alerts().filter((alert) => !alert.seen && !this.sessionSeenIds().has(alert.id)).length,
+    () => this.alerts().filter((alert) => !alert.seen && !this.posted().has(alert.id)).length,
   );
 
   constructor() {
@@ -118,33 +75,53 @@ export class ListAlertsStore {
   }
 
   ensureFresh(): void {
-    if (this.snapshot.isLoading() || Date.now() - this.loadedAt < STALE_AFTER_MS) {
+    if (this.newest.isLoading() || Date.now() - this.loadedAt < STALE_AFTER_MS) {
       return;
     }
 
-    this.snapshot.reload();
+    this.newest.reload();
   }
 
   load(): void {
-    this.snapshot.reload();
+    this.newest.reload();
   }
 
-  /** No bulk endpoint: one idempotent POST per unseen row. */
-  markSeen(): void {
-    const posted = this.sessionSeenIds();
-    const unseen = this.alerts().filter((alert) => !alert.seen && !posted.has(alert.id));
-    if (unseen.length === 0) return;
+  /** Completes, never errors; a failed page leaves `hasMore` on, so the next scroll retries. */
+  loadMore(): Observable<void> {
+    return defer(() => {
+      const before = this.alerts().at(-1)?.id;
+      if (!before || !this.hasMore() || this.loadingMoreState()) return EMPTY;
 
-    this.sessionSeenIds.set(new Set([...posted, ...unseen.map((alert) => alert.id)]));
-    for (const alert of unseen) {
-      this.notificationApi
-        .markSeen(alert.project, alert.id)
+      this.loadingMoreState.set(true);
+      return this.api.list(PAGE, before).pipe(
+        /* A reload that reset the feed meanwhile wins over this page. */
+        tap((page) =>
+          this.feed.update((feed) =>
+            feed.alerts.at(-1)?.id === before
+              ? { alerts: [...feed.alerts, ...page], more: page.length === PAGE }
+              : feed,
+          ),
+        ),
+        map(() => undefined),
+        catchError(() => EMPTY),
+        finalize(() => this.loadingMoreState.set(false)),
+      );
+    });
+  }
+
+  markSeen(): void {
+    const posted = this.posted();
+    const ids = this.alerts()
+      .filter((alert) => !alert.seen && !posted.has(alert.id))
+      .map(({ id }) => id);
+    if (ids.length === 0) return;
+
+    this.posted.set(new Set([...posted, ...ids]));
+    for (let start = 0; start < ids.length; start += SEEN_BATCH) {
+      this.api
+        .markSeen(ids.slice(start, start + SEEN_BATCH))
         .pipe(catchError(() => EMPTY))
         .subscribe();
     }
   }
-}
-
-function toOutcome(alert: ProjectAlert): DeployOutcome {
-  return { at: alert.createdAt, failed: alert.kind === 'deploy_failed' };
 }

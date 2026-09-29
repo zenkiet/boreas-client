@@ -43,7 +43,7 @@ export function listView<T>(
   resource: ReadableResource<readonly T[] | undefined> & { readonly isLoading: Signal<boolean> },
   key?: () => string,
 ): ListView<T> {
-  const current = key ? keepLastValue(resource, key) : keepLastValue(resource);
+  const current = keepLastValue(resource, key);
 
   return {
     items: computed(() => current() ?? []),

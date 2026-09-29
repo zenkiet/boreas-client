@@ -1,13 +1,12 @@
 import { DOCUMENT } from '@angular/common';
 import { Service, inject, signal } from '@angular/core';
 
-import { Project } from '@entities/project';
-import { Task, taskKey } from '@entities/task/model';
+import { FleetProject, TaskSummary, taskKey } from '@entities/task/model';
 
 /** A task paired with its project, since names are only unique per project. */
 export interface FleetTask {
-  readonly project: Project;
-  readonly task: Task;
+  readonly project: FleetProject['project'];
+  readonly task: TaskSummary;
 }
 
 export interface RecentTask {

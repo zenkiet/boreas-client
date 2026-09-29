@@ -2,15 +2,20 @@ import { Component, computed, input, output } from '@angular/core';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 
-import type { DeployOutcome } from '@entities/notification';
-import { Project } from '@entities/project';
 import type { ProjectLoad } from '@entities/system-stats';
-import { DEV_STATUSES, DEV_STATUS_LABEL, DevStatus, Task, countByDevStatus } from '@entities/task';
+import {
+  DEV_STATUSES,
+  DEV_STATUS_LABEL,
+  DeployOutcome,
+  DevStatus,
+  TaskSummary,
+  countByDevStatus,
+  newestDeploy,
+} from '@entities/task';
 import { age } from '@shared/lib/format/age';
 import { toByteSize } from '@shared/lib/format/bytes';
 import { ProjectSummary } from '../../model/list-projects.store';
 
-const NO_DEPLOYS: ReadonlyMap<string, DeployOutcome> = new Map();
 const NO_LOADS: ReadonlyMap<string, ProjectLoad> = new Map();
 /* Past five tasks a row says "+n": a dot per task would outgrow the status column. */
 const MAX_DOTS = 5;
@@ -292,12 +297,10 @@ const MAX_DOTS = 5;
 export class ProjectList {
   readonly summaries = input.required<readonly ProjectSummary[]>();
   /** Keyed by project slug. */
-  readonly deploys = input(NO_DEPLOYS);
-  /** Keyed by project slug. */
   readonly loads = input(NO_LOADS);
   /** Off on iPad, where the group header carries the counts. */
   readonly summary = input(true);
-  readonly projectOpened = output<Project>();
+  readonly projectOpened = output<ProjectSummary['project']>();
 
   protected readonly tasks = computed(() => this.summaries().flatMap(({ tasks }) => tasks));
 
@@ -314,7 +317,7 @@ export class ProjectList {
 
   protected readonly rows = computed(() =>
     this.summaries().map(({ project, tasks }) => {
-      const deploy = this.deploys().get(project.slug);
+      const deploy = newestDeploy(tasks);
       const counted = parts(tasks).filter(({ count }) => count > 0);
       return {
         project,
@@ -344,7 +347,7 @@ export class ProjectList {
   }
 }
 
-function parts(tasks: readonly Task[]) {
+function parts(tasks: readonly TaskSummary[]) {
   const counts = countByDevStatus(tasks);
   return DEV_STATUSES.map((status: DevStatus) => ({
     status,
@@ -354,7 +357,7 @@ function parts(tasks: readonly Task[]) {
   }));
 }
 
-function meta(tasks: readonly Task[], deploy: DeployOutcome | undefined): string {
+function meta(tasks: readonly TaskSummary[], deploy: DeployOutcome | undefined): string {
   const count =
     tasks.length === 0 ? 'No tasks' : `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`;
   const errors = tasks.filter((task) => task.status === 'error').length;

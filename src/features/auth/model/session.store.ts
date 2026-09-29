@@ -18,7 +18,6 @@ export class SessionStore {
     stream: () => this.api.me(),
   });
 
-  readonly authenticated = this.tokens.authenticated;
   readonly user = computed(() => (this.profile.hasValue() ? this.profile.value() : this.seeded()));
   readonly isAdmin = computed(() => this.user()?.role === 'admin');
 

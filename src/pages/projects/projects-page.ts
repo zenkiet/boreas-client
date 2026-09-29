@@ -6,13 +6,10 @@ import { IonButtons } from '@ionic/angular/ion-buttons';
 import { IonRouterLink } from '@ionic/angular/ion-router-link';
 import { from, switchMap } from 'rxjs';
 
-import { Project } from '@entities/project';
 import { describeDevStatus } from '@entities/task';
 import { SessionStore } from '@features/auth';
-import { ListAlertsStore } from '@features/list-alerts/model';
-import { ListProjectsStore, ProjectList } from '@features/list-projects';
+import { ListProjectsStore, ProjectList, ProjectSummary } from '@features/list-projects';
 import { LiveMetricsStore, LiveMonitor, ProjectSplit } from '@features/track-stats';
-import { MEGABYTE } from '@shared/lib/format/bytes';
 import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
@@ -128,7 +125,7 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
             <app-live-monitor
               id="live-card"
               [series]="metrics.series()"
-              [hostBytes]="hostBytes()"
+              [hostBytes]="metrics.hostBytes()"
               [stale]="metrics.stale()"
               [collapsed]="liveCollapsed()"
             >
@@ -158,7 +155,6 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
             } @else {
               <app-project-list
                 [summaries]="overview.summaries()"
-                [deploys]="alerts.lastDeploys()"
                 [loads]="loadsBySlug()"
                 [summary]="!ipad()"
                 (projectOpened)="openProject($event)"
@@ -268,7 +264,6 @@ export class ProjectsPage {
   protected readonly session = inject(SessionStore);
   protected readonly palette = inject(CommandPaletteLauncher);
   protected readonly overview = inject(ListProjectsStore);
-  protected readonly alerts = inject(ListAlertsStore);
   protected readonly metrics = inject(LiveMetricsStore);
   private readonly router = inject(Router);
   private readonly view = inject(DOCUMENT).defaultView;
@@ -283,21 +278,14 @@ export class ProjectsPage {
   protected readonly liveCollapsed = signal(this.readLiveFolded());
 
   protected readonly pull: PullRefreshSource = {
-    busy: computed(() => this.overview.loading() || this.alerts.loading()),
-    trigger: () => {
-      this.overview.load();
-      this.alerts.load();
-    },
+    busy: this.overview.loading,
+    trigger: () => this.overview.load(),
   };
 
   protected readonly loadsBySlug = computed(() => {
     const { rows, rest } = this.metrics.loads();
     return new Map([...rows, ...(rest?.loads ?? [])].map((load) => [load.slug, load]));
   });
-
-  protected readonly hostBytes = computed(
-    () => (this.overview.stats()?.totalMemoryMb ?? 0) * MEGABYTE,
-  );
 
   /* Counts describe what the caller can see, never a server total. */
   protected readonly projectsTrailing = computed(() => {
@@ -332,10 +320,9 @@ export class ProjectsPage {
   /* Fires on every entry: Ionic keeps this page alive under pushed screens. */
   ionViewWillEnter(): void {
     this.overview.ensureFresh();
-    this.alerts.ensureFresh();
   }
 
-  protected openProject(project: Project): void {
+  protected openProject(project: ProjectSummary['project']): void {
     /* Seeds the detail page's title before its fetch lands. */
     void this.router.navigate(['/projects', project.slug], {
       state: { projectName: project.name },

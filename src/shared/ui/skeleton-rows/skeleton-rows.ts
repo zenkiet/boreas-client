@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 
@@ -9,8 +9,6 @@ const WIDTHS: readonly (readonly [number, number])[] = [
   [44, 66],
   [58, 52],
   [37, 58],
-  [50, 44],
-  [42, 62],
 ];
 
 /** Real `ion-item`s, so loaded rows land in the same metrics without a layout shift. */
@@ -23,7 +21,7 @@ const WIDTHS: readonly (readonly [number, number])[] = [
     <span class="sr-only" role="status">{{ label() }}</span>
 
     <div class="skeleton-defer" aria-hidden="true">
-      @for (width of rowWidths(); track $index) {
+      @for (width of widths; track $index) {
         <ion-item [detail]="variant() !== 'member'">
           @if (variant() === 'task') {
             <span slot="start" class="skeleton skeleton--dot"></span>
@@ -44,10 +42,7 @@ const WIDTHS: readonly (readonly [number, number])[] = [
 })
 export class SkeletonRows {
   readonly variant = input<SkeletonRowVariant>('task');
-  readonly rows = input(3);
   readonly label = input('Loading');
 
-  protected readonly rowWidths = computed(() =>
-    Array.from({ length: this.rows() }, (_, index) => WIDTHS[index % WIDTHS.length]!),
-  );
+  protected readonly widths = WIDTHS;
 }

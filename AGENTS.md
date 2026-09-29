@@ -2,7 +2,7 @@
 
 Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-theme-ios27` Liquid Glass theme, Tailwind v4, Capacitor 8 for iOS and Android. It manages a Boreas server: projects, their tasks (containers), live metrics, logs and activity.
 
-- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, build). jscpd's `minTokens` is 60 so the per-page Ionic import runs (kept apart for per-route chunks) never count; DTOs and mappers are ignored. The initial bundle warns past 1.1 MB (now ~1.08 MB): a new warning means real growth.
+- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, the SSE splitter check, build). jscpd's `minTokens` is 60 so the per-page Ionic import runs (kept apart for per-route chunks) never count; DTOs and mappers are ignored. The initial bundle warns past 1.1 MB (now ~1.08 MB): a new warning means real growth.
 - Commits: `<type>(scope): <emoji> subject`, checked by `scripts/validate-commit-msg.sh`.
 - Hard requirements: every screen passes AXE and WCAG AA (focus, contrast, ARIA).
 
@@ -27,7 +27,7 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 
 - Layers `app > pages > widgets > features > entities > shared`, imported downward only, never sideways within a layer. Aliases `@app` … `@shared`; `eslint-plugin-boundaries` enforces it.
 - Enter a slice only through its public entry: `index.ts`, or `<slice>-page.ts` for a page. Eager code may use a second entry (`model/index.ts`, `api/index.ts`) so that a barrel's UI never lands in the initial bundle: esbuild ships whole files.
-- `entities/*/model` is plain TypeScript. `api/` segments own the DTOs, map them to models, and are the only place `HttpClient` appears.
+- `entities/*/model` is plain TypeScript. `api/` segments own the DTOs, map them to models, and are the only place `HttpClient` appears (SSE reads with `fetch` in `shared/api/sse.ts`).
 - `ui/` components are dumb (inputs, outputs, no store, no api). The page is the container: it provides the stores, wires the outputs and passes URLs down.
 - Stores (`features/*/model/*.store.ts`) are provided by the page that uses them. Root is reserved for the truly global: server address, theme, session, stateless `*Api` classes, and the cross-route caches `ListProjectsStore`, `ListAlertsStore` and `SearchTasksStore`.
 - Cross-route caches are keyed on the auth token (a switched account never sees the old data), serve through `ensureFresh()` with a 30 s staleness window, reload on `load()`, and are `invalidate()`d by the page after any command that changes what Home shows.
@@ -70,7 +70,7 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 
 ### Ionic lifecycle traps
 
-- Ionic caches pages: going back does not rebuild them. Re-read on return with `onReturn(fn)` or `ionViewWillEnter()`; stop long-lived streams on `ionViewDidLeave` (HTTP/1.1 allows six connections per host).
+- Ionic caches pages: going back does not rebuild them. Re-read on return with `onReturn(fn)` or `ionViewWillEnter()`; long-lived streams follow `onScreen()`, which ends them on `ionViewDidLeave` (HTTP/1.1 allows six connections per host).
 - A covered page's change detection is detached, so its `effect()`s, `toObservable` and `rxResource` loaders freeze. Work that must run while covered uses `onScreen()`, an Observable of the page's DOM events. Never pause a stream by making `rxResource` params `undefined`: the last stream stays subscribed.
 - Pull-to-refresh: `<ion-refresher [appRefresh]="pull">` with `PULL_REFRESH` and `pull = { busy, trigger }`.
 - "Up" after an action is `navigateBack`; sign-in, sign-out, a server change and the 401 handler use `navigateRoot`.
@@ -79,11 +79,11 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 
 ## Interaction rules
 
-- Confirm only what cannot be undone (delete). Start, stop and restart do not confirm; the toast reports the outcome. What the server would refuse is disabled, with the reason shown.
+- Confirm only what cannot be undone (delete). Start, stop and restart do not confirm; the toast reports the outcome. What the state forbids is disabled, with the reason shown; what the caller's role forbids is hidden.
 - Whole rows are targets. Task rows open on tap and swipe to Start|Stop, Restart, Delete; on iPad and desktop the same actions appear on hover or focus, and `R` restarts the focused row. No page-wide single-key shortcuts (WCAG 2.1.4).
 - No buttons inside an `ion-item button` (nested interactive content fails AXE). Disclosure rows are native `button.disclose`, because `aria-expanded` needs a real button.
 - `/` goes to Search outside fields. `⌘K`/`Ctrl+K` opens the command palette from iPad width and Search on phones. Keep shortcuts on the component that owns the target.
-- The command palette is lazy: `CommandPaletteLauncher` holds only the `import()`, so nothing eager may import `ModalController`, `SheetService` or the palette. It opens with `animated: false`, is an APG combobox (`aria-activedescendant`), and only starts, stops or restarts, optimistically.
+- The command palette is lazy: `CommandPaletteLauncher` holds only the `import()`, so nothing eager may import `ModalController`, `SheetService` or the palette. It opens with `animated: false`, is an APG combobox (`aria-activedescendant`), and only starts, stops or restarts, optimistically, the tasks the caller operates.
 - A disabled user's row dims to 55%: the one accepted AA exception, not a pattern to copy.
 
 ## Domain and API
@@ -92,16 +92,16 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 
 - Bearer token (`POST /auth/login`, 30 days) kept by `AuthTokenStore`; `authInterceptor` attaches it to `/api/v1/` requests and routes to `/login` on a 401. `SessionStore` derives the user from `/auth/me`. Routes chain `serverConfiguredGuard` then `authenticatedGuard`; `/login` adds `welcomeSeenGuard`.
 - Everything is project-scoped: `/projects/:slug`, `/projects/:slug/tasks/:name`, served at `/{project}/{task}/`. Task names are unique per project only, so key tasks by project + name.
-- There are no cross-project endpoints: the fleet, activity and search fan out one request per project, and a failed project collapses to empty rather than blanking the page.
+- `GET /projects` is the fleet: every project the caller reaches, with `my_role` and its tasks (status, dev status, role, last deploy). Home, Search, the palette, the pins and every "last deploy" read it through `ListProjectsStore`; only the metrics streams go per project.
 - Roles rank `viewer < operator < member < owner`; compare with `atLeastRole`. 404 means invisible (names never leak), 403 means the rank is too low.
-- The client cannot learn its own project role. Only `isAdmin()`, `members() !== null` and `grants() !== null` (both ⇔ owner) are trustworthy: owner-only surfaces gate on them, task actions stay optimistic (403 → toast), and counts describe what the caller can see, never totals.
-- Admin surfaces 403 for non-admins, and picker stores collapse that to `null`. Changing a user's password, role or disabled flag revokes their tokens; the UI says so first.
+- Every project and task carries `my_role` (a grant raises a task's; admins are owner everywhere); `IS_ADMIN` (`shared/api/role.ts`) is `undefined` until `/auth/me` answers. Below the role an action is hidden: operator starts, stops and restarts; member edits, deletes, sets the status and note and applies the environment (read-only below); owner gets members, grants and project settings. Owner-only lists load only for owners and admin-only ones while `IS_ADMIN() !== false`, so nobody collects a 403. The server still decides, and counts describe what the caller can see, never totals.
+- Picker stores collapse an admin list they may not read to `null`. `/projects/new` and `tasks/new` redirect once the role is known to be too low. Changing a user's password, role or disabled flag revokes their tokens; the UI says so first.
 
 ### Streams
 
-- Logs and metrics ride HttpClient's progressive download, not EventSource, which cannot send the auth header: parse complete SSE frames, reconnect after 3 s and past ~1.5 MB of body. Downloads fetch a blob through the interceptor.
-- A log reconnect replays the tail: drop anything not newer than the newest line held (same timestamp: compare the message).
-- `LiveMetricsStore` is page-provided: `onScreen()` drives the connections and the 1 s clock (an RxJS `scan`). The folding rules are pure functions in `entities/system-stats/model/live-metrics.ts`. Never gate a stream on `document.hidden` at call time.
+- Logs and metrics are SSE read with `fetch` (`SseClient`), since EventSource cannot send the auth header; a 401 runs the interceptor's `expireSession()`. `sseData()` splits the frames (`scripts/check-sse.ts` checks it) and `reconnect()` retries after 3 s except on 401, 403 and 404. Downloads fetch a blob through the interceptor.
+- Logs resume with `since` = the newest line's timestamp: the store keeps its lines for the same task, across leaving and returning, and starts over for another.
+- `LiveMetricsStore` is page-provided: `onScreen()` drives the connections and the 1 s clock (an RxJS `scan`). The folding rules are pure functions in `entities/system-stats/model/live-metrics.ts`. Never gate a stream on `document.hidden` at call time. The task page's usage reads that task's own stream (`TaskUsageStore`).
 - The chart (`app-live-chart`) is `@defer (on idle)` and the only importer of `shared/lib/chart` (d3); nothing may import a value from `live-chart.ts`.
 
 ### Tasks
@@ -115,9 +115,9 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 
 ### Activity, tokens, search
 
-- Activity is the UI name; the route stays `/notifications`. Notifications carry no type or project field: the mapper derives `kind` from status and title (never the emoji), and `ListAlertsStore` tags each with its slug. Only deploy kinds count as deploys. Unseen comes from the server's `seen`; opening the page POSTs `…/seen` per unseen row (no bulk endpoint), so automation against the live server must stub that POST.
+- Activity is the UI name; the route stays `/notifications`. It is one feed across projects, 100 rows a page (`before` = the last id) behind an infinite scroll; a filter that leaves the list short tops up at most 3 pages. Rows carry `type` (the `kind`; unknown types are `other`) and the project slug, and names come from the fleet. Unseen comes from the server's `seen` and the badge counts the loaded pages; opening the page POSTs `/notifications/seen` in batches of up to 200 ids, so automation against the live server must stub that POST.
 - API tokens are per-user (Settings › General) and need a login session (an API token gets 403). The plaintext exists only in the create response: never put the reveal behind a dismissible sheet or an animation. Revoke is a resident button; revoked rows stay forever. A range starting today sends `new Date()` (local today can still be yesterday in UTC), and the end is `validFrom + days`, within the 90-day cap.
-- The search grammar (`parseQuery`): `is:blocked|progress|ready|running|stopped|error|failed`, `project:<slug>`, free text; an unknown `is:x` stays text.
+- The search grammar (`parseQuery`): `is:blocked|progress|ready|running|stopped|error|failed`, `project:<slug>`, free text; an unknown `is:x` stays text. `is:failed` means the newest deploy failed today.
 
 ## Server, onboarding, release
 

@@ -17,6 +17,7 @@ import {
   TaskActionRequest,
   sortByDevStatus,
 } from '@entities/task';
+import { atLeastRole } from '@shared/api/role';
 import { age } from '@shared/lib/format/age';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
@@ -108,7 +109,7 @@ let instances = 0;
             @if (wide()) {
               <ng-container *ngTemplateOutlet="wideRow; context: { $implicit: task }" />
             } @else {
-              <ion-item-sliding #sliding>
+              <ion-item-sliding #sliding [disabled]="!operates(task)">
                 <ion-item button (click)="taskOpened.emit(task)">
                   <ion-label class="stack">
                     <span class="stack__name">
@@ -119,7 +120,7 @@ let instances = 0;
                     }
                   </ion-label>
                   <span slot="end" class="stack__meta tabular">
-                    <span>{{ compactAge(task.updatedAt) }}</span>
+                    <span>{{ age(task.updatedAt) }}</span>
                     @if (task.status !== 'running') {
                       <span class="flag" [attr.data-state]="task.status">{{ task.status }}</span>
                     }
@@ -133,7 +134,12 @@ let instances = 0;
           }
           @if (last && !wide()) {
             <ion-note>
-              Grouped by development status. Swipe a row to start, stop, restart or delete; the
+              Grouped by development status.
+              @if (swipeable()) {
+                Swipe a row to start, stop, restart or delete; the
+              } @else {
+                The
+              }
               words on the right only appear when a container needs you.
             </ion-note>
           }
@@ -143,9 +149,10 @@ let instances = 0;
 
     <!-- Not an ion-item button: the minis would be nested interactive content (AXE). -->
     <ng-template #wideRow let-task>
-      <ion-item-sliding #sliding>
+      <ion-item-sliding #sliding [disabled]="!operates(task)">
         <ion-item
           class="row"
+          [class.acting]="operates(task) || desktop()"
           (click)="taskOpened.emit(task)"
           (keydown.r)="restartKey($event, task)"
         >
@@ -159,38 +166,42 @@ let instances = 0;
             <span class="image font-mono" [attr.title]="task.image">{{
               imageRef(task.image)
             }}</span>
-            <span class="time tabular">{{ compactAge(task.updatedAt) }}</span>
+            <span class="time tabular">{{ age(task.updatedAt) }}</span>
             <span class="acts">
-              <button
-                type="button"
-                class="mini"
-                [disabled]="pendingTaskIds().has(task.name)"
-                (click)="act($event, task, task.status === 'running' ? 'stop' : 'start')"
-              >
-                <span
-                  [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
-                  aria-hidden="true"
-                ></span>
-                {{ task.status === 'running' ? 'Stop' : 'Start' }}
-                <span class="sr-only">{{ task.name }}</span>
-              </button>
-              <button
-                type="button"
-                class="mini"
-                title="Restart (R)"
-                aria-keyshortcuts="R"
-                [disabled]="pendingTaskIds().has(task.name)"
-                (click)="act($event, task, 'restart')"
-              >
-                <span class="icon-[regular--arrow-rotate-right]" aria-hidden="true"></span>
-                Restart
-                <span class="sr-only">{{ task.name }}</span>
-              </button>
+              @if (operates(task)) {
+                <button
+                  type="button"
+                  class="mini"
+                  [disabled]="pendingTaskIds().has(task.name)"
+                  (click)="act($event, task, task.status === 'running' ? 'stop' : 'start')"
+                >
+                  <span
+                    [class]="
+                      task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'
+                    "
+                    aria-hidden="true"
+                  ></span>
+                  {{ task.status === 'running' ? 'Stop' : 'Start' }}
+                  <span class="sr-only">{{ task.name }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="mini"
+                  title="Restart (R)"
+                  aria-keyshortcuts="R"
+                  [disabled]="pendingTaskIds().has(task.name)"
+                  (click)="act($event, task, 'restart')"
+                >
+                  <span class="icon-[regular--arrow-rotate-right]" aria-hidden="true"></span>
+                  Restart
+                  <span class="sr-only">{{ task.name }}</span>
+                </button>
+              }
               @if (desktop()) {
                 <button type="button" class="mini" (click)="open($event, task)">
                   Logs<span class="sr-only"> for {{ task.name }}</span>
                 </button>
-              } @else {
+              } @else if (edits(task)) {
                 <button
                   type="button"
                   class="mini mini--danger"
@@ -230,14 +241,16 @@ let instances = 0;
           <span slot="top" class="icon-[solid--arrow-rotate-right]" aria-hidden="true"></span>
           Restart
         </ion-item-option>
-        <ion-item-option
-          color="danger"
-          [disabled]="pendingTaskIds().has(task.name)"
-          (click)="actionRequested.emit({ action: 'delete', task }); sliding.close()"
-        >
-          <span slot="top" class="icon-[solid--trash]" aria-hidden="true"></span>
-          Delete
-        </ion-item-option>
+        @if (edits(task)) {
+          <ion-item-option
+            color="danger"
+            [disabled]="pendingTaskIds().has(task.name)"
+            (click)="actionRequested.emit({ action: 'delete', task }); sliding.close()"
+          >
+            <span slot="top" class="icon-[solid--trash]" aria-hidden="true"></span>
+            Delete
+          </ion-item-option>
+        }
       </ion-item-options>
     </ng-template>
   `,
@@ -358,11 +371,12 @@ let instances = 0;
       justify-self: end;
     }
 
-    .row:is(:hover, :focus-within) :is(.state, .time) {
+    /* Only a row with minis trades its columns for them, or a viewer's hover would blank them. */
+    .row.acting:is(:hover, :focus-within) :is(.state, .time) {
       display: none;
     }
 
-    .row:is(:hover, :focus-within) .acts {
+    .row.acting:is(:hover, :focus-within) .acts {
       display: flex;
     }
 
@@ -420,7 +434,7 @@ let instances = 0;
         grid-column: 4 / span 3;
       }
 
-      .row:is(:hover, :focus-within) .image {
+      .row.acting:is(:hover, :focus-within) .image {
         display: none;
       }
 
@@ -488,11 +502,15 @@ export class TaskList {
   protected readonly wide = wideScreen();
   protected readonly desktop = desktopScreen();
   protected readonly dot = DEV_STATUS_DOT;
+  protected readonly age = age;
   protected readonly statusFilter = signal<DevStatus | null>(null);
   protected readonly query = signal('');
   protected readonly filterId = `task-filter-${(instances += 1)}`;
 
   private readonly sorted = computed(() => sortByDevStatus(this.tasks()));
+
+  /* The hint must not promise a swipe the caller's role does not have. */
+  protected readonly swipeable = computed(() => this.tasks().some((task) => this.operates(task)));
 
   protected readonly groups = computed(() =>
     DEV_STATUSES.map((status) => {
@@ -521,13 +539,17 @@ export class TaskList {
     );
   });
 
-  /* A method, not an index: ng-template contexts are untyped. */
-  protected dotOf(task: Task): string {
-    return DEV_STATUS_DOT[task.devStatus];
+  /* Methods, not fields: ng-template contexts are untyped. */
+  protected operates(task: Task): boolean {
+    return atLeastRole(task.myRole, 'operator');
   }
 
-  protected compactAge(date: Date): string {
-    return age(date);
+  protected edits(task: Task): boolean {
+    return atLeastRole(task.myRole, 'member');
+  }
+
+  protected dotOf(task: Task): string {
+    return DEV_STATUS_DOT[task.devStatus];
   }
 
   protected imageRef(image: string): string {
@@ -549,7 +571,7 @@ export class TaskList {
 
   /* Only while the row has focus, so a letter never acts page-wide (WCAG 2.1.4). */
   protected restartKey(event: Event, task: Task): void {
-    if (this.pendingTaskIds().has(task.name)) return;
+    if (!this.operates(task) || this.pendingTaskIds().has(task.name)) return;
     event.preventDefault();
     this.actionRequested.emit({ action: 'restart', task });
   }

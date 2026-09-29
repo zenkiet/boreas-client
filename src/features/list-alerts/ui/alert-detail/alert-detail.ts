@@ -21,7 +21,7 @@ import { AlertOpen } from '../alert-list/alert-list';
 
       <dl class="facts">
         <dt>Project</dt>
-        <dd>{{ event.projectName || event.project }}</dd>
+        <dd>{{ projectName() || event.project }}</dd>
         <dt>Task</dt>
         <dd class="font-mono text-sm">{{ event.taskName }}</dd>
         @if (about().image; as image) {
@@ -30,13 +30,18 @@ import { AlertOpen } from '../alert-list/alert-list';
         }
       </dl>
 
-      @if (body()) {
-        <pre class="body" [class.body--failed]="event.kind === 'deploy_failed'">{{ body() }}</pre>
+      <!-- Not the raw body: a deploy's repeats the time, a created task's is the image above. -->
+      @if (about().detail; as body) {
+        <pre class="body" [class.body--failed]="event.kind === 'deploy_failed'">{{ body }}</pre>
       }
 
       <div class="flex flex-wrap gap-2.5">
         @if (event.kind === 'deploy_failed') {
-          <button type="button" class="act act--primary" (click)="opened.emit({ alert: event, section: 'logs' })">
+          <button
+            type="button"
+            class="act act--primary"
+            (click)="opened.emit({ alert: event, section: 'logs' })"
+          >
             View logs
           </button>
         } @else if (event.kind === 'deployed' && visitUrl()) {
@@ -127,12 +132,11 @@ import { AlertOpen } from '../alert-list/alert-list';
 })
 export class AlertDetail {
   readonly alert = input.required<ProjectAlert>();
+  /** The display name; the slug stands in until it is known. */
+  readonly projectName = input('');
   readonly visitUrl = input('');
   readonly opened = output<AlertOpen>();
 
   protected readonly about = computed(() => describeAlert(this.alert()));
   protected readonly when = computed(() => whenLabel(this.alert().createdAt));
-
-  /* Not the raw body: a deploy's repeats the time, a created task's is the image above. */
-  protected readonly body = computed(() => this.about().detail);
 }

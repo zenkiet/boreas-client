@@ -1,9 +1,24 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { ActivatedRouteSnapshot, Router, Routes } from '@angular/router';
+
+import { ListProjectsStore } from '@features/list-projects/model';
+import { atLeastRole } from '@shared/api/role';
 
 export const tasksRoutes: Routes = [
   {
     path: 'new',
     title: 'New task | Boreas',
+    canActivate: [
+      ({ paramMap }: ActivatedRouteSnapshot) => {
+        const slug = paramMap.get('slug') ?? '';
+        const role = inject(ListProjectsStore)
+          .summaries()
+          .find(({ project }) => project.slug === slug)?.project.myRole;
+        return (
+          !role || atLeastRole(role, 'member') || inject(Router).createUrlTree(['/projects', slug])
+        );
+      },
+    ],
     loadComponent: () =>
       import('@pages/task-create/task-create-page').then(({ TaskCreatePage }) => TaskCreatePage),
   },
