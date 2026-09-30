@@ -164,8 +164,8 @@ settings:
 
 patchedDependencies:
   '@ionic/core@9.0.5': e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0
-  '@rdlabo/ionic-theme-ios27@1.1.0': e7cfd0d7f62a13d087f361a1e3eb572177339110fa99fa0507ed0f408af438b5
-  '@rdlabo/ionic-theme-utils@0.1.1': f31b5a5de977d210a39ccbc9ee286b91d623e3d81ed67fee8cdc00f8ac558024
+  '@rdlabo/ionic-theme-ios27@1.2.0': 17f6ddd02c26126a4e3779893c7f4a34817e123523afe919f386166caef573d9
+  '@rdlabo/ionic-theme-utils@0.1.2': f31b5a5de977d210a39ccbc9ee286b91d623e3d81ed67fee8cdc00f8ac558024
 
 importers:
 
@@ -220,8 +220,8 @@ importers:
         specifier: ^0.80.0
         version: 0.80.0
       '@rdlabo/ionic-theme-ios27':
-        specifier: 1.1.0
-        version: 1.1.0(patch_hash=e7cfd0d7f62a13d087f361a1e3eb572177339110fa99fa0507ed0f408af438b5)(@capacitor/core@8.5.2)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))
+        specifier: 1.2.0
+        version: 1.2.0(patch_hash=17f6ddd02c26126a4e3779893c7f4a34817e123523afe919f386166caef573d9)(@capacitor/core@8.5.2)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))
       '@tiptap/core':
         specifier: ^3.31.3
         version: 3.31.3(@tiptap/pm@3.31.3)
@@ -1876,8 +1876,8 @@ packages:
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
 
-  '@rdlabo/ionic-theme-ios27@1.1.0':
-    resolution: {integrity: sha512-AU/tL8mXCjtFIAnLlheckb7o4SFVayegUZM613RFiOuBHibOpbeopLNScBjlB0rIuIRd57dkQElkCBEBnmu5Jg==}
+  '@rdlabo/ionic-theme-ios27@1.2.0':
+    resolution: {integrity: sha512-tngXJrcnCSWMLBXi5MlX4gRPCE+4p2/tFQSgsk1zBmAWFRyiGdRVdwC1ytplFKSwOOUV1Iu24bRcqa6Ca27dDQ==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0 <9'
       '@ionic/core': '>=8.8.1 <10'
@@ -1885,8 +1885,8 @@ packages:
       '@capacitor/core':
         optional: true
 
-  '@rdlabo/ionic-theme-utils@0.1.1':
-    resolution: {integrity: sha512-91+9hY4OqIlw2MfF4AZvVPr/0d+/IJMPzmMQwJscgTu3grBN8iOPwCW6u7+8xyiolNGGlqXazsd2IwIkyslsLw==}
+  '@rdlabo/ionic-theme-utils@0.1.2':
+    resolution: {integrity: sha512-Z62SkE0IbSuKgGxj50hHBjS+6WZvcGGjiAr1ZAODumZxh5wFerMYDdfdWcn6vEeqjcu0M2lW/xW3NP3NyIzaaw==}
     hasBin: true
     peerDependencies:
       '@ionic/core': '>=8.8.1 <10'
@@ -2257,13 +2257,6 @@ packages:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/parser@8.70.1':
-    resolution: {integrity: sha512-nO974WLllwhSFWQXnMLj6nDGa8f0khKEz1JzpPJ1u7Vm/4X1X6ZHajpoknU4bb41vJyMB0HHVyS2GqdhWfIXZw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-      typescript: '>=4.8.4 <6.1.0'
-
   '@typescript-eslint/parser@8.71.0':
     resolution: {integrity: sha512-CG4nPk1f2zc8yw4pALqHsFYH2hdo+h1T9daSp21+Hnxi9LOE3GT9hAfTKJCBXVNM2GmYs1eMEP615wPoeOgk3A==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -2273,12 +2266,6 @@ packages:
 
   '@typescript-eslint/project-service@8.69.0':
     resolution: {integrity: sha512-yi4obFrHMmnsesWehHbkg9zMA7Jt8cXT+mKM08G999pH1yT6nqgsHx7MYm0uY1wAj8CqiBXYRJ7WAT0QdQHQXg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.1.0'
-
-  '@typescript-eslint/project-service@8.70.1':
-    resolution: {integrity: sha512-62xOgboPfwc3/IgPSX/W6oQR3ZbF04194FPGUGH8HL8iLFHbt/456/8Ph1wLNUgVF+s94FlHoipBsz+v7+LMnA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
@@ -2293,22 +2280,12 @@ packages:
     resolution: {integrity: sha512-ewfspqWvSxKSOaplqAUNbaSFO0eB6w1EtQ+esfYFRm3614Ty4uNtExkcbgd6nWsXphbqKyf9ZYdbZdv2xEoWEQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/scope-manager@8.70.1':
-    resolution: {integrity: sha512-Pa0EeSeAusQc1WbjQMac+YfenewYTBu0KjgYvkUKwhXaHUKbFog23Dm/rp0DX/6tyYOQ3Xl1a+3EcFNZynGHCw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
   '@typescript-eslint/scope-manager@8.71.0':
     resolution: {integrity: sha512-gWF0BhUcnjZxSpLE8ngS/59n2SB0J3YqRxvX1+2aoRJk9hNtHSLOV+TcarFiOr5ipXm3yc1QrI4c9YZc8zyCxw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/tsconfig-utils@8.69.0':
     resolution: {integrity: sha512-xNqK7YTDZsLniQMV/4rpFR8Z5JlqeRvVjuG1YgF/mdPVH84HSD19L8CczMA0qg2RfwEV231GHH3VnToJDo4MfQ==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.1.0'
-
-  '@typescript-eslint/tsconfig-utils@8.70.1':
-    resolution: {integrity: sha512-jumze1fPI+sDOaM2TWGQdn39PDxTr7TZGeuyLkAbNyx2vtMT3uRnVKChN0hfht5V2TugphJzF6bYXvBcE09qqg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
@@ -2330,22 +2307,12 @@ packages:
     resolution: {integrity: sha512-K3VrubUPhlo9VDBS6QdI8YB5j7ClpqLRdefcz6PFrhnwicehBweqQ9Evhl4l+FYz0HdDmMqIiSX0aldGRYtDCA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript-eslint/types@8.70.1':
-    resolution: {integrity: sha512-Dm1ypdhhrGCTyyehxElhgJ6kgk8MVCv5qXdoOVqPr1uqk42jX8KjrZqhROvdShczA8qrDoYiOWn1ykWlx2k81Q==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
   '@typescript-eslint/types@8.71.0':
     resolution: {integrity: sha512-cJ4OoxPGWvFnBTnSZyaU+qJzGTqPTGJY+gDchj6cRyLRdmIdt4rcsE4twj+zPfrNiWuVi38wijHzShL++Z9atQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/typescript-estree@8.69.0':
     resolution: {integrity: sha512-AdFkgqck3Vudb/kWnxlyafU/4aBhHrbQ9locP2N4psXTy5mOBg0SHJumnLvx7r6g1gV4DKvUFwV2nJZBoqOD8w==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-    peerDependencies:
-      typescript: '>=4.8.4 <6.1.0'
-
-  '@typescript-eslint/typescript-estree@8.70.1':
-    resolution: {integrity: sha512-TU8PwyGN0PQJUcE96mw8eCQ44SmxGdQlJmlWakHaHQ15eIuuvye5yNtmh/i6oS88jzXVQB71xdNkbkB/fMwL0g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.1.0'
@@ -2372,10 +2339,6 @@ packages:
 
   '@typescript-eslint/visitor-keys@8.69.0':
     resolution: {integrity: sha512-+rmdgPA+EXkNgKYvHvFfhrs35utXbwaC5PGpDquSXcoXQDKUA5UjV0LmTucG/4JXkM31BTu4TilHtrN8IVBe8w==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@typescript-eslint/visitor-keys@8.70.1':
-    resolution: {integrity: sha512-Vwj9lUIW5Xq3wQ9w6gv3R86g1hMK8f2zNOdGTAgeXUMMXFK78G9ruCjjqutHMNJc0+CH7LYRnHeUB9IT8wFmcw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/visitor-keys@8.71.0':
@@ -5963,14 +5926,14 @@ snapshots:
 
   '@protobufjs/utf8@1.1.2': {}
 
-  '@rdlabo/ionic-theme-ios27@1.1.0(patch_hash=e7cfd0d7f62a13d087f361a1e3eb572177339110fa99fa0507ed0f408af438b5)(@capacitor/core@8.5.2)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))':
+  '@rdlabo/ionic-theme-ios27@1.2.0(patch_hash=17f6ddd02c26126a4e3779893c7f4a34817e123523afe919f386166caef573d9)(@capacitor/core@8.5.2)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))':
     dependencies:
       '@ionic/core': 9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0)
-      '@rdlabo/ionic-theme-utils': 0.1.1(patch_hash=f31b5a5de977d210a39ccbc9ee286b91d623e3d81ed67fee8cdc00f8ac558024)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))
+      '@rdlabo/ionic-theme-utils': 0.1.2(patch_hash=f31b5a5de977d210a39ccbc9ee286b91d623e3d81ed67fee8cdc00f8ac558024)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))
     optionalDependencies:
       '@capacitor/core': 8.5.2
 
-  '@rdlabo/ionic-theme-utils@0.1.1(patch_hash=f31b5a5de977d210a39ccbc9ee286b91d623e3d81ed67fee8cdc00f8ac558024)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))':
+  '@rdlabo/ionic-theme-utils@0.1.2(patch_hash=f31b5a5de977d210a39ccbc9ee286b91d623e3d81ed67fee8cdc00f8ac558024)(@ionic/core@9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0))':
     dependencies:
       '@ionic/core': 9.0.5(patch_hash=e2313d4df68f483bc0a4ca6da734b9b413a7771cc3a2e0cc5e4a1a10c1f732e0)
 
@@ -6263,18 +6226,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.70.1(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)':
-    dependencies:
-      '@typescript-eslint/scope-manager': 8.70.1
-      '@typescript-eslint/types': 8.70.1
-      '@typescript-eslint/typescript-estree': 8.70.1(supports-color@7.2.0)(typescript@6.0.3)
-      '@typescript-eslint/visitor-keys': 8.70.1
-      debug: 4.4.3(supports-color@7.2.0)
-      eslint: 10.11.0(jiti@2.7.0)(supports-color@7.2.0)
-      typescript: 6.0.3
-    transitivePeerDependencies:
-      - supports-color
-
   '@typescript-eslint/parser@8.71.0(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.71.0
@@ -6296,15 +6247,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.70.1(supports-color@7.2.0)(typescript@6.0.3)':
-    dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.70.1(typescript@6.0.3)
-      '@typescript-eslint/types': 8.70.1
-      debug: 4.4.3(supports-color@7.2.0)
-      typescript: 6.0.3
-    transitivePeerDependencies:
-      - supports-color
-
   '@typescript-eslint/project-service@8.71.0(supports-color@7.2.0)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.71.0(typescript@6.0.3)
@@ -6319,21 +6261,12 @@ snapshots:
       '@typescript-eslint/types': 8.69.0
       '@typescript-eslint/visitor-keys': 8.69.0
 
-  '@typescript-eslint/scope-manager@8.70.1':
-    dependencies:
-      '@typescript-eslint/types': 8.70.1
-      '@typescript-eslint/visitor-keys': 8.70.1
-
   '@typescript-eslint/scope-manager@8.71.0':
     dependencies:
       '@typescript-eslint/types': 8.71.0
       '@typescript-eslint/visitor-keys': 8.71.0
 
   '@typescript-eslint/tsconfig-utils@8.69.0(typescript@6.0.3)':
-    dependencies:
-      typescript: 6.0.3
-
-  '@typescript-eslint/tsconfig-utils@8.70.1(typescript@6.0.3)':
     dependencies:
       typescript: 6.0.3
 
@@ -6355,8 +6288,6 @@ snapshots:
 
   '@typescript-eslint/types@8.69.0': {}
 
-  '@typescript-eslint/types@8.70.1': {}
-
   '@typescript-eslint/types@8.71.0': {}
 
   '@typescript-eslint/typescript-estree@8.69.0(supports-color@7.2.0)(typescript@6.0.3)':
@@ -6365,21 +6296,6 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.69.0(typescript@6.0.3)
       '@typescript-eslint/types': 8.69.0
       '@typescript-eslint/visitor-keys': 8.69.0
-      debug: 4.4.3(supports-color@7.2.0)
-      minimatch: 10.2.6
-      semver: 7.8.5
-      tinyglobby: 0.2.17
-      ts-api-utils: 2.5.0(typescript@6.0.3)
-      typescript: 6.0.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@typescript-eslint/typescript-estree@8.70.1(supports-color@7.2.0)(typescript@6.0.3)':
-    dependencies:
-      '@typescript-eslint/project-service': 8.70.1(supports-color@7.2.0)(typescript@6.0.3)
-      '@typescript-eslint/tsconfig-utils': 8.70.1(typescript@6.0.3)
-      '@typescript-eslint/types': 8.70.1
-      '@typescript-eslint/visitor-keys': 8.70.1
       debug: 4.4.3(supports-color@7.2.0)
       minimatch: 10.2.6
       semver: 7.8.5
@@ -6429,11 +6345,6 @@ snapshots:
   '@typescript-eslint/visitor-keys@8.69.0':
     dependencies:
       '@typescript-eslint/types': 8.69.0
-      eslint-visitor-keys: 5.0.1
-
-  '@typescript-eslint/visitor-keys@8.70.1':
-    dependencies:
-      '@typescript-eslint/types': 8.70.1
       eslint-visitor-keys: 5.0.1
 
   '@typescript-eslint/visitor-keys@8.71.0':

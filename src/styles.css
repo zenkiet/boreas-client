@@ -281,7 +281,13 @@ ion-input .input-clear-icon ion-icon {
   @apply icon-[solid--gear];
 }
 
-/* After the three above at equal weight: their @apply resets the mask to full size. */
+/* The theme's editing-state close button; patches/ drops its ionicons glyph. */
+.ios-theme-searchable-dismiss ion-icon {
+  @apply icon-[regular--xmark];
+}
+
+/* After the rules above at equal weight: their @apply resets the mask to full size. */
+.ios-theme-searchable-dismiss ion-icon,
 :root:has(ion-footer ion-button > [class*='icon-[']) ion-icon.ion-cloned-element {
   -webkit-mask-size: auto 85%;
   mask-size: auto 85%;
@@ -410,7 +416,8 @@ ion-input:has(ion-input-password-toggle) .native-input[type='text'] {
 }
 
 /* Ionic's clear button is enough; the browser's × would be a second one. */
-ion-input input[type='search']::-webkit-search-cancel-button {
+ion-input input[type='search']::-webkit-search-cancel-button,
+ion-searchbar input::-webkit-search-cancel-button {
   display: none;
 }
 

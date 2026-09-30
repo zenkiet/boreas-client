@@ -1,0 +1,201 @@
+diff --git a/dist/native/prehide.js b/dist/native/prehide.js
+index ddd786bf312a565a73ec4ffd010915a168f63a4a..b2db4d79c94cf10e532b674573fb5422b21915c8 100644
+--- a/dist/native/prehide.js
++++ b/dist/native/prehide.js
+@@ -1,7 +1,7 @@
+ import { VERTICAL_BARS_TRANSITION_CANCELED } from "../native-integration/index.js";
+ import { modalUsesVerticalBars } from "./shared/modal.js";
+ import { childElements, clearVerticalBarsPlacement, createVerticalBarsPageState, isPermanentlyExcluded, isShellDisabled, isVerticalBarsToolbarActionShape, prehiddenClass, prehideRootClass, setVerticalBarsPlacement, verticalBarsActionCandidate, verticalBarsBackCandidate, verticalBarsBackWebClass, verticalBarsOwned } from "./shared/dom.js";
+-import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core";
++import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core/components";
+ //#region src/native/prehide.ts
+ const overlays = "ion-menu, ion-popover";
+ const sourceSelector = "ion-back-button, ion-menu-button, ion-buttons, ion-button";
+diff --git a/dist/native/runtime.js b/dist/native/runtime.js
+index 7b406808abbed9a8273ba565e7c1f2b9e17e50ca..3bc5b62742afd15f4677d7abd4fdc2fe26101c72 100644
+--- a/dist/native/runtime.js
++++ b/dist/native/runtime.js
+@@ -6,7 +6,7 @@ import { createIconRenderer } from "./shared/icons.js";
+ import { createSearchSupport } from "./components/searchable-tabs.js";
+ import { isVerticalBarsCandidate, motionSelector, readCandidate, selector, shadowSelector } from "./components/index.js";
+ import { CSS_MOTION_EVENTS } from "./shared/events.js";
+-import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core";
++import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core/components";
+ //#region src/native/runtime.ts
+ const overlays = "ion-modal, ion-popover, ion-alert, ion-action-sheet, ion-loading, ion-picker, ion-toast, ion-menu";
+ const overlayNames = [
+diff --git a/dist/native-integration/index.d.ts b/dist/native-integration/index.d.ts
+index dcffd5082d046174c3ea6c8a7051e1a48c6a6c2d..8b2116e98cc2529f5807e1fe74cad03812916f52 100644
+--- a/dist/native-integration/index.d.ts
++++ b/dist/native-integration/index.d.ts
+@@ -1,4 +1,4 @@
+-import { Animation } from "@ionic/core";
++import { Animation } from "@ionic/core/components";
+ //#region src/native-integration/index.d.ts
+ export interface NativeUIShellIntegration {
+   suspend(scopes: HTMLElement[]): Promise<(canceled?: boolean) => void>;
+diff --git a/dist/native-integration/transition.d.ts b/dist/native-integration/transition.d.ts
+index 9fa07644582abef0ed1e61ecf3ab007d4b199ca3..042a7e0b6ae245d1ccaa6f360392b5cb5d00969f 100644
+--- a/dist/native-integration/transition.d.ts
++++ b/dist/native-integration/transition.d.ts
+@@ -1,4 +1,4 @@
+-import { AnimationBuilder } from "@ionic/core";
++import { AnimationBuilder } from "@ionic/core/components";
+ //#region src/native-integration/transition.d.ts
+ export declare const withNativeUIShellTransition: (builder: AnimationBuilder) => AnimationBuilder;
+ //#endregion
+diff --git a/dist/sheets-of-glass/animations.d.ts b/dist/sheets-of-glass/animations.d.ts
+index 88373d8a142842e7414f6c667631ef3f73122c53..416fdf85d22f21b3e152b55a381c987647d39d05 100644
+--- a/dist/sheets-of-glass/animations.d.ts
++++ b/dist/sheets-of-glass/animations.d.ts
+@@ -1,5 +1,5 @@
+ import { AnimationPosition, EffectScales } from "./interfaces.js";
+-import { Animation, AnimationKeyFrames, GestureDetail } from "@ionic/core";
++import { Animation, AnimationKeyFrames, GestureDetail } from "@ionic/core/components";
+ //#region src/sheets-of-glass/animations.d.ts
+ export declare const animationRect: (element: Element, vertical?: boolean) => DOMRect | {
+   left: number;
+diff --git a/dist/sheets-of-glass/animations.js b/dist/sheets-of-glass/animations.js
+index d1de7fc4eefb21acb56099e102aae10af53f26e7..515a8d6b3c1116598a08695daab166dd1899ffda 100644
+--- a/dist/sheets-of-glass/animations.js
++++ b/dist/sheets-of-glass/animations.js
+@@ -1,5 +1,5 @@
+ import { getStep } from "../utils.js";
+-import { createAnimation } from "@ionic/core";
++import { createAnimation } from "@ionic/core/components";
+ //#region src/sheets-of-glass/animations.ts
+ const animationRect = (element, vertical = false) => {
+ 	const rect = element.getBoundingClientRect();
+diff --git a/dist/sheets-of-glass/index.js b/dist/sheets-of-glass/index.js
+index 595e24de18654f39204857eee79bf9262860fb8f..103b39ccb5e48e96fd84f6847262442fea37c0ef 100644
+--- a/dist/sheets-of-glass/index.js
++++ b/dist/sheets-of-glass/index.js
+@@ -1,7 +1,7 @@
+ import { changeSelectedElement, cloneElement, getStep } from "../utils.js";
+ import { isNativeUIShell } from "../native-integration/index.js";
+ import { animationRect, createMoveAnimation, createPreMoveAnimation, createTabBarDragAnimation, createTabBarPressAnimation, createTabBarReleaseAnimation, getMoveAnimationKeyframe, getScaleAnimation } from "./animations.js";
+-import { createGesture } from "@ionic/core";
++import { createGesture } from "@ionic/core/components";
+ //#region src/sheets-of-glass/index.ts
+ const GESTURE_NAME = "ios27-enable-gesture";
+ const ANIMATED_NAME = "ios27-animated";
+diff --git a/dist/tab-bar-searchable/animations/enter.d.ts b/dist/tab-bar-searchable/animations/enter.d.ts
+index 3e6aef43c9cb27db23857f7e2d5ead95fe8e5135..431b5696002d81b58b3a7ae75a1489f311402294 100644
+--- a/dist/tab-bar-searchable/animations/enter.d.ts
++++ b/dist/tab-bar-searchable/animations/enter.d.ts
+@@ -1,4 +1,4 @@
+-import { Animation } from "@ionic/core";
++import { Animation } from "@ionic/core/components";
+ import { ElementReferences, ElementSizes } from "@rdlabo/ionic-theme-utils";
+ //#region src/tab-bar-searchable/animations/enter.d.ts
+ export declare const createEffectAnimation: (references: ElementReferences, sizes: ElementSizes) => Animation;
+diff --git a/dist/tab-bar-searchable/animations/enter.js b/dist/tab-bar-searchable/animations/enter.js
+index 6ec0ac8a254ef79ff453faf39b77e4be15d59bf8..353a1264119751b64b8f4d537b4588aca9860742 100644
+--- a/dist/tab-bar-searchable/animations/enter.js
++++ b/dist/tab-bar-searchable/animations/enter.js
+@@ -1,5 +1,5 @@
+ import { cloneElement } from "../../utils.js";
+-import { createAnimation } from "@ionic/core";
++import { createAnimation } from "@ionic/core/components";
+ import { ANIMATION_DELAY_CLOSE_BUTTONS, OPACITY_TRANSITION } from "@rdlabo/ionic-theme-utils";
+ //#region src/tab-bar-searchable/animations/enter.ts
+ const createEffectAnimation = (references, sizes) => {
+diff --git a/dist/tab-bar-searchable/animations/leave.d.ts b/dist/tab-bar-searchable/animations/leave.d.ts
+index bd9d41da9d9ad8a9ded85303674681daafac6132..2a2348034b5f6231b31e4fdb0e5599e0ed702e63 100644
+--- a/dist/tab-bar-searchable/animations/leave.d.ts
++++ b/dist/tab-bar-searchable/animations/leave.d.ts
+@@ -1,4 +1,4 @@
+-import { Animation } from "@ionic/core";
++import { Animation } from "@ionic/core/components";
+ import { ElementReferences, ElementSizes } from "@rdlabo/ionic-theme-utils";
+ //#region src/tab-bar-searchable/animations/leave.d.ts
+ export declare const createReverseEffectAnimation: (references: ElementReferences, searchableElementSizes: ElementSizes, colorSelected: string) => Animation;
+diff --git a/dist/tab-bar-searchable/animations/leave.js b/dist/tab-bar-searchable/animations/leave.js
+index d968b4d5f97b7ec9341f15be24911afca44c84df..b4469d588e9bf5f90e3fecd9149d0597c9e2ad8d 100644
+--- a/dist/tab-bar-searchable/animations/leave.js
++++ b/dist/tab-bar-searchable/animations/leave.js
+@@ -1,5 +1,5 @@
+ import { cloneElement } from "../../utils.js";
+-import { createAnimation } from "@ionic/core";
++import { createAnimation } from "@ionic/core/components";
+ import { ANIMATION_DELAY_CLOSE_BUTTONS, OPACITY_TRANSITION } from "@rdlabo/ionic-theme-utils";
+ //#region src/tab-bar-searchable/animations/leave.ts
+ const createReverseEffectAnimation = (references, searchableElementSizes, colorSelected) => {
+diff --git a/dist/tab-bar-searchable/dismiss-button.js b/dist/tab-bar-searchable/dismiss-button.js
+index 02c3139b53005dd3f70f767782ad534535c9252b..9efc50035c180e0b7c1a9343306433216a4932f5 100644
+--- a/dist/tab-bar-searchable/dismiss-button.js
++++ b/dist/tab-bar-searchable/dismiss-button.js
+@@ -1,4 +1,3 @@
+-import { close } from "ionicons/icons";
+ //#region src/tab-bar-searchable/dismiss-button.ts
+ /** Keep the application's original dismissal handler for the focused search layout. */
+ const addSearchDismissButton = (footer) => {
+@@ -17,7 +16,7 @@ const addSearchDismissButton = (footer) => {
+ 	button.addEventListener("click", () => original.click());
+ 	const icon = footer.ownerDocument.createElement("ion-icon");
+ 	icon.slot = "icon-only";
+-	icon.icon = close;
++	icon.setAttribute("aria-hidden", "true");
+ 	button.append(icon);
+ 	buttons.append(button);
+ 	footer.addEventListener("focusin", (event) => {
+diff --git a/dist/tab-bar-searchable/index.js b/dist/tab-bar-searchable/index.js
+index 7e8354f9af0105435cac7b0129a1e81732de9901..e5611c462ef7159fe5aeca98ed1d3aaec2df959b 100644
+--- a/dist/tab-bar-searchable/index.js
++++ b/dist/tab-bar-searchable/index.js
+@@ -2,7 +2,7 @@ import { isNativeUIShell, registerNativeSearch, requestNativeSearch, suspendNati
+ import { addSearchDismissButton } from "./dismiss-button.js";
+ import { createCloseButtonsAnimation, createEffectAnimation, createFabButtonAnimation, createSearchContainerAnimation, createTabBarAnimation } from "./animations/enter.js";
+ import { createReverseCloseButtonsAnimation, createReverseEffectAnimation, createReverseFabButtonAnimation, createReverseSearchContainerAnimation, createReverseTabBarAnimation } from "./animations/leave.js";
+-import { createAnimation } from "@ionic/core";
++import { createAnimation } from "@ionic/core/components";
+ import { ANIMATION_DELAY_BASE, ANIMATION_DURATION, ANIMATION_EASING, TabBarSearchableType, TabBarSearchableType as TabBarSearchableType$1, getElementReferences, getElementSizes, throwErrorByFailedClickElement } from "@rdlabo/ionic-theme-utils";
+ //#region src/tab-bar-searchable/index.ts
+ /**
+diff --git a/dist/transition/index.d.ts b/dist/transition/index.d.ts
+index 0b0df6156823d2c5d0f1455aec339124877547a1..e38dff7e83ce8c2223fbeda3efe6505d289fcc1a 100644
+--- a/dist/transition/index.d.ts
++++ b/dist/transition/index.d.ts
+@@ -1,4 +1,4 @@
+-import { Animation, NavOptions } from "@ionic/core";
++import { Animation, NavOptions } from "@ionic/core/components";
+ //#region src/transition/index.d.ts
+ export declare const transition: (opts: TransitionOptions) => Promise<TransitionResult>;
+ export declare const lifecycle: (el: HTMLElement | undefined, eventName: string) => void;
+diff --git a/dist/transition/index.js b/dist/transition/index.js
+index 810e7a11c3693c23bbce20f8e42bba1e7b04e502..79050f777a898c66ec5ffb16f496bef1c8a3b3a2 100644
+--- a/dist/transition/index.js
++++ b/dist/transition/index.js
+@@ -1,7 +1,8 @@
+ import { config, raf } from "../utils.js";
+ import { createFocusController } from "../focus-controller/index.js";
+-import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core";
+-import { Build, writeTask } from "@stencil/core";
++import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core/components";
++const Build = { isBrowser: typeof window !== "undefined" };
++const writeTask = (cb) => raf(cb);
+ //#region src/transition/index.ts
+ const iosTransitionAnimation = () => import("./ios.transition.js");
+ const focusController = createFocusController();
+diff --git a/dist/transition/ios.transition.d.ts b/dist/transition/ios.transition.d.ts
+index 61e37fedbb6a1af5ed148b152d56b507b152bc19..222ccccfb52f27bc81829fe39aa78d1b60e70af9 100644
+--- a/dist/transition/ios.transition.d.ts
++++ b/dist/transition/ios.transition.d.ts
+@@ -1,5 +1,5 @@
+ import { TransitionOptions } from "./index.js";
+-import { Animation } from "@ionic/core";
++import { Animation } from "@ionic/core/components";
+ import { shadow } from "@rdlabo/ionic-theme-utils";
+ //#region src/transition/ios.transition.d.ts
+ export interface IosTransitionConfig {
+diff --git a/dist/utils.d.ts b/dist/utils.d.ts
+index 4b2cb046f8e3f95fcd7785bc02f15f701a5cc5ba..054d0c5a300016b878b8c242ca773f2903baf6f7 100644
+--- a/dist/utils.d.ts
++++ b/dist/utils.d.ts
+@@ -1,5 +1,5 @@
+ import { AnimationPosition } from "./sheets-of-glass/interfaces.js";
+-import { IonicConfig } from "@ionic/core";
++import { IonicConfig } from "@ionic/core/components";
+ //#region src/utils.d.ts
+ export declare const getElementRoot: (el: HTMLElement, fallback?: HTMLElement) => HTMLElement | ShadowRoot;
+ export declare const raf: (h: FrameRequestCallback) => number;

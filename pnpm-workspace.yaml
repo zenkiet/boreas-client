@@ -61,7 +61,8 @@ minimumReleaseAgeExclude:
   - jscpd-linux-x64-musl@5.3.3
   - jscpd-windows-arm64-msvc@5.3.3
   - jscpd-windows-x64-msvc@5.3.3
+  - '@rdlabo/ionic-theme-ios27@1.2.0'
 patchedDependencies:
   '@ionic/core@9.0.5': patches/@ionic__core@9.0.5.patch
-  '@rdlabo/ionic-theme-ios27@1.1.0': patches/@rdlabo__ionic-theme-ios27@1.1.0.patch
-  '@rdlabo/ionic-theme-utils@0.1.1': patches/@rdlabo__ionic-theme-utils@0.1.1.patch
+  '@rdlabo/ionic-theme-ios27@1.2.0': patches/@rdlabo__ionic-theme-ios27@1.2.0.patch
+  '@rdlabo/ionic-theme-utils@0.1.2': patches/@rdlabo__ionic-theme-utils@0.1.2.patch
