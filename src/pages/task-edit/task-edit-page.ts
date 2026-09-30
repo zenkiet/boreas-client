@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input } from '@angular/core';
 import { IonBackButton } from '@ionic/angular/ion-back-button';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonButtons } from '@ionic/angular/ion-buttons';
@@ -79,6 +79,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
           <app-task-edit-form
             formId="edit-task-form"
             [task]="task"
+            [folders]="edit.folders()"
             [saving]="edit.saving()"
             [error]="edit.error()"
             (submitted)="save($event)"
@@ -107,6 +108,7 @@ export class TaskEditPage {
 
   constructor() {
     this.detail.track(this.slug, this.name);
+    effect(() => this.edit.loadFolders(this.slug()));
   }
 
   protected reload(): void {

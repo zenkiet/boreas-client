@@ -20,6 +20,7 @@ export interface TaskDto {
   updated_at: string;
   labels?: Record<string, string>;
   env?: Record<string, string> | null;
+  volumes?: Record<string, string> | null;
   error?: string;
   pending_recreate?: boolean;
   my_role: TaskRoleDto;
@@ -75,6 +76,7 @@ export interface UpdateTaskRequestDto {
   port?: number;
   labels?: Record<string, string>;
   env?: Record<string, string>;
+  volumes?: Record<string, string>;
   auto_restart?: boolean;
 }
 
@@ -85,4 +87,5 @@ export interface CreateTaskRequestDto {
   description?: string;
   labels?: Record<string, string>;
   env?: Record<string, string>;
+  volumes?: Record<string, string>;
 }

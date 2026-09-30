@@ -6,7 +6,7 @@ import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 import { IonToggle } from '@ionic/angular/ion-toggle';
 
-import { Task, UpdateTaskInput } from '@entities/task';
+import { Task, TaskVolumes, UpdateTaskInput } from '@entities/task';
 import { FieldStatus } from '@shared/lib/forms/field-status.directive';
 import { Callout } from '@shared/ui/callout/callout';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
@@ -31,6 +31,7 @@ interface TaskEditDraft {
     IonLabel,
     IonNote,
     IonToggle,
+    TaskVolumes,
   ],
   template: `
     <form novalidate [id]="formId()" (submit)="onSubmit($event)">
@@ -77,6 +78,13 @@ interface TaskEditDraft {
         </ion-item>
       </app-inset-group>
 
+      <app-task-volumes
+        [editable]="true"
+        [volumes]="volumes()"
+        [folders]="folders()"
+        (volumesChange)="volumes.set($event)"
+      />
+
       <app-inset-group label="Apply">
         <ion-item>
           <ion-toggle [checked]="restart()" (ionChange)="restart.set($event.detail.checked)">
@@ -110,12 +118,14 @@ export class TaskEditForm {
   readonly saving = input(false);
   readonly error = input<string | undefined>(undefined);
   readonly formId = input(this.uid);
+  readonly folders = input<readonly string[]>([]);
   /** Only the changed fields, PATCH-style; `{}` when nothing changed. */
   readonly submitted = output<UpdateTaskInput>();
 
   private seeded = false;
   private readonly model = signal<TaskEditDraft>({ image: '', description: '', port: 80 });
   protected readonly restart = signal(true);
+  protected readonly volumes = signal<Readonly<Record<string, string>>>({});
 
   protected readonly draft = form(this.model, (path) => {
     required(path.image, { message: 'Enter a Docker image.' });
@@ -131,12 +141,15 @@ export class TaskEditForm {
       image: draft.image.trim() !== task.image,
       description: draft.description.trim() !== (task.description ?? ''),
       port: draft.port !== task.port,
+      volumes: !sameVolumes(this.volumes(), task.volumes),
     };
   });
 
   private readonly changes = computed(() => Object.values(this.changed()).filter(Boolean).length);
   protected readonly dirty = computed(() => this.changes() > 0);
-  protected readonly containerChanged = computed(() => this.changed().image || this.changed().port);
+  protected readonly containerChanged = computed(
+    () => this.changed().image || this.changed().port || this.changed().volumes,
+  );
   protected readonly changeLabel = computed(() => {
     const count = this.changes();
     return count === 0 ? 'No changes' : count === 1 ? '1 change' : `${count} changes`;
@@ -149,13 +162,14 @@ export class TaskEditForm {
       if (this.seeded) return;
       this.seeded = true;
 
-      untracked(() =>
+      untracked(() => {
         this.model.set({
           image: task.image,
           description: task.description ?? '',
           port: task.port,
-        }),
-      );
+        });
+        this.volumes.set(task.volumes);
+      });
     });
   }
 
@@ -181,13 +195,20 @@ export class TaskEditForm {
         input.description = draft.description.trim();
       }
       if (draft.port !== task.port) input.port = draft.port;
+      if (this.changed().volumes) input.volumes = this.volumes();
 
       /* auto_restart only matters when the change needs a new container. */
-      if (input.image !== undefined || input.port !== undefined) {
-        input.autoRestart = this.restart();
-      }
+      if (this.containerChanged()) input.autoRestart = this.restart();
 
       this.submitted.emit(input);
     });
   }
+}
+
+function sameVolumes(
+  a: Readonly<Record<string, string>>,
+  b: Readonly<Record<string, string>>,
+): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((path) => a[path] === b[path]);
 }

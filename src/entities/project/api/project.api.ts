@@ -6,7 +6,12 @@ import { SseClient } from '@shared/api/sse';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { AddMemberInput, Member } from '../model/member';
 import { CreateProjectInput, Project, UpdateProjectInput } from '../model/project';
-import { GrantsResponseDto, MembersResponseDto, ProjectResponseDto } from './project.dto';
+import {
+  FoldersResponseDto,
+  GrantsResponseDto,
+  MembersResponseDto,
+  ProjectResponseDto,
+} from './project.dto';
 import {
   toAddMemberRequestDto,
   toCreateProjectRequestDto,
@@ -51,6 +56,13 @@ export class ProjectApi {
   /** Rejected with 409 while the project still owns tasks. */
   delete(slug: string): Observable<void> {
     return this.http.delete(this.projectUrl(slug)).pipe(map(() => undefined));
+  }
+
+  /** The shared folders an admin set up for this project, by name. */
+  folders(slug: string): Observable<readonly string[]> {
+    return this.http
+      .get<FoldersResponseDto>(`${this.projectUrl(slug)}/folders`)
+      .pipe(map((response) => response.folders ?? []));
   }
 
   members(slug: string): Observable<readonly Member[]> {

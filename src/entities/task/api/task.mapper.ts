@@ -14,6 +14,7 @@ export function toTask(dto: TaskDto): Task {
     port: dto.port,
     updatedAt: new Date(dto.updated_at),
     env: { ...(dto.env ?? {}) },
+    volumes: { ...(dto.volumes ?? {}) },
     pendingRecreate: dto.pending_recreate ?? false,
     myRole: dto.my_role,
   };
@@ -45,6 +46,7 @@ export function toFleetProject(dto: FleetProjectDto): FleetProject {
 
 export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskRequestDto {
   const environment = input.environment ?? {};
+  const volumes = input.volumes ?? {};
 
   return {
     name: input.name,
@@ -52,6 +54,7 @@ export function toCreateTaskRequestDto(input: CreateTaskInput): CreateTaskReques
     port: input.port,
     description: input.description || undefined,
     env: Object.keys(environment).length ? { ...environment } : undefined,
+    volumes: Object.keys(volumes).length ? { ...volumes } : undefined,
   };
 }
 
@@ -63,6 +66,7 @@ export function toUpdateTaskRequestDto(input: UpdateTaskInput): UpdateTaskReques
     image: input.image,
     port: input.port,
     env: input.environment ? { ...input.environment } : undefined,
+    volumes: input.volumes ? { ...input.volumes } : undefined,
     auto_restart: input.autoRestart,
   };
 }

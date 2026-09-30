@@ -32,8 +32,8 @@ export interface Task {
   readonly port: number;
   readonly updatedAt: Date;
   readonly env: Readonly<Record<string, string>>;
+  readonly volumes: Readonly<Record<string, string>>;
   readonly pendingRecreate: boolean;
-  /** Project role, raised by a grant on this task. */
   readonly myRole: ProjectRole;
 }
 

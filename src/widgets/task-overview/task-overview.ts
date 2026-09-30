@@ -18,7 +18,7 @@ import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import { EMPTY, defer, from } from 'rxjs';
 
 import type { DeployOutcome } from '@entities/task';
-import { DEV_STATUS_LABEL, DevStatus, Task } from '@entities/task';
+import { DEV_STATUS_LABEL, DevStatus, Task, TaskVolumes } from '@entities/task';
 import { toByteSize } from '@shared/lib/format/bytes';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
@@ -38,7 +38,7 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
 
 @Component({
   selector: 'app-task-overview',
-  imports: [InsetGroup, IonButton, IonItem, IonLabel, IonSelect, IonSelectOption],
+  imports: [InsetGroup, IonButton, IonItem, IonLabel, IonSelect, IonSelectOption, TaskVolumes],
   template: `
     <!-- Phones already say Overview in the section switch right above. -->
     <app-inset-group [label]="wide() ? 'Overview' : ''">
@@ -131,6 +131,10 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
         </ion-item>
       }
     </app-inset-group>
+
+    @if (hasVolumes()) {
+      <app-task-volumes [volumes]="task().volumes" />
+    }
   `,
   styles: `
     .row-label {
@@ -208,6 +212,7 @@ export class TaskOverview {
   readonly statusChange = output<SelectCustomEvent<DevStatus>>();
 
   protected readonly wide = wideScreen();
+  protected readonly hasVolumes = computed(() => Object.keys(this.task().volumes).length > 0);
   protected readonly statusOptions = STATUS_OPTIONS;
   protected readonly statusMenu = STATUS_MENU;
   protected readonly devLabel = DEV_STATUS_LABEL;

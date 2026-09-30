@@ -55,3 +55,8 @@ export interface GrantsResponseDto {
   grants: MemberDto[] | null;
   total: number;
 }
+
+export interface FoldersResponseDto {
+  folders: string[] | null;
+  total: number;
+}

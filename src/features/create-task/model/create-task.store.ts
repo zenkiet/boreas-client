@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 
 import { ProjectApi, TaskDefaults } from '@entities/project';
 import { CreateTaskInput, Task, TaskApi } from '@entities/task';
@@ -18,12 +18,17 @@ export class CreateTaskStore {
 
   private readonly presets = rxResource({
     params: () => this.projectState() || undefined,
-    stream: ({ params }) => this.projectApi.get(params).pipe(catchError(() => of(undefined))),
+    stream: ({ params }) =>
+      forkJoin({
+        project: this.projectApi.get(params).pipe(catchError(() => of(undefined))),
+        folders: this.projectApi.folders(params).pipe(catchError(() => of([]))),
+      }),
   });
 
   readonly defaults = computed<TaskDefaults | null>(() =>
-    this.presets.hasValue() ? (this.presets.value()?.defaults ?? null) : null,
+    this.presets.hasValue() ? (this.presets.value().project?.defaults ?? null) : null,
   );
+  readonly folders = computed(() => (this.presets.hasValue() ? this.presets.value().folders : []));
 
   loadDefaults(project: string): void {
     this.projectState.set(project);

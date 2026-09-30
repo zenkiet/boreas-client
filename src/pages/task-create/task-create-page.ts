@@ -53,6 +53,7 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
           [creating]="create.creating()"
           [error]="create.error()"
           [defaults]="create.defaults()"
+          [folders]="create.folders()"
           (submitted)="createTask($event)"
         />
         <!-- Wrapped: Ionic's unlayered button margins beat utilities on the button itself. -->

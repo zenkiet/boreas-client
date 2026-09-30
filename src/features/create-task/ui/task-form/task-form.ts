@@ -6,7 +6,7 @@ import { IonNote } from '@ionic/angular/ion-note';
 
 import { EnvironmentEditor } from '@entities/environment';
 import { DEFAULT_TASK_PORT, TaskDefaults } from '@entities/project';
-import { CreateTaskInput } from '@entities/task';
+import { CreateTaskInput, TaskVolumes } from '@entities/task';
 import { FieldStatus } from '@shared/lib/forms/field-status.directive';
 import { Callout } from '@shared/ui/callout/callout';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
@@ -33,6 +33,7 @@ interface TaskDraft {
     IonInput,
     IonItem,
     IonNote,
+    TaskVolumes,
   ],
   template: `
     <form novalidate [id]="formId()" (submit)="onSubmit($event)">
@@ -90,6 +91,13 @@ interface TaskDraft {
         </ion-item>
       </app-inset-group>
 
+      <app-task-volumes
+        [editable]="true"
+        [volumes]="volumes()"
+        [folders]="folders()"
+        (volumesChange)="volumes.set($event)"
+      />
+
       <app-inset-group label="Environment variables">
         <app-environment-editor
           [footer]="true"
@@ -107,6 +115,7 @@ export class TaskForm {
   readonly creating = input(false);
   readonly error = input<string | undefined>(undefined);
   readonly defaults = input<TaskDefaults | null>(null);
+  readonly folders = input<readonly string[]>([]);
   readonly formId = input(this.uid);
   readonly submitted = output<CreateTaskInput>();
 
@@ -129,6 +138,7 @@ export class TaskForm {
   });
 
   protected readonly environment = signal<Record<string, string>>({});
+  protected readonly volumes = signal<Readonly<Record<string, string>>>({});
   protected readonly environmentErrors = signal<readonly string[]>([]);
 
   constructor() {
@@ -160,6 +170,7 @@ export class TaskForm {
         port: draft.port,
         description: draft.description.trim() || undefined,
         environment,
+        volumes: this.volumes(),
       });
     });
   }
