@@ -14,7 +14,7 @@
     "release": "cog bump --auto"
   },
   "private": true,
-  "packageManager": "pnpm@12.6.0",
+  "packageManager": "pnpm@12.8.1",
   "dependencies": {
     "@angular/common": "^22.2.0",
     "@angular/compiler": "^22.2.0",
@@ -77,6 +77,6 @@
     "prettier-plugin-organize-imports": "^4.3.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.70.1"
+    "typescript-eslint": "8.71.0"
   }
 }

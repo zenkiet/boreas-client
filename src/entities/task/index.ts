@@ -17,3 +17,4 @@ export { describeCompletedAction } from './model/task-state-action';
 export type { TaskStateAction } from './model/task-state-action';
 export { TaskMenu } from './ui/task-menu/task-menu';
 export type { TaskAction, TaskActionRequest } from './ui/task-menu/task-menu';
+export { TaskVolumes } from './ui/task-volumes/task-volumes';
