@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.13.0](https://github.com/zenkiet/boreas-client/compare/1a30c32d679feb10857f7ca2c9c7b2d4255721c2..v0.13.0) - 2026-09-30
+#### 🚀 Features
+- (**task**) ✨ mount shared folders as read-only volumes - ([1a30c32](https://github.com/zenkiet/boreas-client/commit/1a30c32d679feb10857f7ca2c9c7b2d4255721c2)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.12.0](https://github.com/zenkiet/boreas-client/compare/58ef80d3b3db4fc908089830e7f739ab606c82eb..v0.12.0) - 2026-09-29
 #### ⚡ Performance Improvements
 - ⚡ improve new api page - ([58ef80d](https://github.com/zenkiet/boreas-client/commit/58ef80d3b3db4fc908089830e7f739ab606c82eb)) - [@zenkiet](https://github.com/zenkiet)
