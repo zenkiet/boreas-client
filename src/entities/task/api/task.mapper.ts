@@ -40,6 +40,7 @@ export function toFleetProject(dto: FleetProjectDto): FleetProject {
         at: new Date(task.last_deploy.at),
         failed: task.last_deploy.status === 'failure',
       },
+      build: task.build && { ...task.build, at: new Date(task.build.at) },
     })),
   };
 }

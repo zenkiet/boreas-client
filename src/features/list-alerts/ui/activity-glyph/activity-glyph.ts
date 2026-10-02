@@ -5,6 +5,7 @@ import type { NotificationKind } from '@entities/notification';
 /* Literal classes, so Tailwind generates them. */
 const GLYPH: Record<NotificationKind, { readonly icon: string; readonly tone: string }> = {
   deploy_failed: { icon: 'icon-[regular--circle-xmark]', tone: 'bg-danger-soft text-danger' },
+  build_failed: { icon: 'icon-[regular--hammer]', tone: 'bg-danger-soft text-danger' },
   deployed: { icon: 'icon-[regular--arrow-up]', tone: 'bg-ok-soft text-ok' },
   status_changed: {
     icon: 'icon-[regular--arrow-right-arrow-left]',

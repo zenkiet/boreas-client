@@ -43,6 +43,7 @@ import {
   PULL_REFRESH,
   PullRefreshSource,
   onReturn,
+  pollOnScreen,
 } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
@@ -196,6 +197,7 @@ type View = (typeof VIEWS)[number];
             } @else {
               <app-task-list
                 [tasks]="detail.tasks()"
+                [builds]="builds()"
                 [pendingTaskIds]="commands.pendingTaskIds()"
                 (actionRequested)="handleTaskAction($event)"
                 (taskOpened)="openTask($event)"
@@ -487,6 +489,12 @@ export class ProjectDetailPage {
   private readonly listed = computed(() =>
     this.fleet.summaries().find(({ project }) => project.slug === this.slug()),
   );
+  protected readonly builds = computed(
+    () =>
+      new Map(
+        this.listed()?.tasks.flatMap(({ name, build }) => (build ? [[name, build] as const] : [])),
+      ),
+  );
 
   protected readonly canManage = computed(() => this.detail.project()?.myRole === 'owner');
   /* Unknown shows it: the server still decides. */
@@ -561,6 +569,7 @@ export class ProjectDetailPage {
     });
     /* A deep link starts here, not on Home: the subtitle's last deploy needs the fleet. */
     this.fleet.ensureFresh();
+    pollOnScreen(this.fleet.building, () => this.fleet.load());
 
     effect(() => {
       const project = this.detail.project();

@@ -8,6 +8,8 @@ import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 
 import {
+  Build,
+  BuildStatus,
   DEV_STATUSES,
   DEV_STATUS_DOT,
   DEV_STATUS_LABEL,
@@ -15,6 +17,7 @@ import {
   Task,
   TaskAction,
   TaskActionRequest,
+  isActiveBuild,
   sortByDevStatus,
 } from '@entities/task';
 import { atLeastRole } from '@shared/api/role';
@@ -27,6 +30,7 @@ let instances = 0;
 @Component({
   selector: 'app-task-list',
   imports: [
+    BuildStatus,
     InsetGroup,
     NgTemplateOutlet,
     IonItem,
@@ -73,6 +77,7 @@ let instances = 0;
             <span></span>
             <span>Task</span>
             <span>Description</span>
+            <span>Build</span>
             <span>Container</span>
             <span>Image</span>
             <span class="text-end">Updated</span>
@@ -100,6 +105,7 @@ let instances = 0;
               <div class="cols">
                 <span>Task</span>
                 <span>Description</span>
+                <span>Build</span>
                 <span>Container</span>
                 <span class="text-end">Updated</span>
               </div>
@@ -117,6 +123,11 @@ let instances = 0;
                     </span>
                     @if (task.description) {
                       <span class="stack__sub">{{ task.description }}</span>
+                    }
+                    @if (buildOf(task); as build) {
+                      <div class="stack__build">
+                        <app-build-status mode="line" [build]="build" />
+                      </div>
                     }
                   </ion-label>
                   <span slot="end" class="stack__meta tabular">
@@ -162,6 +173,22 @@ let instances = 0;
               {{ task.name }}<span class="sr-only">, {{ task.status }}</span>
             </button>
             <span class="desc">{{ task.description || '—' }}</span>
+            <span class="build">
+              @if (buildOf(task); as build) {
+                <app-build-status [build]="build" />
+                @if (build.url) {
+                  <a
+                    class="ci"
+                    target="_blank"
+                    rel="noopener"
+                    [href]="build.url"
+                    [attr.aria-label]="'Open the ' + task.name + ' run in CI'"
+                    (click)="$event.stopPropagation()"
+                    ><span class="icon-[regular--arrow-up-right]" aria-hidden="true"></span
+                  ></a>
+                }
+              }
+            </span>
             <span class="state" [attr.data-state]="task.status">{{ task.status }}</span>
             <span class="image font-mono" [attr.title]="task.image">{{
               imageRef(task.image)
@@ -276,6 +303,14 @@ let instances = 0;
       white-space: nowrap;
     }
 
+    .stack__build {
+      display: flex;
+      margin-block-start: 0.1875rem;
+      font-size: 0.8125rem;
+      line-height: 1.125rem;
+      color: var(--app-text-secondary);
+    }
+
     .stack__meta {
       display: flex;
       flex-direction: column;
@@ -297,7 +332,7 @@ let instances = 0;
 
     .cols {
       display: grid;
-      grid-template-columns: 9.375rem minmax(0, 1fr) 5.625rem 5rem;
+      grid-template-columns: 9.375rem minmax(0, 1fr) 10rem 5.625rem 5rem;
       column-gap: 1rem;
       align-items: center;
       inline-size: 100%;
@@ -364,10 +399,29 @@ let instances = 0;
       text-align: end;
     }
 
+    .build {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      min-inline-size: 0;
+      color: var(--app-text-secondary);
+    }
+
+    .ci {
+      display: flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      inline-size: 1.75rem;
+      block-size: 1.75rem;
+      border-radius: 0.875rem;
+      color: var(--ion-color-primary);
+    }
+
     .acts {
       display: none;
       gap: 0.375rem;
-      grid-column: 3 / span 2;
+      grid-column: 4 / span 2;
       justify-self: end;
     }
 
@@ -410,7 +464,7 @@ let instances = 0;
 
     @media (min-width: 80rem) {
       .cols {
-        grid-template-columns: 0.5rem 8.75rem minmax(0, 1fr) 6.875rem 7.5rem 5.625rem;
+        grid-template-columns: 0.5rem 8.75rem minmax(0, 1fr) 10rem 6.875rem 7.5rem 5.625rem;
       }
 
       .dot,
@@ -431,7 +485,7 @@ let instances = 0;
       }
 
       .acts {
-        grid-column: 4 / span 3;
+        grid-column: 5 / span 3;
       }
 
       .row.acting:is(:hover, :focus-within) .image {
@@ -496,6 +550,8 @@ export class TaskList {
   readonly tasks = input.required<readonly Task[]>();
   /** Task names, unique only within the page's project. */
   readonly pendingTaskIds = input.required<ReadonlySet<string>>();
+  /** The fleet's latest CI report per task name. */
+  readonly builds = input<ReadonlyMap<string, Build>>(new Map());
   readonly actionRequested = output<TaskActionRequest>();
   readonly taskOpened = output<Task>();
 
@@ -546,6 +602,11 @@ export class TaskList {
 
   protected edits(task: Task): boolean {
     return atLeastRole(task.myRole, 'member');
+  }
+
+  protected buildOf(task: Task): Build | undefined {
+    const build = this.builds().get(task.name);
+    return isActiveBuild(build) ? build : undefined;
   }
 
   protected dotOf(task: Task): string {

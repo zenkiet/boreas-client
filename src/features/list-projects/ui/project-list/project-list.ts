@@ -10,6 +10,7 @@ import {
   DevStatus,
   TaskSummary,
   countByDevStatus,
+  isBuilding,
   newestDeploy,
 } from '@entities/task';
 import { age } from '@shared/lib/format/age';
@@ -362,14 +363,20 @@ function meta(tasks: readonly TaskSummary[], deploy: DeployOutcome | undefined):
     tasks.length === 0 ? 'No tasks' : `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`;
   const errors = tasks.filter((task) => task.status === 'error').length;
   const stopped = tasks.filter((task) => task.status === 'stopped').length;
-  const fact = deploy?.failed
-    ? `deploy failed ${age(deploy.at)} ago`
-    : errors > 0
-      ? `${errors} ${errors === 1 ? 'error' : 'errors'}`
-      : stopped > 0
-        ? `${stopped} stopped`
-        : deploy
-          ? `deployed ${age(deploy.at)} ago`
-          : '';
+  const building = tasks.filter((task) => isBuilding(task.build)).length;
+  const broken = tasks.find((task) => task.build?.state === 'failure')?.build;
+  const fact = broken
+    ? `build failed ${age(broken.at)} ago`
+    : deploy?.failed
+      ? `deploy failed ${age(deploy.at)} ago`
+      : errors > 0
+        ? `${errors} ${errors === 1 ? 'error' : 'errors'}`
+        : building > 0
+          ? `${building} building`
+          : stopped > 0
+            ? `${stopped} stopped`
+            : deploy
+              ? `deployed ${age(deploy.at)} ago`
+              : '';
   return fact ? `${count} · ${fact}` : count;
 }

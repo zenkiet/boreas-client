@@ -1,15 +1,20 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, Directive, ElementRef, Signal, effect, inject, input } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { IonRefresher } from '@ionic/angular/ion-refresher';
 import { IonRefresherContent } from '@ionic/angular/ion-refresher-content';
 import {
+  EMPTY,
   Observable,
   combineLatest,
   distinctUntilChanged,
+  filter,
   fromEvent,
+  interval,
   map,
   merge,
   startWith,
+  switchMap,
 } from 'rxjs';
 
 export interface PullRefreshSource {
@@ -80,4 +85,15 @@ export function onScreen(): Observable<boolean> {
     map(([top, shown]) => top && shown),
     distinctUntilChanged(),
   );
+}
+
+/** Calls `tick` every `ms` while this page is on screen and `active()` holds; call from its constructor. */
+export function pollOnScreen(active: () => boolean, tick: () => void, ms = 10_000): void {
+  onScreen()
+    .pipe(
+      switchMap((on) => (on ? interval(ms) : EMPTY)),
+      filter(active),
+      takeUntilDestroyed(),
+    )
+    .subscribe(tick);
 }

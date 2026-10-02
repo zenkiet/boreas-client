@@ -26,7 +26,7 @@ const ERROR_LINE = /(error|exception)\b|\b(err|fatal|panic|crit|critical|emerg|f
   selector: 'app-log-console',
   imports: [DatePipe, InsetGroup, IonButton, IonInput, IonItem, IonLabel, IonSpinner],
   template: `
-    <app-inset-group label="Live logs" [trailing]="countLabel()">
+    <app-inset-group label="Container logs" [trailing]="countLabel()">
       <i
         groupMark
         class="me-2 inline-block size-2 rounded-full align-middle"

@@ -4,10 +4,13 @@ export {
   DEV_STATUS_DOT,
   DEV_STATUS_LABEL,
   failedToday,
+  isActiveBuild,
+  isBuilding,
+  isQuietBuild,
   isTransitioningTask,
   newestDeploy,
   taskKey,
 } from './task';
-export type { DeployOutcome, DevStatus, FleetProject, Task, TaskSummary } from './task';
+export type { Build, DeployOutcome, DevStatus, FleetProject, Task, TaskSummary } from './task';
 export { describeCompletedAction } from './task-state-action';
 export type { TaskStateAction } from './task-state-action';

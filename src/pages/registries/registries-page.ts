@@ -85,7 +85,7 @@ interface CredentialDraft {
             </app-inset-group>
           } @else {
             <app-inset-group label="Credentials" [trailing]="summary()">
-              @for (credential of credentials.credentials(); track credential.id) {
+              @for (credential of credentials.items(); track credential.id) {
                 <ion-item>
                   <ion-label
                     ><span class="name">{{ credential.name }}</span></ion-label
@@ -230,7 +230,7 @@ export class RegistriesPage {
   });
 
   protected readonly summary = computed(() => {
-    const credentials = this.credentials.credentials();
+    const credentials = this.credentials.items();
     const total = `${credentials.length} ${credentials.length === 1 ? 'credential' : 'credentials'}`;
 
     /* Fleet cache only: a header label must not cost a 2 + N fan-out. */

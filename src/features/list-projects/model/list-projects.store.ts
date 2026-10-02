@@ -1,9 +1,9 @@
-import { Service, effect, inject } from '@angular/core';
+import { Service, computed, effect, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { tap } from 'rxjs';
 
 import { TaskApi } from '@entities/task/api';
-import type { FleetProject } from '@entities/task/model';
+import { isBuilding, type FleetProject } from '@entities/task/model';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { listView } from '@shared/api/resource-cache';
 import { PushStore } from '@shared/lib/push';
@@ -34,6 +34,10 @@ export class ListProjectsStore {
   readonly loading = this.fleet.loading;
   readonly hasLoaded = this.fleet.hasLoaded;
   readonly error = this.fleet.error;
+  /** Some task's CI run is live; pages poll the fleet while this holds. */
+  readonly building = computed(() =>
+    this.summaries().some(({ tasks }) => tasks.some(({ build }) => isBuilding(build))),
+  );
 
   constructor() {
     /* A deploy push moves "Last deploy", which the fleet now carries. */

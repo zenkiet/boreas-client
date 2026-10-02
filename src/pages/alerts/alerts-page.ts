@@ -16,6 +16,7 @@ import { IonInfiniteScrollContent } from '@ionic/angular/ion-infinite-scroll-con
 import { from, switchMap } from 'rxjs';
 
 import { TaskApi } from '@entities/task/api';
+import { taskKey } from '@entities/task/model';
 import {
   ACTIVITY_CHIPS,
   ActivityChip,
@@ -148,7 +149,7 @@ interface FilterTag {
               <app-empty-state
                 class="m-5 block"
                 title="No activity yet"
-                description="Deploys, status changes and new tasks from every project you can see land here."
+                description="Deploys, failed builds, status changes and new tasks from every project you can see land here."
               >
                 <a routerLink="/settings/tokens" class="empty-link">Create an API token</a>
               </app-empty-state>
@@ -169,6 +170,7 @@ interface FilterTag {
                 [alerts]="shown()"
                 [twoPane]="twoPane()"
                 [selectedId]="selectedId()"
+                [ciUrls]="ciUrls()"
                 (selected)="selectedId.set($event.id)"
                 (opened)="openTask($event)"
               />
@@ -185,6 +187,7 @@ interface FilterTag {
               [alert]="event"
               [projectName]="projectNames().get(event.project) ?? ''"
               [visitUrl]="visitUrl()"
+              [ciUrl]="ciUrl()"
               (opened)="openTask($event)"
             />
           </section>
@@ -291,7 +294,7 @@ export class AlertsPage {
   );
 
   protected readonly chipOptions = computed(() => {
-    const failures = this.scoped().filter((alert) => alert.kind === 'deploy_failed').length;
+    const failures = this.scoped().filter((alert) => matchesChip(alert, 'failures')).length;
     return ACTIVITY_CHIPS.map((option) =>
       option.key === 'failures' && failures > 0
         ? { ...option, label: `Failures · ${failures}` }
@@ -312,6 +315,22 @@ export class AlertsPage {
     () => new Map(this.fleet.summaries().map(({ project }) => [project.slug, project.name])),
   );
 
+  /* A failure links its run only while the task's build is still failing. */
+  protected readonly ciUrls = computed(
+    () =>
+      new Map(
+        this.fleet
+          .summaries()
+          .flatMap(({ project, tasks }) =>
+            tasks.flatMap(({ name, build }) =>
+              build?.state === 'failure' && build.url
+                ? [[taskKey(project.slug, name), build.url] as const]
+                : [],
+            ),
+          ),
+      ),
+  );
+
   /* Infinite scroll fires only on scroll: a filter that leaves too few rows pages up to 3 times. */
   private readonly topUps = linkedSignal({
     source: () => [this.filter(), this.chip()],
@@ -325,6 +344,11 @@ export class AlertsPage {
   protected readonly visitUrl = computed(() => {
     const event = this.selected();
     return event ? this.tasks.accessUrl(event.project, event.taskName) : '';
+  });
+
+  protected readonly ciUrl = computed(() => {
+    const event = this.selected();
+    return event ? (this.ciUrls().get(taskKey(event.project, event.taskName)) ?? '') : '';
   });
 
   protected readonly tags = computed<readonly FilterTag[]>(() => {

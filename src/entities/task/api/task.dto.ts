@@ -34,6 +34,15 @@ export interface FleetTaskDto {
   dev_status: DevStatusDto;
   my_role: TaskRoleDto;
   last_deploy?: { status: 'success' | 'failure' | 'info'; at: string };
+  build?: BuildDto;
+}
+
+export interface BuildDto {
+  state: 'running' | 'success' | 'failure' | 'canceled';
+  stage?: string;
+  progress?: number;
+  url?: string;
+  at: string;
 }
 
 export interface FleetProjectDto {

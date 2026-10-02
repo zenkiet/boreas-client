@@ -1,6 +1,12 @@
 /** The API's type; one this client does not know yet is `other`. */
 export type NotificationKind =
-  'deploy_failed' | 'deployed' | 'status_changed' | 'task_created' | 'task_assigned' | 'other';
+  | 'deploy_failed'
+  | 'build_failed'
+  | 'deployed'
+  | 'status_changed'
+  | 'task_created'
+  | 'task_assigned'
+  | 'other';
 
 export interface Notification {
   readonly id: string;

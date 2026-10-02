@@ -1,7 +1,12 @@
 export type NotificationStatusDto = 'success' | 'failure' | 'info';
 
 export type NotificationTypeDto =
-  'deployed' | 'deploy_failed' | 'status_changed' | 'task_created' | 'task_assigned';
+  | 'deployed'
+  | 'deploy_failed'
+  | 'build_failed'
+  | 'status_changed'
+  | 'task_created'
+  | 'task_assigned';
 
 export interface NotificationDto {
   id: string;

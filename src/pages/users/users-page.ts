@@ -86,7 +86,7 @@ interface UserDraft {
             </app-inset-group>
           } @else {
             <app-inset-group label="Accounts" [trailing]="summary()">
-              @for (user of users.users(); track user.id) {
+              @for (user of users.items(); track user.id) {
                 <ion-item [class.muted]="user.disabled">
                   <span slot="start" class="avatar" aria-hidden="true">{{
                     user.username.slice(0, 2)
@@ -335,7 +335,7 @@ export class UsersPage {
   });
 
   protected readonly summary = computed(() => {
-    const users = this.users.users();
+    const users = this.users.items();
     const disabled = users.filter((user) => user.disabled).length;
     return disabled ? `${users.length} · ${disabled} disabled` : String(users.length);
   });

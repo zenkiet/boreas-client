@@ -43,6 +43,31 @@ export interface DeployOutcome {
   readonly failed: boolean;
 }
 
+/** The latest report from the task's CI pipeline; Boreas keeps no history. */
+export interface Build {
+  readonly state: 'running' | 'success' | 'failure' | 'canceled';
+  readonly stage?: string;
+  readonly progress?: number;
+  readonly url?: string;
+  readonly at: Date;
+}
+
+/* Boreas never times a run out; a silent agent leaves it running forever. */
+const QUIET_AFTER_MS = 60 * 60_000;
+
+export function isQuietBuild(build: Build): boolean {
+  return build.state === 'running' && Date.now() - build.at.getTime() > QUIET_AFTER_MS;
+}
+
+export function isBuilding(build: Build | undefined): build is Build {
+  return build?.state === 'running' && !isQuietBuild(build);
+}
+
+/** Lists show a build only while it runs, goes quiet or fails. */
+export function isActiveBuild(build: Build | undefined): build is Build {
+  return build?.state === 'running' || build?.state === 'failure';
+}
+
 /** A task as the fleet embeds it: enough for rows, dots, search and the palette's verbs. */
 export interface TaskSummary {
   readonly name: string;
@@ -52,6 +77,7 @@ export interface TaskSummary {
   readonly devStatus: DevStatus;
   readonly myRole: ProjectRole;
   readonly lastDeploy?: DeployOutcome;
+  readonly build?: Build;
 }
 
 /** One project of GET /projects; entities cannot import each other, so it names its own fields. */

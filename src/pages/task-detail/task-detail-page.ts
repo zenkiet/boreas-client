@@ -49,10 +49,12 @@ import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
 import { TaskUsage, TaskUsageStore } from '@features/track-stats';
 import { ViewTaskStore } from '@features/view-task';
 import { atLeastRole } from '@shared/api/role';
+import { age } from '@shared/lib/format/age';
 import {
   PULL_REFRESH,
   PullRefreshSource,
   onReturn,
+  pollOnScreen,
 } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
@@ -267,6 +269,26 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
               }
             </app-callout>
           }
+          @if (failedBuild(); as build) {
+            <app-callout class="m-5" tone="negative" role="status">
+              <p class="m-0 font-semibold">
+                Build failed{{ build.stage ? ' at ' + build.stage : '' }}
+              </p>
+              <p class="m-0 mt-1">{{ age(build.at) }} ago. Nothing changed on the server.</p>
+              @if (build.url) {
+                <ion-button
+                  class="mt-2"
+                  size="small"
+                  fill="outline"
+                  target="_blank"
+                  rel="noopener"
+                  [href]="build.url"
+                >
+                  Open in CI
+                </ion-button>
+              }
+            </app-callout>
+          }
         }
 
         @if (detail.error() && !detail.hasLoaded()) {
@@ -339,7 +361,8 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                       class="order-1"
                       [task]="task"
                       [proxyUrl]="detail.proxyUrl()"
-                      [lastDeploy]="lastDeploy()"
+                      [lastDeploy]="summary()?.lastDeploy ?? null"
+                      [build]="summary()?.build ?? null"
                       [usage]="usage.points().at(-1) ?? null"
                       [editable]="edit()"
                       (copyFailed)="
@@ -675,9 +698,14 @@ export class TaskDetailPage {
     this.fleet.summaries().find(({ project }) => project.slug === this.slug()),
   );
 
-  protected readonly lastDeploy = computed(
-    () => this.listed()?.tasks.find(({ name }) => name === this.name())?.lastDeploy ?? null,
+  protected readonly summary = computed(() =>
+    this.listed()?.tasks.find(({ name }) => name === this.name()),
   );
+  protected readonly failedBuild = computed(() => {
+    const build = this.summary()?.build;
+    return build?.state === 'failure' ? build : null;
+  });
+  protected readonly age = age;
 
   /* Untracked: a resize must never reset the section someone picked. */
   protected readonly view = linkedSignal<View>(() => {
@@ -711,8 +739,9 @@ export class TaskDetailPage {
     this.detail.track(this.slug, this.name);
     /* Edit and note screens change this task underneath the cached page. */
     onReturn(() => this.reload());
-    /* A deep link starts here, not on Home: the back label and last deploy need the fleet. */
+    /* A deep link starts here, not on Home: the back label, last deploy and build need the fleet. */
     this.fleet.ensureFresh();
+    pollOnScreen(this.fleet.building, () => this.fleet.load());
 
     this.usage.watch(
       computed(() => {

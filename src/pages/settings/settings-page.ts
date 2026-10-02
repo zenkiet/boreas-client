@@ -414,9 +414,7 @@ export class SettingsPage {
   protected adminCount(pane: string): string {
     const store = pane === 'users' ? this.users : this.credentials;
     if (!store.hasLoaded()) return '';
-    return String(
-      pane === 'users' ? this.users.users().length : this.credentials.credentials().length,
-    );
+    return String(pane === 'users' ? this.users.items().length : this.credentials.items().length);
   }
 
   /* Off pins the current appearance, so nothing jumps on toggle. */

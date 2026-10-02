@@ -14,7 +14,7 @@ export const ACTIVITY_CHIPS: readonly { readonly key: ActivityChip; readonly lab
 
 const CHIP_KINDS: Record<ActivityChip, readonly NotificationKind[] | null> = {
   all: null,
-  failures: ['deploy_failed'],
+  failures: ['deploy_failed', 'build_failed'],
   deploys: ['deployed', 'deploy_failed'],
   status: ['status_changed'],
   created: ['task_created'],
@@ -44,6 +44,8 @@ export function describeAlert(alert: ProjectAlert): AlertDescription {
           .replace(/^Failed at \d{1,2}:\d{2}\s?[AP]M:\s*/i, '')
           .replace(/sha256:([0-9a-f]{12})[0-9a-f]{52}/g, 'sha256:$1'),
       };
+    case 'build_failed':
+      return { title: 'Build failed', detail: capitalise(alert.detail) };
     case 'deployed':
       /* "Task completed at 10:42AM" only repeats the time column. */
       return { title: 'Deployed', detail: '' };

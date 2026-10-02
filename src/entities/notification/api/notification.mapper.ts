@@ -4,6 +4,7 @@ import { NotificationDto } from './notification.dto';
 const KINDS: readonly string[] = [
   'deployed',
   'deploy_failed',
+  'build_failed',
   'status_changed',
   'task_created',
   'task_assigned',

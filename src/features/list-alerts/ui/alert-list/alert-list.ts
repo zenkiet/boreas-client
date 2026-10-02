@@ -2,8 +2,15 @@ import { Component, computed, input, output } from '@angular/core';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 
+import { taskKey } from '@entities/task/model';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
-import { AlertDescription, dayLabel, describeAlert, timeLabel } from '../../model/activity';
+import {
+  AlertDescription,
+  dayLabel,
+  describeAlert,
+  matchesChip,
+  timeLabel,
+} from '../../model/activity';
 import { ProjectAlert } from '../../model/list-alerts.store';
 import { ActivityGlyph } from '../activity-glyph/activity-glyph';
 
@@ -11,6 +18,8 @@ interface AlertRow {
   readonly alert: ProjectAlert;
   readonly about: AlertDescription;
   readonly time: string;
+  readonly failed: boolean;
+  readonly ci?: string;
 }
 
 export interface AlertOpen {
@@ -55,7 +64,7 @@ export interface AlertOpen {
       @for (group of groups(); track group.label) {
         <app-inset-group [label]="group.label" [trailing]="group.failed">
           @for (row of group.rows; track row.alert.id) {
-            <ion-item class="event" [class.failure]="row.alert.kind === 'deploy_failed'">
+            <ion-item class="event" [class.failure]="row.failed">
               <app-activity-glyph slot="start" class="event__glyph" [kind]="row.alert.kind" />
               <ion-label class="event__body">
                 <span class="event__head">
@@ -76,15 +85,25 @@ export interface AlertOpen {
                     ><bdi>{{ row.about.image }}</bdi></span
                   >
                 }
-                @if (row.alert.kind === 'deploy_failed') {
+                @if (row.failed) {
                   <span class="event__acts">
-                    <button
-                      type="button"
-                      class="event__act event__act--accent"
-                      (click)="opened.emit({ alert: row.alert, section: 'logs' })"
-                    >
-                      View logs
-                    </button>
+                    @if (row.alert.kind === 'deploy_failed') {
+                      <button
+                        type="button"
+                        class="event__act event__act--accent"
+                        (click)="opened.emit({ alert: row.alert, section: 'logs' })"
+                      >
+                        View logs
+                      </button>
+                    } @else if (row.ci) {
+                      <a
+                        class="event__act event__act--accent"
+                        target="_blank"
+                        rel="noopener"
+                        [href]="row.ci"
+                        >Open in CI</a
+                      >
+                    }
                     <button
                       type="button"
                       class="event__act"
@@ -205,6 +224,7 @@ export interface AlertOpen {
       font-size: 0.875rem;
       font-weight: 600;
       color: var(--app-text-primary);
+      text-decoration: none;
       cursor: pointer;
     }
 
@@ -270,6 +290,8 @@ export class AlertList {
   readonly alerts = input.required<readonly ProjectAlert[]>();
   readonly twoPane = input(false);
   readonly selectedId = input<string | null>(null);
+  /** The run to open per task, only while that task's build is still failing. */
+  readonly ciUrls = input<ReadonlyMap<string, string>>(new Map());
   readonly selected = output<ProjectAlert>();
   readonly opened = output<AlertOpen>();
 
@@ -280,13 +302,17 @@ export class AlertList {
     for (const alert of this.alerts()) {
       const label = dayLabel(alert.createdAt);
       if (groups.at(-1)?.label !== label) groups.push({ label, rows: [] });
-      groups
-        .at(-1)!
-        .rows.push({ alert, about: describeAlert(alert), time: timeLabel(alert.createdAt) });
+      groups.at(-1)!.rows.push({
+        alert,
+        about: describeAlert(alert),
+        time: timeLabel(alert.createdAt),
+        failed: matchesChip(alert, 'failures'),
+        ci: this.ciUrls().get(taskKey(alert.project, alert.taskName)),
+      });
     }
 
     return groups.map(({ label, rows }) => {
-      const failed = rows.filter(({ alert }) => alert.kind === 'deploy_failed').length;
+      const failed = rows.filter((row) => row.failed).length;
       return { label, rows, failed: failed ? `${failed} failed` : '' };
     });
   });

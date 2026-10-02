@@ -652,6 +652,7 @@ function pinRow({ project, tasks }: ProjectSummary): PinRow {
   const blocked = tasks.filter((task) => task.devStatus === 'blocked').length;
   const rules: readonly (readonly [boolean, string, string])[] = [
     [tasks.some((task) => task.lastDeploy?.failed), 'failed', 'bg-danger'],
+    [tasks.some((task) => task.build?.state === 'failure'), 'build failed', 'bg-danger'],
     [tasks.some((task) => task.status === 'error'), 'error', 'bg-danger'],
     [blocked > 0, `${blocked} blocked`, 'bg-blocked'],
     [tasks.some((task) => task.status === 'stopped'), 'stopped', 'bg-label-3'],

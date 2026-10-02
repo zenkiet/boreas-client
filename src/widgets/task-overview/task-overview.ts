@@ -17,8 +17,8 @@ import { IonSelect } from '@ionic/angular/ion-select';
 import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import { EMPTY, defer, from } from 'rxjs';
 
-import type { DeployOutcome } from '@entities/task';
-import { DEV_STATUS_LABEL, DevStatus, Task, TaskVolumes } from '@entities/task';
+import type { Build, DeployOutcome } from '@entities/task';
+import { BuildStatus, DEV_STATUS_LABEL, DevStatus, Task, TaskVolumes } from '@entities/task';
 import { toByteSize } from '@shared/lib/format/bytes';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
@@ -38,7 +38,16 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
 
 @Component({
   selector: 'app-task-overview',
-  imports: [InsetGroup, IonButton, IonItem, IonLabel, IonSelect, IonSelectOption, TaskVolumes],
+  imports: [
+    BuildStatus,
+    InsetGroup,
+    IonButton,
+    IonItem,
+    IonLabel,
+    IonSelect,
+    IonSelectOption,
+    TaskVolumes,
+  ],
   template: `
     <!-- Phones already say Overview in the section switch right above. -->
     <app-inset-group [label]="wide() ? 'Overview' : ''">
@@ -116,6 +125,30 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
           <span class="value" [attr.data-state]="deploy.failed ? 'error' : null">
             {{ deployLabel(deploy) }}
           </span>
+        </ion-item>
+      }
+
+      @if (build(); as build) {
+        <ion-item>
+          <ion-label class="row-label">Build</ion-label>
+          <span class="value"><app-build-status mode="value" [build]="build" /></span>
+          @if (build.url) {
+            <ion-button
+              slot="end"
+              fill="clear"
+              size="small"
+              target="_blank"
+              rel="noopener"
+              aria-label="Open this run in CI"
+              [href]="build.url"
+            >
+              <span
+                slot="icon-only"
+                class="icon-[light--arrow-up-right-from-square]"
+                aria-hidden="true"
+              ></span>
+            </ion-button>
+          }
         </ion-item>
       }
 
@@ -203,6 +236,7 @@ export class TaskOverview {
   readonly task = input.required<Task>();
   readonly proxyUrl = input.required<string>();
   readonly lastDeploy = input<DeployOutcome | null>(null);
+  readonly build = input<Build | null>(null);
   readonly usage = input<{ readonly cpu: number; readonly mem: number } | null>(null);
   /** Below member the status is shown, not offered. */
   readonly editable = input(true);

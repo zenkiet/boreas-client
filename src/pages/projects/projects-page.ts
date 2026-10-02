@@ -10,7 +10,11 @@ import { describeDevStatus } from '@entities/task';
 import { SessionStore } from '@features/auth';
 import { ListProjectsStore, ProjectList, ProjectSummary } from '@features/list-projects';
 import { LiveMetricsStore, LiveMonitor, ProjectSplit } from '@features/track-stats';
-import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import {
+  PULL_REFRESH,
+  PullRefreshSource,
+  pollOnScreen,
+} from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -298,6 +302,7 @@ export class ProjectsPage {
 
   constructor() {
     this.metrics.track(computed(() => this.overview.summaries().map(({ project }) => project)));
+    pollOnScreen(this.overview.building, () => this.overview.load());
   }
 
   protected toggleLive(): void {

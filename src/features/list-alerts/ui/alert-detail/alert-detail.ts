@@ -1,6 +1,6 @@
 import { Component, computed, input, output } from '@angular/core';
 
-import { describeAlert, whenLabel } from '../../model/activity';
+import { describeAlert, matchesChip, whenLabel } from '../../model/activity';
 import { ProjectAlert } from '../../model/list-alerts.store';
 import { ActivityGlyph } from '../activity-glyph/activity-glyph';
 import { AlertOpen } from '../alert-list/alert-list';
@@ -32,7 +32,7 @@ import { AlertOpen } from '../alert-list/alert-list';
 
       <!-- Not the raw body: a deploy's repeats the time, a created task's is the image above. -->
       @if (about().detail; as body) {
-        <pre class="body" [class.body--failed]="event.kind === 'deploy_failed'">{{ body }}</pre>
+        <pre class="body" [class.body--failed]="failed()">{{ body }}</pre>
       }
 
       <div class="flex flex-wrap gap-2.5">
@@ -48,11 +48,15 @@ import { AlertOpen } from '../alert-list/alert-list';
           <a class="act act--primary" target="_blank" rel="noopener" [href]="visitUrl()">
             Open in browser
           </a>
+        } @else if (event.kind === 'build_failed' && ciUrl()) {
+          <a class="act act--primary" target="_blank" rel="noopener" [href]="ciUrl()">
+            Open in CI
+          </a>
         }
         <button
           type="button"
           class="act"
-          [class.act--primary]="event.kind !== 'deploy_failed' && event.kind !== 'deployed'"
+          [class.act--primary]="taskLeads()"
           (click)="opened.emit({ alert: event })"
         >
           Open task
@@ -135,8 +139,17 @@ export class AlertDetail {
   /** The display name; the slug stands in until it is known. */
   readonly projectName = input('');
   readonly visitUrl = input('');
+  /** Only while the task's build is still failing: a later run replaces it. */
+  readonly ciUrl = input('');
   readonly opened = output<AlertOpen>();
 
   protected readonly about = computed(() => describeAlert(this.alert()));
   protected readonly when = computed(() => whenLabel(this.alert().createdAt));
+  protected readonly failed = computed(() => matchesChip(this.alert(), 'failures'));
+  protected readonly taskLeads = computed(() => {
+    const { kind } = this.alert();
+    return (
+      kind !== 'deploy_failed' && kind !== 'deployed' && !(kind === 'build_failed' && this.ciUrl())
+    );
+  });
 }
