@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.14.0](https://github.com/zenkiet/boreas-client/compare/0080971cd2fb9039266ede780c414a27e0bfb86b..v0.14.0) - 2026-10-02
+#### 🚀 Features
+- (**task**) ✨ add build progress tracking for tasks - ([cdaae92](https://github.com/zenkiet/boreas-client/commit/cdaae92988fd5fdba3b640fef155894989f11208)) - [@zenkiet](https://github.com/zenkiet)
+#### 📦 Build System
+- (**deps**) 📦 upgrade ionic-theme-ios27 to 1.2.0 - ([0080971](https://github.com/zenkiet/boreas-client/commit/0080971cd2fb9039266ede780c414a27e0bfb86b)) - [@zenkiet](https://github.com/zenkiet), Claude Opus 5.5
+
+- - -
+
 ## [v0.13.0](https://github.com/zenkiet/boreas-client/compare/1a30c32d679feb10857f7ca2c9c7b2d4255721c2..v0.13.0) - 2026-09-30
 #### 🚀 Features
 - (**task**) ✨ mount shared folders as read-only volumes - ([1a30c32](https://github.com/zenkiet/boreas-client/commit/1a30c32d679feb10857f7ca2c9c7b2d4255721c2)) - [@zenkiet](https://github.com/zenkiet)
