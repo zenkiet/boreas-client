@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.15.0](https://github.com/zenkiet/boreas-client/compare/9db5095c6e032a315c4db54700ec5108705fce93..v0.15.0) - 2026-10-03
+#### 🚀 Features
+- (**events**) ✨ signal every successful write - ([9db5095](https://github.com/zenkiet/boreas-client/commit/9db5095c6e032a315c4db54700ec5108705fce93)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.14.0](https://github.com/zenkiet/boreas-client/compare/0080971cd2fb9039266ede780c414a27e0bfb86b..v0.14.0) - 2026-10-02
 #### 🚀 Features
 - (**task**) ✨ add build progress tracking for tasks - ([cdaae92](https://github.com/zenkiet/boreas-client/commit/cdaae92988fd5fdba3b640fef155894989f11208)) - [@zenkiet](https://github.com/zenkiet)
