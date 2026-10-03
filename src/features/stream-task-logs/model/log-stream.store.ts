@@ -6,7 +6,7 @@ import { EMPTY, Observable, catchError, combineLatest, defer, map, of, switchMap
 import { LogEntry, TaskLogApi, toLogEntry } from '@entities/task-log';
 import { reconnect } from '@shared/api/sse';
 import { createLogger } from '@shared/lib/logging/logger';
-import { onScreen } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { onScreen } from '@shared/lib/on-screen/on-screen';
 
 const MAX_LINES = 2000;
 

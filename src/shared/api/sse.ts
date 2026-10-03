@@ -10,6 +10,7 @@ import {
   retry,
   switchMap,
   throwError,
+  timeout,
   timer,
 } from 'rxjs';
 
@@ -18,6 +19,8 @@ import { expireSession } from './auth.interceptor';
 import { sseData } from './sse-data';
 
 const RECONNECT_MS = 3000;
+/* Boreas sends a heartbeat every 15 s, so this much silence means the connection is dead. */
+const SILENT_MS = 45_000;
 /* Signed out, outranked or gone: reopening cannot help. A 409 (no container yet) can clear. */
 const FINAL = new Set([401, 403, 404]);
 
@@ -55,6 +58,7 @@ export class SseClient {
             : throwError(() => new HttpErrorResponse({ status: response.status, url: href }));
         }),
         sseData(),
+        timeout({ each: SILENT_MS }),
         /* An idle read never settles by itself: aborting ends the request with the subscription. */
         finalize(() => abort.abort()),
       );

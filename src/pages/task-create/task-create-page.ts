@@ -8,7 +8,6 @@ import { NavController } from '@ionic/angular/nav-controller';
 
 import { CreateTaskInput } from '@entities/task';
 import { CreateTaskStore, TaskForm } from '@features/create-task';
-import { ListProjectsStore } from '@features/list-projects';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
 
@@ -79,7 +78,6 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
 })
 export class TaskCreatePage {
   protected readonly create = inject(CreateTaskStore);
-  private readonly fleet = inject(ListProjectsStore);
   private readonly router = inject(Router);
   private readonly navCtrl = inject(NavController);
   private readonly modals = inject(ModalController);
@@ -106,7 +104,6 @@ export class TaskCreatePage {
     this.create.create(this.slug(), input).subscribe((task) => {
       if (!task) return;
 
-      this.fleet.invalidate();
       if (this.dialog()) void this.modals.dismiss(task, SHEET_DONE);
       /* A pushed form is replaced, so back from the new task lands on the project. */
       void this.router.navigate(['/projects', this.slug(), 'tasks', task.name], {

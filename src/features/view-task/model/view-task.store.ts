@@ -48,12 +48,8 @@ export class ViewTaskStore {
     });
   }
 
+  /* Always a new ref: a param change cancels a fetch in flight, where reload() would be dropped. */
   refresh(project: string, name: string): void {
-    const ref = this.ref();
-    if (ref && ref.project === project && ref.name === name) {
-      this.snapshot.reload();
-      return;
-    }
     this.ref.set({ project, name });
   }
 

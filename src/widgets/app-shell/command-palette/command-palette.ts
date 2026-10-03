@@ -363,8 +363,6 @@ export class CommandPalette {
   });
 
   constructor() {
-    this.fleet.ensureFresh();
-
     afterRenderEffect(() =>
       this.document
         .getElementById(`cmd-opt-${this.current()}`)
@@ -535,10 +533,9 @@ export class CommandPalette {
   }
 
   private command({ project, task }: FleetTask, action: TaskStateAction): void {
-    this.control.changeState(project.slug, task, action).subscribe((result) => {
-      this.notifications.result(result);
-      if (result.success) this.fleet.invalidate();
-    });
+    this.control
+      .changeState(project.slug, task, action)
+      .subscribe((result) => this.notifications.result(result));
   }
 }
 

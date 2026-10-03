@@ -18,20 +18,25 @@ export class ViewProjectStore {
   private readonly projectApi = inject(ProjectApi);
   private readonly taskApi = inject(TaskApi);
   private readonly slugState = signal('');
+  /* A new param cancels a fetch in flight and starts over, where reload() would be dropped. */
+  private readonly rev = signal(0);
 
   private readonly snapshot = rxResource({
-    params: () => this.slugState() || undefined,
-    stream: ({ params }) => {
-      const project = this.projectApi.get(params).pipe(share());
+    params: () => {
+      const slug = this.slugState();
+      return slug ? { slug, rev: this.rev() } : undefined;
+    },
+    stream: ({ params: { slug } }) => {
+      const project = this.projectApi.get(slug).pipe(share());
       return forkJoin({
         project,
-        tasks: this.taskApi.list(params),
+        tasks: this.taskApi.list(slug),
         /* Listing members is owner-only: it waits for the role instead of collecting a 403. */
         members: project.pipe(
           switchMap(({ myRole }) =>
             myRole === 'owner'
               ? this.projectApi
-                  .members(params)
+                  .members(slug)
                   .pipe(catchError(() => of<readonly Member[] | null>(null)))
               : of(null),
           ),
@@ -52,10 +57,7 @@ export class ViewProjectStore {
   readonly error = resourceError(this.snapshot);
 
   refresh(slug: string): void {
-    if (slug === this.slugState()) {
-      this.snapshot.reload();
-      return;
-    }
     this.slugState.set(slug);
+    this.rev.update((rev) => rev + 1);
   }
 }

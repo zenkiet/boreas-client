@@ -367,8 +367,6 @@ export class AlertsPage {
   });
 
   constructor() {
-    this.alerts.ensureFresh();
-    this.fleet.ensureFresh();
     effect(() => {
       if (this.alerts.hasLoaded()) this.alerts.markSeen();
     });

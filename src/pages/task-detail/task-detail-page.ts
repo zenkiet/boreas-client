@@ -50,11 +50,11 @@ import { TaskUsage, TaskUsageStore } from '@features/track-stats';
 import { ViewTaskStore } from '@features/view-task';
 import { atLeastRole } from '@shared/api/role';
 import { age } from '@shared/lib/format/age';
+import { whileOnScreen } from '@shared/lib/on-screen/on-screen';
 import {
   PULL_REFRESH,
   PullRefreshSource,
   onReturn,
-  pollOnScreen,
 } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
@@ -732,16 +732,18 @@ export class TaskDetailPage {
 
   protected readonly pull: PullRefreshSource = {
     busy: this.detail.loading,
-    trigger: () => this.reload(),
+    /* The one refresh left when the change stream cannot open. */
+    trigger: () => {
+      this.reload();
+      this.fleet.load();
+    },
   };
 
   constructor() {
     this.detail.track(this.slug, this.name);
     /* Edit and note screens change this task underneath the cached page. */
     onReturn(() => this.reload());
-    /* A deep link starts here, not on Home: the back label, last deploy and build need the fleet. */
-    this.fleet.ensureFresh();
-    pollOnScreen(this.fleet.building, () => this.fleet.load());
+    whileOnScreen(this.fleet.changes, () => this.reload());
 
     this.usage.watch(
       computed(() => {
@@ -778,7 +780,6 @@ export class TaskDetailPage {
     const slug = this.slug();
     const name = this.name();
     if (slug && name) this.detail.refresh(slug, name);
-    this.fleet.ensureFresh();
   }
 
   protected openMenu(event: Event): void {
@@ -822,8 +823,6 @@ export class TaskDetailPage {
       this.notifications.result(result);
 
       if (result.success) {
-        /* Home and the project list draw this as dot colours. */
-        this.fleet.invalidate();
         this.reload();
       } else {
         /* The select flipped itself on pick; a refused change has to flip it back. */
@@ -839,11 +838,7 @@ export class TaskDetailPage {
     this.commands.changeState(this.slug(), task, action).subscribe((result) => {
       this.notifications.result(result);
 
-      if (result.success) {
-        /* Home's cached fleet draws task status. */
-        this.fleet.invalidate();
-        this.reload();
-      }
+      if (result.success) this.reload();
     });
   }
 
@@ -865,10 +860,7 @@ export class TaskDetailPage {
       .subscribe((result) => {
         this.notifications.result(result);
 
-        if (result.success) {
-          this.fleet.invalidate();
-          void this.navCtrl.navigateBack(this.projectPath());
-        }
+        if (result.success) void this.navCtrl.navigateBack(this.projectPath());
       });
   }
 

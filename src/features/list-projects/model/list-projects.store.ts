@@ -1,30 +1,30 @@
-import { Service, computed, effect, inject } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { tap } from 'rxjs';
+import { Service, inject, signal } from '@angular/core';
+import { rxResource, toObservable } from '@angular/core/rxjs-interop';
+import { EMPTY, auditTime, catchError, filter, share, switchMap } from 'rxjs';
 
 import { TaskApi } from '@entities/task/api';
-import { isBuilding, type FleetProject } from '@entities/task/model';
+import type { FleetProject } from '@entities/task/model';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { listView } from '@shared/api/resource-cache';
-import { PushStore } from '@shared/lib/push';
+import { reconnect } from '@shared/api/sse';
 
 export type ProjectSummary = FleetProject;
-
-/* An ops console must not show a fleet older than this. */
-const STALE_AFTER_MS = 30_000;
 
 @Service()
 export class ListProjectsStore {
   private readonly taskApi = inject(TaskApi);
   private readonly tokens = inject(AuthTokenStore);
-  private readonly push = inject(PushStore);
 
-  private loadedAt = 0;
+  /* A new param cancels a fetch in flight and starts over, where reload() would be dropped. */
+  private readonly rev = signal(0);
 
   private readonly snapshot = rxResource({
     /* Keyed by token: idle until sign-in, refetched for whoever signs in next. */
-    params: () => this.tokens.token() || undefined,
-    stream: () => this.taskApi.fleet().pipe(tap(() => (this.loadedAt = Date.now()))),
+    params: () => {
+      const token = this.tokens.token();
+      return token ? { token, rev: this.rev() } : undefined;
+    },
+    stream: () => this.taskApi.fleet(),
   });
 
   /* Keep the last good fleet across reloads and routes, but never across tokens. */
@@ -34,35 +34,22 @@ export class ListProjectsStore {
   readonly loading = this.fleet.loading;
   readonly hasLoaded = this.fleet.hasLoaded;
   readonly error = this.fleet.error;
-  /** Some task's CI run is live; pages poll the fleet while this holds. */
-  readonly building = computed(() =>
-    this.summaries().some(({ tasks }) => tasks.some(({ build }) => isBuilding(build))),
+  /** Fires after any change in Boreas, at most every 300 ms; one stream serves every listener. */
+  readonly changes = toObservable(this.tokens.token).pipe(
+    switchMap((token) =>
+      token
+        ? this.taskApi.changes().pipe(
+            reconnect(),
+            catchError(() => EMPTY),
+          )
+        : EMPTY,
+    ),
+    filter(Boolean),
+    auditTime(300),
+    share(),
   );
 
-  constructor() {
-    /* A deploy push moves "Last deploy", which the fleet now carries. */
-    effect(() => {
-      if (this.push.message()) {
-        this.load();
-      }
-    });
-  }
-
-  /** Pages call this on entry: serves the cache, refetching only once it is stale. */
-  ensureFresh(): void {
-    if (this.snapshot.isLoading() || Date.now() - this.loadedAt < STALE_AFTER_MS) {
-      return;
-    }
-
-    this.snapshot.reload();
-  }
-
-  /** Marks the cache stale without spending a request; the next entry refetches. */
-  invalidate(): void {
-    this.loadedAt = 0;
-  }
-
   load(): void {
-    this.snapshot.reload();
+    this.rev.update((rev) => rev + 1);
   }
 }

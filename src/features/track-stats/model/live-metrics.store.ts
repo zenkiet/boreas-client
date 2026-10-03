@@ -16,12 +16,17 @@ import {
 } from '@entities/system-stats';
 import { MEGABYTE } from '@shared/lib/format/bytes';
 import { createLogger } from '@shared/lib/logging/logger';
-import { onScreen } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { onScreen } from '@shared/lib/on-screen/on-screen';
 import { TICK_MS, metricsFeed } from './metrics-feed';
 
 const SNAPSHOT_KEY = 'boreas-monitor';
 
-type Tracked = readonly { readonly slug: string; readonly name: string }[];
+/** `running`: its running task names; a change reopens the project's stream. */
+type Tracked = readonly {
+  readonly slug: string;
+  readonly name: string;
+  readonly running: string;
+}[];
 
 /** Provide on the page: the covered-page pause listens on the page's own host. */
 @Injectable()
@@ -32,18 +37,24 @@ export class LiveMetricsStore {
   private readonly screen = onScreen();
   private readonly onScreen = toSignal(this.screen, { initialValue: true });
   private readonly projects = signal<Tracked>([]);
-  /* Membership, not identity: a fleet reload with the same projects keeps every connection. */
+  /* Membership, not identity: a fleet reload with the same projects keeps every series. */
   private readonly slugs = computed(() => this.projects().map(({ slug }) => slug), {
     equal: sameSlugs,
+  });
+  /* The server streams only the tasks running when a stream opens, and ends it at once on none. */
+  private readonly streamed = computed(() => this.projects().filter(({ running }) => running), {
+    equal: sameStreams,
   });
 
   /* Page events, not an effect or rxResource params: both keep streaming while covered. */
   private readonly held = toSignal(
-    combineLatest([this.screen, toObservable(this.slugs)]).pipe(
-      switchMap(([on, slugs]) =>
-        on && slugs.length > 0
+    combineLatest([this.screen, toObservable(this.streamed)]).pipe(
+      switchMap(([on, streamed]) =>
+        on && streamed.length > 0
           ? merge(
-              ...slugs.map((slug) => metricsFeed(this.api.metricsStream(slug), slug, this.logger)),
+              ...streamed.map(({ slug }) =>
+                metricsFeed(this.api.metricsStream(slug), slug, this.logger),
+              ),
             ).pipe(scan(holdSample, NO_SAMPLES))
           : of(NO_SAMPLES),
       ),
@@ -102,4 +113,11 @@ export class LiveMetricsStore {
 
 function sameSlugs(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((slug, i) => slug === b[i]);
+}
+
+function sameStreams(a: Tracked, b: Tracked): boolean {
+  return (
+    a.length === b.length &&
+    a.every(({ slug, running }, i) => slug === b[i].slug && running === b[i].running)
+  );
 }

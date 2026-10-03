@@ -39,11 +39,11 @@ import { CommandResult } from '@shared/api/command';
 import { atLeastRole } from '@shared/api/role';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { age } from '@shared/lib/format/age';
+import { whileOnScreen } from '@shared/lib/on-screen/on-screen';
 import {
   PULL_REFRESH,
   PullRefreshSource,
   onReturn,
-  pollOnScreen,
 } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
@@ -510,7 +510,11 @@ export class ProjectDetailPage {
 
   protected readonly pull: PullRefreshSource = {
     busy: this.detail.loading,
-    trigger: () => this.reload(),
+    /* The one refresh left when the change stream cannot open. */
+    trigger: () => {
+      this.reload();
+      this.fleet.load();
+    },
   };
 
   protected readonly displayName = computed(
@@ -567,9 +571,7 @@ export class ProjectDetailPage {
       const slug = this.slug();
       if (slug) this.detail.refresh(slug);
     });
-    /* A deep link starts here, not on Home: the subtitle's last deploy needs the fleet. */
-    this.fleet.ensureFresh();
-    pollOnScreen(this.fleet.building, () => this.fleet.load());
+    whileOnScreen(this.fleet.changes, () => this.reload());
 
     effect(() => {
       const project = this.detail.project();
@@ -597,7 +599,6 @@ export class ProjectDetailPage {
 
   protected reload(): void {
     if (this.slug()) this.detail.refresh(this.slug());
-    this.fleet.ensureFresh();
   }
 
   protected openTask(task: Task): void {
@@ -725,21 +726,14 @@ export class ProjectDetailPage {
       )
       .subscribe((result) => {
         this.notifications.result(result);
-        if (result.success) {
-          this.fleet.invalidate();
-          void this.navCtrl.navigateBack(['/projects']);
-        }
+        if (result.success) void this.navCtrl.navigateBack(['/projects']);
       });
   }
 
-  /* Every command here changes what Home shows. */
   private completeCommand(result: CommandResult): void {
     this.notifications.result(result);
 
-    if (result.success) {
-      this.fleet.invalidate();
-      this.reload();
-    }
+    if (result.success) this.reload();
   }
 }
 

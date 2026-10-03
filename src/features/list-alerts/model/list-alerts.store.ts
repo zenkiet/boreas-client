@@ -1,11 +1,10 @@
-import { Service, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import { Service, computed, inject, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { EMPTY, Observable, catchError, defer, finalize, map, tap } from 'rxjs';
 
 import { Notification, NotificationApi } from '@entities/notification';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { listView } from '@shared/api/resource-cache';
-import { PushStore } from '@shared/lib/push';
 
 export type ProjectAlert = Notification;
 
@@ -13,7 +12,6 @@ export type ProjectAlert = Notification;
 const PAGE = 100;
 /* The seen endpoint's cap. */
 const SEEN_BATCH = 200;
-const STALE_AFTER_MS = 30_000;
 
 interface Feed {
   readonly alerts: readonly Notification[];
@@ -24,15 +22,18 @@ interface Feed {
 export class ListAlertsStore {
   private readonly api = inject(NotificationApi);
   private readonly tokens = inject(AuthTokenStore);
-  private readonly push = inject(PushStore);
 
-  private loadedAt = 0;
   private readonly loadingMoreState = signal(false);
+  /* A new param cancels a fetch in flight and starts over, where reload() would be dropped. */
+  private readonly rev = signal(0);
 
   private readonly newest = rxResource({
     /* Keyed by token: idle until sign-in, refetched for whoever signs in next. */
-    params: () => this.tokens.token() || undefined,
-    stream: () => this.api.list(PAGE).pipe(tap(() => (this.loadedAt = Date.now()))),
+    params: () => {
+      const token = this.tokens.token();
+      return token ? { token, rev: this.rev() } : undefined;
+    },
+    stream: () => this.api.list(PAGE),
   });
 
   private readonly first = listView<Notification>(this.newest, () => this.tokens.token());
@@ -66,24 +67,8 @@ export class ListAlertsStore {
     () => this.alerts().filter((alert) => !alert.seen && !this.posted().has(alert.id)).length,
   );
 
-  constructor() {
-    effect(() => {
-      if (this.push.message()) {
-        this.load();
-      }
-    });
-  }
-
-  ensureFresh(): void {
-    if (this.newest.isLoading() || Date.now() - this.loadedAt < STALE_AFTER_MS) {
-      return;
-    }
-
-    this.newest.reload();
-  }
-
   load(): void {
-    this.newest.reload();
+    this.rev.update((rev) => rev + 1);
   }
 
   /** Completes, never errors; a failed page leaves `hasMore` on, so the next scroll retries. */

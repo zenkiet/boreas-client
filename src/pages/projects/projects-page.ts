@@ -10,11 +10,7 @@ import { describeDevStatus } from '@entities/task';
 import { SessionStore } from '@features/auth';
 import { ListProjectsStore, ProjectList, ProjectSummary } from '@features/list-projects';
 import { LiveMetricsStore, LiveMonitor, ProjectSplit } from '@features/track-stats';
-import {
-  PULL_REFRESH,
-  PullRefreshSource,
-  pollOnScreen,
-} from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -301,8 +297,17 @@ export class ProjectsPage {
   });
 
   constructor() {
-    this.metrics.track(computed(() => this.overview.summaries().map(({ project }) => project)));
-    pollOnScreen(this.overview.building, () => this.overview.load());
+    this.metrics.track(
+      computed(() =>
+        this.overview.summaries().map(({ project, tasks }) => ({
+          ...project,
+          running: tasks
+            .filter(({ status }) => status === 'running')
+            .map(({ name }) => name)
+            .join(' '),
+        })),
+      ),
+    );
   }
 
   protected toggleLive(): void {
@@ -320,11 +325,6 @@ export class ProjectsPage {
     from(this.newProjectDialog())
       .pipe(switchMap((page) => this.sheets.open(page, 'New project', { dialog: true })))
       .subscribe();
-  }
-
-  /* Fires on every entry: Ionic keeps this page alive under pushed screens. */
-  ionViewWillEnter(): void {
-    this.overview.ensureFresh();
   }
 
   protected openProject(project: ProjectSummary['project']): void {

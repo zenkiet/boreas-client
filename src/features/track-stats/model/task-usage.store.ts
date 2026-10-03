@@ -5,7 +5,7 @@ import { EMPTY, combineLatest, interval, of, scan, switchMap } from 'rxjs';
 import { ProjectApi } from '@entities/project';
 import { EMPTY_WINDOW, NO_SAMPLES, advance, holdSample } from '@entities/system-stats';
 import { createLogger } from '@shared/lib/logging/logger';
-import { onScreen } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { onScreen } from '@shared/lib/on-screen/on-screen';
 import { TICK_MS, metricsFeed } from './metrics-feed';
 
 export interface UsageTarget {

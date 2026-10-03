@@ -7,7 +7,6 @@ import { ModalController } from '@ionic/angular/modal-controller';
 import { NavController } from '@ionic/angular/nav-controller';
 
 import { CreateProjectInput } from '@entities/project';
-import { ListProjectsStore } from '@features/list-projects';
 import { ManageProjectStore, ProjectForm } from '@features/manage-project';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
@@ -79,7 +78,6 @@ export class ProjectCreatePage {
   protected readonly manage = inject(ManageProjectStore);
   protected readonly modals = inject(ModalController);
   protected readonly config = inject(ServerConfigStore);
-  private readonly fleet = inject(ListProjectsStore);
   private readonly router = inject(Router);
   private readonly navCtrl = inject(NavController);
 
@@ -92,7 +90,6 @@ export class ProjectCreatePage {
     this.manage.create(input).subscribe((project) => {
       if (!project) return;
 
-      this.fleet.invalidate();
       if (this.dialog()) void this.modals.dismiss(project, SHEET_DONE);
       void this.router.navigate(['/projects', project.slug], {
         state: { projectName: project.name },

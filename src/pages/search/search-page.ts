@@ -333,11 +333,6 @@ export class SearchPage {
     return this.search.recent().filter((entry) => known.has(taskKey(entry.project, entry.name)));
   });
 
-  /* Not the constructor: Ionic keeps this page alive under pushed screens. */
-  ionViewWillEnter(): void {
-    this.overview.ensureFresh();
-  }
-
   protected visitUrl({ project, task }: FleetTask): string {
     return this.tasks.accessUrl(project.slug, task.name);
   }

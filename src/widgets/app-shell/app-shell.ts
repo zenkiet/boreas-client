@@ -49,6 +49,7 @@ import { PinnedProjectsStore } from '@features/pin-project';
 import { SearchTasksStore, TaskFilterBar } from '@features/search-tasks/model';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
+import { whileOnScreen } from '@shared/lib/on-screen/on-screen';
 import { desktopScreen, WIDE_QUERY, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 
 import { CommandPaletteLauncher } from './command-palette/palette-launcher';
@@ -552,15 +553,10 @@ export class AppShell {
   private searchOpen = false;
 
   constructor() {
-    /* Untracked: ensureFresh reads isLoading, so a failing load would re-fire this in a loop. */
-    effect(() => {
-      if (this.tokens.authenticated()) untracked(() => this.alerts.ensureFresh());
-    });
-    /* The sidebar's pins need the fleet even when the app cold-starts away from Home. */
-    effect(() => {
-      if (this.tokens.authenticated() && this.wide() && this.pins.slugs().length) {
-        untracked(() => this.fleet.ensureFresh());
-      }
+    /* The shell outlives every page, so the app holds one stream while the tab is visible. */
+    whileOnScreen(this.fleet.changes, () => {
+      this.fleet.load();
+      this.alerts.load();
     });
     effect(() => {
       this.searching();

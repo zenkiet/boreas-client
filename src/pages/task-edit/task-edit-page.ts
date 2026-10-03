@@ -7,7 +7,6 @@ import { NavController } from '@ionic/angular/nav-controller';
 
 import { UpdateTaskInput } from '@entities/task';
 import { EditTaskStore, TaskEditForm } from '@features/edit-task';
-import { ListProjectsStore } from '@features/list-projects';
 import { ViewTaskStore } from '@features/view-task';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { ErrorState } from '@shared/ui/error-state/error-state';
@@ -97,7 +96,6 @@ export class TaskEditPage {
   protected readonly wide = wideScreen();
   protected readonly detail = inject(ViewTaskStore);
   protected readonly edit = inject(EditTaskStore);
-  private readonly fleet = inject(ListProjectsStore);
   private readonly notifications = inject(NotifyService);
   private readonly navCtrl = inject(NavController);
 
@@ -123,7 +121,6 @@ export class TaskEditPage {
     this.edit.update(this.slug(), this.name(), input).subscribe((task) => {
       if (!task) return;
 
-      this.fleet.invalidate();
       this.notifications.success(`Task ${task.name} updated.`);
       void this.navCtrl.navigateBack(this.taskPath());
     });

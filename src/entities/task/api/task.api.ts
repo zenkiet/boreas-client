@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
+import { SseClient } from '@shared/api/sse';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { CreateTaskInput, UpdateTaskInput } from '../model/create-task-input';
 import { FleetProject, Task } from '../model/task';
@@ -24,6 +25,7 @@ import {
 export class TaskApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ServerConfigStore);
+  private readonly sse = inject(SseClient);
 
   private root(project: string): string {
     return `${this.config.baseUrl()}/api/v1/projects/${encodeURIComponent(project)}/tasks`;
@@ -31,6 +33,11 @@ export class TaskApi {
 
   private taskUrl(project: string, name: string): string {
     return `${this.root(project)}/${encodeURIComponent(name)}`;
+  }
+
+  /** One value per change anywhere in Boreas, '' per heartbeat; it never says what changed. */
+  changes(): Observable<string> {
+    return this.sse.open(`${this.config.baseUrl()}/api/v1/events/stream`);
   }
 
   fleet(): Observable<readonly FleetProject[]> {

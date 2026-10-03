@@ -2,9 +2,9 @@ import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, effect, inject, InjectionToken, Service, signal } from '@angular/core';
 import { Capacitor, type PermissionState } from '@capacitor/core';
-import { PushNotifications, type PushNotificationSchema } from '@capacitor/push-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 import type { FirebaseOptions } from 'firebase/app';
-import type { MessagePayload, Messaging } from 'firebase/messaging';
+import type { Messaging } from 'firebase/messaging';
 import {
   catchError,
   defer,
@@ -49,26 +49,8 @@ const blockedMessage = (): string => (Capacitor.isNativePlatform() ? BLOCKED_NAT
 
 export type PushPermission = NotificationPermission | 'unsupported';
 
-export interface PushMessage {
-  readonly title: string;
-  readonly body: string;
-  readonly data: Readonly<Record<string, string>>;
-}
-
 const toPushPermission = (state: PermissionState): PushPermission =>
   state === 'granted' || state === 'denied' ? state : 'default';
-
-const toWebMessage = (payload: MessagePayload): PushMessage => ({
-  title: payload.notification?.title ?? '',
-  body: payload.notification?.body ?? '',
-  data: payload.data ?? {},
-});
-
-const toNativeMessage = (notification: PushNotificationSchema): PushMessage => ({
-  title: notification.title ?? '',
-  body: notification.body ?? '',
-  data: (notification.data as Record<string, string> | undefined) ?? {},
-});
 
 @Service()
 export class PushStore {
@@ -80,14 +62,11 @@ export class PushStore {
 
   private readonly permissionState = signal<PushPermission>('default');
   private readonly tokenState = signal('');
-  private readonly messageState = signal<PushMessage | undefined>(undefined);
   private readonly enabledState = signal(false);
   private readonly busyState = signal(false);
   private readonly errorState = signal('');
 
   readonly permission = this.permissionState.asReadonly();
-  /** Foreground only: the OS and the service worker deliver background pushes. */
-  readonly message = this.messageState.asReadonly();
   readonly enabled = this.enabledState.asReadonly();
   readonly busy = this.busyState.asReadonly();
   readonly hint = computed(() =>
@@ -252,9 +231,6 @@ export class PushStore {
       /* A missing google-services.json / GoogleService-Info.plist lands here. */
       this.logger.error('native registration failed', { error });
     });
-    void PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      this.messageState.set(toNativeMessage(notification));
-    });
 
     defer(() => PushNotifications.checkPermissions()).subscribe(({ receive }) => {
       this.permissionState.set(toPushPermission(receive));
@@ -319,12 +295,7 @@ export class PushStore {
               });
               return EMPTY;
             }
-            if (!this.messaging) {
-              this.messaging = fcm.getMessaging(initializeApp(this.config));
-              fcm.onMessage(this.messaging, (payload) =>
-                this.messageState.set(toWebMessage(payload)),
-              );
-            }
+            this.messaging ??= fcm.getMessaging(initializeApp(this.config));
             return from(fcm.getToken(this.messaging, { vapidKey: this.config.vapidKey }));
           }),
           tap((token) => {
