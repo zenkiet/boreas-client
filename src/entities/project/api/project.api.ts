@@ -11,6 +11,7 @@ import {
   GrantsResponseDto,
   MembersResponseDto,
   ProjectResponseDto,
+  RepositoriesResponseDto,
 } from './project.dto';
 import {
   toAddMemberRequestDto,
@@ -63,6 +64,15 @@ export class ProjectApi {
     return this.http
       .get<FoldersResponseDto>(`${this.projectUrl(slug)}/folders`)
       .pipe(map((response) => response.folders ?? []));
+  }
+
+  /** Admin only; 409 without Sourcebot. */
+  searchRepositories(query: string): Observable<readonly string[]> {
+    return this.http
+      .get<RepositoriesResponseDto>(`${this.config.baseUrl()}/api/v1/code/repositories`, {
+        params: { query },
+      })
+      .pipe(map((response) => response.repositories ?? []));
   }
 
   members(slug: string): Observable<readonly Member[]> {

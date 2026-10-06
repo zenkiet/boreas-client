@@ -20,6 +20,7 @@ export interface Project {
   readonly name: string;
   readonly registryCredentialId?: string;
   readonly defaults: TaskDefaults;
+  readonly repositories: readonly string[];
   readonly myRole: ProjectRole;
   readonly createdAt: Date;
 }
@@ -37,4 +38,6 @@ export interface UpdateProjectInput {
   readonly name?: string;
   readonly registryCredentialId?: string | null;
   readonly defaults?: TaskDefaultsInput;
+  /** Admin only; replaces the whole list. */
+  readonly repositories?: readonly string[];
 }

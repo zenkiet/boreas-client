@@ -25,6 +25,7 @@ export function toProject(dto: ProjectDto): Project {
       port: dto.default_port || DEFAULT_TASK_PORT,
       env: dto.default_env ?? {},
     },
+    repositories: dto.repositories ?? [],
     myRole: dto.my_role,
     createdAt: new Date(dto.created_at),
   };
@@ -49,6 +50,10 @@ export function toUpdateProjectRequestDto(input: UpdateProjectInput): UpdateProj
   /* null detaches the credential; an omitted key leaves it unchanged. */
   if (input.registryCredentialId !== undefined) {
     body.registry_credential_id = input.registryCredentialId;
+  }
+
+  if (input.repositories !== undefined) {
+    body.repositories = [...input.repositories];
   }
 
   return { ...body, ...toDefaultsRequestDto(input.defaults) };

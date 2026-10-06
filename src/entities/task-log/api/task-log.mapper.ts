@@ -1,4 +1,4 @@
-import { LogEntry } from '../model/log-entry';
+import { LogEntry, parseAnsi } from '../model/log-entry';
 import { TaskLogEntryDto } from './task-log.dto';
 
 export function toLogEntry(raw: string): LogEntry | null {
@@ -8,7 +8,7 @@ export function toLogEntry(raw: string): LogEntry | null {
       return null;
     }
 
-    return { timestamp: dto.timestamp, message: dto.message };
+    return { timestamp: dto.timestamp, ...parseAnsi(dto.message) };
   } catch {
     return null;
   }

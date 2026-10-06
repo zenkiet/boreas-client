@@ -25,7 +25,7 @@ import { IonSpinner } from '@ionic/angular/ion-spinner';
 import { NavController } from '@ionic/angular/nav-controller';
 import { filter, map, switchMap } from 'rxjs';
 
-import { EnvironmentEditor } from '@entities/environment';
+import { EnvironmentEditor, describeEnvChange } from '@entities/environment';
 import { AddMemberInput, GRANTABLE_ROLES, Member } from '@entities/project';
 import {
   DEV_STATUS_DOT,
@@ -328,13 +328,16 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                   @if (edit()) {
                     <div class="apply">
                       <p class="apply__note">
+                        @if (environmentChange(); as change) {
+                          <span class="apply__change">{{ change }}.</span>
+                        }
                         Applying replaces the whole map and recreates the container.
                       </p>
                       <ion-button
                         expand="block"
                         class="cta"
                         [disabled]="
-                          !environmentDirty() ||
+                          !environmentChange() ||
                           detail.savingEnvironment() ||
                           environmentErrors().length > 0
                         "
@@ -503,7 +506,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
         <ion-segment-button value="environment">
           <ion-label>
             Environment
-            @if (environmentDirty()) {
+            @if (environmentChange()) {
               <span class="unsaved" aria-hidden="true"></span
               ><span class="sr-only">, unsaved changes</span>
             }
@@ -544,6 +547,13 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
       font-size: 0.8125rem;
       line-height: 1.125rem;
       color: var(--app-text-tertiary);
+    }
+
+    .apply__change {
+      display: block;
+      font-weight: 600;
+      color: var(--app-text-secondary);
+      overflow-wrap: anywhere;
     }
 
     .unsaved {
@@ -729,6 +739,10 @@ export class TaskDetailPage {
   protected readonly environmentDirty = signal(false);
   protected readonly environmentErrors = signal<readonly string[]>([]);
   protected readonly environmentResetKey = signal(0);
+  /* Against the server's map, not the first draft: another member may have applied since. */
+  protected readonly environmentChange = computed(() =>
+    describeEnvChange(this.detail.environment(), this.draftEnvironment()),
+  );
 
   protected readonly pull: PullRefreshSource = {
     busy: this.detail.loading,

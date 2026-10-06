@@ -273,6 +273,10 @@ ion-input .input-clear-icon ion-icon {
   @apply icon-[solid--house];
 }
 
+:root:has(ion-footer ion-button > .icon-\[solid--message\]) ion-icon.ion-cloned-element {
+  @apply icon-[solid--message];
+}
+
 :root:has(ion-footer ion-button > .icon-\[solid--bell\]) ion-icon.ion-cloned-element {
   @apply icon-[solid--bell];
 }
@@ -570,6 +574,12 @@ ion-button.cta {
 @media not all and (min-width: 64rem) and (min-height: 31.25rem) {
   ion-back-button::part(text) {
     display: none;
+  }
+
+  ion-back-button {
+    --padding-start: 2px !important;
+    --padding-end: 2px !important;
+    --min-width: 44px !important;
   }
 }
 
@@ -953,6 +963,11 @@ ion-modal.ios.app-dialog:has(app-project-create-page, app-task-create-page) {
   --height: min(44.5rem, 100% - 4rem);
 }
 
+ion-modal.ios.app-dialog:has(app-repository-picker) {
+  --width: min(33.75rem, 100% - 2rem);
+  --height: min(48.75rem, 100% - 4rem);
+}
+
 /* Auto height: the rows grow while Date range is on. */
 ion-modal.ios.app-dialog:has(app-alert-filter-sheet) {
   --height: auto;
@@ -1010,6 +1025,55 @@ ion-toast.toast-positive::part(icon) {
 
 ion-toast.toast-negative::part(icon) {
   color: var(--ion-color-danger);
+}
+
+/* Settings and chat splits: unlayered so .ion-page loses; scoped for Activity's .split__list. */
+.split-view {
+  display: grid !important;
+  grid-template-columns: var(--split-list, 23.75rem) minmax(0, 1fr);
+  /* Take the theme's sidebar inset once for the split, and zero it for the two pages inside. */
+  padding-inline-start: var(--ios-theme-menu-width, var(--ios26-menu-width, 0px));
+}
+
+.split-view > * {
+  --ios-theme-menu-width: 0px;
+}
+
+.split-view .split__list,
+.split-view .split__pane {
+  position: relative;
+}
+
+/* A pane is not a push: it fills its box and has nothing to go back to. */
+.split-view .split__pane > :not(ng-container) {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-view .split__pane ion-back-button {
+  display: none;
+}
+
+/* Title on the cards' edge, not centred; !important beats the theme's split-pane padding. */
+.split-view .split__pane ion-header > ion-toolbar {
+  --padding-start: calc(max(0px, (100% - var(--app-column)) / 2) + 1.25rem) !important;
+  --padding-end: calc(max(0px, (100% - var(--app-column)) / 2) + 1.25rem);
+}
+
+/* The global 12px-margin reset needs .ion-page, which panes are not. */
+.split-view .split__pane ion-header > ion-toolbar > ion-buttons {
+  margin-inline: 0;
+}
+
+.split-view .split__pane ion-header ion-title {
+  position: static;
+  padding-inline: 0 !important;
+  text-align: start;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 700;
 }
 
 /* iOS-style redaction pulse, never a shimmer sweep. */
@@ -1082,8 +1146,9 @@ ion-toast.toast-negative::part(icon) {
   outline-offset: 0.125rem;
 }
 
-/* :focus-visible never reaches Ionic's shadow DOM; ion-focused is its keyboard-only twin. */
-ion-item.ion-focused::part(native),
+/* :focus-visible never reaches Ionic's shadow DOM; ion-focused is its keyboard-only twin. An opening
+   select marks its chosen option ion-focused without focusing it, hence :focus-within on items. */
+ion-item.ion-focused:focus-within::part(native),
 ion-segment-button.ion-focused,
 ion-button.ion-focused::part(native),
 ion-back-button.ion-focused::part(native) {

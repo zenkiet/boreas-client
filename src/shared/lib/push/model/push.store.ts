@@ -1,8 +1,10 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, effect, inject, InjectionToken, Service, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { Capacitor, type PermissionState } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { NavController } from '@ionic/angular/nav-controller';
 import type { FirebaseOptions } from 'firebase/app';
 import type { Messaging } from 'firebase/messaging';
 import {
@@ -10,11 +12,13 @@ import {
   defer,
   EMPTY,
   finalize,
+  first,
   forkJoin,
   from,
   map,
   Observable,
   of,
+  startWith,
   switchMap,
   tap,
 } from 'rxjs';
@@ -32,6 +36,8 @@ export interface FcmConfig extends FirebaseOptions {
 export const FCM_CONFIG = new InjectionToken<FcmConfig>('FCM_CONFIG');
 
 const STORAGE_KEY = 'boreas-push';
+/* Posted by firebase-messaging-sw.js when a notification is clicked with Boreas already open. */
+const OPEN_ACTIVITY = 'boreas:open-activity';
 /* The server INSERTs without upsert, so only a changed token may be posted again. */
 const REGISTERED_KEY = 'boreas-push-registered';
 
@@ -58,6 +64,8 @@ export class PushStore {
   private readonly document = inject(DOCUMENT);
   private readonly api = inject(PushSubscriptionApi);
   private readonly auth = inject(AuthTokenStore);
+  private readonly router = inject(Router);
+  private readonly nav = inject(NavController);
   private readonly logger = createLogger('push');
 
   private readonly permissionState = signal<PushPermission>('default');
@@ -197,6 +205,9 @@ export class PushStore {
       return;
     }
 
+    view.navigator.serviceWorker.addEventListener('message', ({ data }) => {
+      if (data === OPEN_ACTIVITY) this.openActivity();
+    });
     this.permissionState.set(view.Notification.permission);
     this.logger.debug('web init', {
       permission: view.Notification.permission,
@@ -231,6 +242,9 @@ export class PushStore {
       /* A missing google-services.json / GoogleService-Info.plist lands here. */
       this.logger.error('native registration failed', { error });
     });
+    void PushNotifications.addListener('pushNotificationActionPerformed', () =>
+      this.openActivity(),
+    );
 
     defer(() => PushNotifications.checkPermissions()).subscribe(({ receive }) => {
       this.permissionState.set(toPushPermission(receive));
@@ -239,6 +253,16 @@ export class PushStore {
         void PushNotifications.register();
       }
     });
+  }
+
+  /* The payload names no task, so a tap opens the feed, once a cold start's first route ends. */
+  private openActivity(): void {
+    this.router.events
+      .pipe(
+        startWith(null),
+        first(() => this.router.navigated),
+      )
+      .subscribe(() => void this.nav.navigateRoot('/notifications'));
   }
 
   private enableWeb(): Observable<void> {

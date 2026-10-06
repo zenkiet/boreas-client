@@ -22,6 +22,7 @@ import { ThemeStore } from '@shared/lib/theme/theme.store';
 import { NEW_PROJECT_DIALOG, NEW_TASK_DIALOG } from '@shared/ui/sheet/sheet.service';
 import { provideAndroidBackButton } from './android-back-button';
 import { routes } from './app.routes';
+import { provideDynamicType } from './dynamic-type';
 import { AppErrorHandler } from './error-handler';
 import { provideNavigationFailureToast, withNavigationFailures } from './navigation-error';
 import { provideSplash } from './splash';
@@ -32,6 +33,7 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: AppErrorHandler },
     provideAppHttpClient(),
     provideAndroidBackButton(),
+    provideDynamicType(),
     provideSplash(),
     provideNavigationFailureToast(),
     provideAppInitializer(() => void inject(ThemeStore)),

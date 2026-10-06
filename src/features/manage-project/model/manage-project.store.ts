@@ -1,6 +1,6 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 
 import {
   AddMemberInput,
@@ -11,6 +11,7 @@ import {
 } from '@entities/project';
 import { RegistryCredential, RegistryCredentialApi } from '@entities/registry-credential';
 import { User, UserApi } from '@entities/user';
+import { mapApiError } from '@shared/api/api-error';
 import { CommandGate, CommandResult } from '@shared/api/command';
 import { IS_ADMIN } from '@shared/api/role';
 
@@ -38,6 +39,25 @@ export class ManageProjectStore {
         .list()
         .pipe(catchError(() => of<readonly RegistryCredential[] | null>(null))),
   });
+
+  /* Asked once About opens: a 409 means no Sourcebot. */
+  private readonly codeWanted = signal(false);
+  private readonly codeSearchResource = rxResource({
+    params: () => (this.codeWanted() && this.isAdmin()) || undefined,
+    stream: () =>
+      this.projectApi.searchRepositories('').pipe(
+        map(() => true),
+        catchError((error: unknown) => of(mapApiError(error).kind !== 'conflict')),
+      ),
+  });
+
+  readonly codeSearch = computed(
+    () => !this.codeSearchResource.hasValue() || this.codeSearchResource.value(),
+  );
+
+  probeCodeSearch(): void {
+    this.codeWanted.set(true);
+  }
 
   readonly users = computed(() =>
     this.usersResource.hasValue() ? this.usersResource.value() : null,

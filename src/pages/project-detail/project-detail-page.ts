@@ -32,13 +32,15 @@ import {
   MemberList,
   MemberRoleChange,
   ProjectDefaultsForm,
+  RepositoryPicker,
 } from '@features/manage-project';
 import { PinnedProjectsStore } from '@features/pin-project';
 import { ViewProjectStore } from '@features/view-project';
 import { CommandResult } from '@shared/api/command';
-import { atLeastRole } from '@shared/api/role';
+import { IS_ADMIN, atLeastRole } from '@shared/api/role';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { age } from '@shared/lib/format/age';
+import { splitRepo } from '@shared/lib/format/repo';
 import { whileOnScreen } from '@shared/lib/on-screen/on-screen';
 import {
   PULL_REFRESH,
@@ -108,6 +110,11 @@ type View = (typeof VIEWS)[number];
           <span aria-current="page">{{ displayName() }}</span>
         </nav>
         <ion-buttons slot="end" class="narrow-only">
+          @if (canAsk()) {
+            <ion-button aria-label="Ask about this project" (click)="ask()">
+              <span slot="icon-only" class="icon-[regular--message]" aria-hidden="true"></span>
+            </ion-button>
+          }
           @if (canCreate()) {
             <ion-button (click)="newTask()" aria-label="New task">
               <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
@@ -115,6 +122,12 @@ type View = (typeof VIEWS)[number];
           }
         </ion-buttons>
         <ion-buttons slot="end" class="wide-only">
+          @if (canAsk()) {
+            <ion-button fill="solid" class="act" (click)="ask()">
+              <span slot="start" class="icon-[light--message]" aria-hidden="true"></span>
+              Ask
+            </ion-button>
+          }
           @if (canCreate()) {
             <ion-button
               color="primary"
@@ -322,6 +335,59 @@ type View = (typeof VIEWS)[number];
                   </ion-item>
                 </app-inset-group>
 
+                @if (showCode()) {
+                  <app-inset-group label="Code" [trailing]="repoCount()">
+                    @for (repo of repos(); track repo.full) {
+                      <ion-item>
+                        <span slot="start" class="tile" aria-hidden="true">
+                          <span class="icon-[regular--code]"></span>
+                        </span>
+                        <ion-label>
+                          <span class="repo">{{ repo.name }}</span>
+                          <span class="repo repo--owner">{{ repo.owner }}</span>
+                        </ion-label>
+                      </ion-item>
+                    } @empty {
+                      <ion-item>
+                        <ion-label class="ion-text-wrap muted">{{
+                          isAdmin()
+                            ? 'No repositories yet. Chat can’t answer about this project until you choose some.'
+                            : 'No code connected yet. Chat can’t answer about this project until an administrator adds repositories.'
+                        }}</ion-label>
+                      </ion-item>
+                    }
+                    @if (isAdmin()) {
+                      <ion-item
+                        button
+                        [disabled]="!manage.codeSearch()"
+                        (click)="chooseRepositories(project)"
+                      >
+                        <ion-label class="ion-text-wrap">
+                          <span class="text-accent">{{
+                            project.repositories.length
+                              ? 'Choose repositories…'
+                              : 'Add repositories…'
+                          }}</span>
+                          @if (!manage.codeSearch()) {
+                            <span class="caption">Code search is not set up on this server</span>
+                          }
+                        </ion-label>
+                      </ion-item>
+                    }
+                    @if (isAdmin()) {
+                      <ion-note>
+                        Chat reads the default branch of each one to answer questions about this
+                        project. Only administrators can choose them.
+                      </ion-note>
+                    } @else {
+                      <ion-note>
+                        Chat reads the default branch of each one to answer questions about this
+                        project. An administrator chooses them.
+                      </ion-note>
+                    }
+                  </app-inset-group>
+                }
+
                 @if (canManage()) {
                   <app-inset-group label="Task defaults" trailing="Optional" class="defaults">
                     <app-project-defaults-form
@@ -405,15 +471,49 @@ type View = (typeof VIEWS)[number];
       .about {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        /* The tall defaults column feeds row 2, so the danger zone sits right under About. */
-        grid-template-rows: auto 1fr;
+        /* The tall defaults column feeds the last row, so the danger zone sits right under Code. */
+        grid-template-rows: auto auto 1fr;
         align-items: start;
       }
 
       .defaults {
         grid-column: 2;
-        grid-row: 1 / span 2;
+        grid-row: 1 / span 3;
       }
+    }
+
+    /* Ionic's label colour outranks Tailwind's layered utilities. */
+    .muted {
+      color: var(--app-text-tertiary);
+    }
+
+    .tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: 1.75rem;
+      block-size: 1.75rem;
+      border-radius: 0.5rem;
+      background: var(--app-fill);
+      font-size: 0.875rem;
+      color: var(--app-text-secondary);
+    }
+
+    .repo {
+      display: block;
+      overflow: hidden;
+      font-family: var(--app-font-mono);
+      font-size: 0.9375rem;
+      line-height: 1.25rem;
+      font-weight: 600;
+      text-overflow: ellipsis;
+    }
+
+    .repo--owner {
+      font-size: 0.75rem;
+      line-height: 1rem;
+      font-weight: 400;
+      color: var(--app-text-tertiary);
     }
 
     .caption {
@@ -497,6 +597,26 @@ export class ProjectDetailPage {
   );
 
   protected readonly canManage = computed(() => this.detail.project()?.myRole === 'owner');
+  protected readonly isAdmin = inject(IS_ADMIN);
+  /* Grantees arrive as viewers with no repositories; the client cannot tell them apart. */
+  protected readonly showCode = computed(() => {
+    const project = this.detail.project();
+    return (
+      !!project &&
+      (!!this.isAdmin() || project.repositories.length > 0 || project.myRole !== 'viewer')
+    );
+  });
+  protected readonly repos = computed(() =>
+    (this.detail.project()?.repositories ?? []).map((full) => ({ full, ...splitRepo(full) })),
+  );
+  protected readonly repoCount = computed(() => {
+    const count = this.repos().length;
+    return count === 0 ? '' : `${count} ${count === 1 ? 'repository' : 'repositories'}`;
+  });
+  protected readonly canAsk = computed(
+    () =>
+      (this.detail.project()?.repositories ?? this.listed()?.project.repositories ?? []).length > 0,
+  );
   /* Unknown shows it: the server still decides. */
   protected readonly canCreate = computed(() => {
     const role = this.detail.project()?.myRole ?? this.listed()?.project.myRole;
@@ -581,6 +701,25 @@ export class ProjectDetailPage {
 
   protected setView(value: unknown): void {
     if (VIEWS.includes(value as View)) this.view.set(value as View);
+    if (value === 'about') this.manage.probeCodeSearch();
+  }
+
+  protected ask(): void {
+    void this.navCtrl.navigateForward(['/chats/new'], { queryParams: { project: this.slug() } });
+  }
+
+  protected chooseRepositories(project: Project): void {
+    this.sheets
+      .open(
+        RepositoryPicker,
+        'Choose repositories',
+        { project: project.slug, chosen: project.repositories },
+        1,
+      )
+      .subscribe(() => {
+        this.notifications.success('Repositories saved');
+        this.reload();
+      });
   }
 
   protected newTask(): void {

@@ -1,6 +1,19 @@
 /* Compat build pinned to the firebase version in package.json — keep them in lockstep. */
-importScripts('https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js');
+
+/* Ahead of firebase.messaging(): its handler stops the event and opens nothing without a link. */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(([open]) => {
+      if (!open) return clients.openWindow('/notifications');
+      /* PushStore listens for it; this worker's scope controls no page, so navigate() would throw. */
+      open.postMessage('boreas:open-activity');
+      return open.focus();
+    }),
+  );
+});
 
 /* Keep in sync with providePushNotifications() in src/app/app.config.ts. */
 firebase.initializeApp({

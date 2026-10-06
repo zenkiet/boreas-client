@@ -15,12 +15,19 @@ import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 import { IonSpinner } from '@ionic/angular/ion-spinner';
 
-import { LogEntry } from '@entities/task-log';
+import { LogEntry, LogTone } from '@entities/task-log';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 const FOLLOW_THRESHOLD = 24;
 /* Keyword heuristic, not stderr: nginx and most servers log routine notices there. */
 const ERROR_LINE = /(error|exception)\b|\b(err|fatal|panic|crit|critical|emerg|failed|failure)\b/i;
+const TONES: Record<LogTone, string> = {
+  danger: 'text-danger',
+  ok: 'text-ok',
+  warn: 'text-warn',
+  accent: 'text-accent',
+  muted: 'text-label-2',
+};
 
 @Component({
   selector: 'app-log-console',
@@ -116,14 +123,23 @@ const ERROR_LINE = /(error|exception)\b|\b(err|fatal|panic|crit|critical|emerg|f
               </p>
             }
           } @else {
-            @for (entry of visibleEntries(); track $index) {
+            <!-- By entry: past the line cap an index key would rewrite every row per line. -->
+            @for (entry of visibleEntries(); track entry) {
               @let error = isError(entry);
               <p class="logs__line" [class.logs__line--error]="error">
                 <span class="logs__time">{{ entry.timestamp | date: 'HH:mm:ss' }}</span>
                 @if (error) {
                   <span class="sr-only">Error:</span>
                 }
-                <span class="logs__message">{{ entry.message }}</span>
+                <span class="logs__message">
+                  @for (span of entry.spans; track $index) {
+                    <span
+                      [class]="span.tone ? tones[span.tone] : ''"
+                      [class.font-semibold]="span.bold"
+                      >{{ span.text }}</span
+                    >
+                  }
+                </span>
               </p>
             }
           }
@@ -253,6 +269,7 @@ export class LogConsole {
   readonly downloading = input(false);
   readonly downloadRequested = output<void>();
 
+  protected readonly tones = TONES;
   protected readonly query = signal('');
   protected readonly errorsOnly = signal(false);
   protected readonly wrap = signal(false);

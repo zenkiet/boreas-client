@@ -6,6 +6,7 @@ export interface ProjectDto {
   default_image: string;
   default_port: number;
   default_env: Record<string, string> | null;
+  repositories?: string[] | null;
   my_role: ProjectRoleDto;
   created_at: string;
   updated_at: string;
@@ -30,6 +31,7 @@ export interface UpdateProjectRequestDto {
   default_image?: string;
   default_port?: number;
   default_env?: Record<string, string>;
+  repositories?: string[];
 }
 
 export type ProjectRoleDto = 'viewer' | 'operator' | 'member' | 'owner';
@@ -54,6 +56,10 @@ export interface AddMemberRequestDto {
 export interface GrantsResponseDto {
   grants: MemberDto[] | null;
   total: number;
+}
+
+export interface RepositoriesResponseDto {
+  repositories: string[] | null;
 }
 
 export interface FoldersResponseDto {

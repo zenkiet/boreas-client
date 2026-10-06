@@ -185,6 +185,12 @@ import { NAV, TABS, type NavItem } from './nav';
 
       <div class="ion-page" id="main">
         <ion-router-outlet />
+        <!-- Always rendered: a status region must exist before its message arrives. -->
+        <p class="stale" [class.stale--low]="!tabs()" role="status">
+          @if (paused()) {
+            <span>Live updates paused.<span class="stale__hint"> Pull down to refresh.</span></span>
+          }
+        </p>
         <!-- Hidden, never destroyed: the lens and the search morph are bound to these elements. -->
         <ion-tab-bar
           slot="bottom"
@@ -407,6 +413,11 @@ import { NAV, TABS, type NavItem } from './nav';
       font-weight: 600;
     }
 
+    /* Fixed, as in iOS: the 54px bar ignores Dynamic Type. */
+    ion-tab-bar.ios ion-tab-button.ios {
+      font-size: 9.44px;
+    }
+
     .side__account {
       margin: auto 0 0;
     }
@@ -455,11 +466,52 @@ import { NAV, TABS, type NavItem } from './nav';
       display: none;
     }
 
+    /* Over the 54px floating tab bar, or where it sits when a page hides it. */
+    .stale {
+      position: absolute;
+      inset-inline: 0;
+      bottom: calc(
+        var(--ios-theme-floating-safe-area-bottom, var(--ios26-floating-safe-area-bottom)) + 4rem
+      );
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+      pointer-events: none;
+    }
+
+    .stale--low {
+      bottom: var(--ios-theme-floating-safe-area-bottom, var(--ios26-floating-safe-area-bottom));
+    }
+
+    .stale > span {
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      background: var(--ion-item-background);
+      box-shadow:
+        0 0 0 0.5px var(--app-border-normal),
+        0 4px 16px rgba(15, 23, 42, 0.12);
+      color: var(--app-text-secondary);
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+
+    /* A mouse has no pull gesture. */
+    @media (pointer: fine) {
+      .stale__hint {
+        display: none;
+      }
+    }
+
     @media (min-width: 64rem) and (min-height: 31.25rem) {
       ion-tab-bar,
       ion-fab,
       ion-footer {
         display: none;
+      }
+
+      .stale {
+        bottom: var(--ios-theme-floating-safe-area-bottom, var(--ios26-floating-safe-area-bottom));
       }
     }
   `,
@@ -503,7 +555,7 @@ export class AppShell {
   protected readonly chromeless = computed(() => /^\/(welcome|login)/.test(this.url()));
 
   protected readonly tabs = computed(
-    () => !this.chromeless() && !/^\/(projects|settings)\/.|^\/legal\//.test(this.url()),
+    () => !this.chromeless() && !/^\/(projects|settings|chats)\/.|^\/legal\//.test(this.url()),
   );
 
   /* A pushed page keeps its root, so search stays open under a task opened from it. */
@@ -548,6 +600,11 @@ export class AppShell {
   });
 
   protected readonly unseen = this.alerts.unseenCount;
+  protected readonly live = this.fleet.live;
+  /* Not on Chat: it reads no stream, and the pill would cover its composer. */
+  protected readonly paused = computed(
+    () => !this.live() && !this.chromeless() && !this.url().startsWith('/chats'),
+  );
 
   private searchable?: TabBarSearchableFunction;
   private searchOpen = false;

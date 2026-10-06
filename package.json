@@ -14,7 +14,7 @@
     "release": "cog bump --auto"
   },
   "private": true,
-  "packageManager": "pnpm@12.8.1",
+  "packageManager": "pnpm@12.9.1",
   "dependencies": {
     "@angular/common": "^22.2.1",
     "@angular/compiler": "^22.2.1",
@@ -32,7 +32,7 @@
     "@ionic/angular": "9.0.6",
     "@ionic/core": "9.0.6",
     "@lottiefiles/dotlottie-web": "^0.80.0",
-    "@rdlabo/ionic-theme-ios27": "1.2.0",
+    "@rdlabo/ionic-theme-ios27": "1.2.1",
     "@tiptap/core": "^3.31.4",
     "@tiptap/extension-blockquote": "^3.31.4",
     "@tiptap/extension-bold": "^3.31.4",
@@ -51,7 +51,7 @@
     "d3-shape": "^3.2.0",
     "firebase": "^12.19.0",
     "gsap": "^3.15.0",
-    "marked": "^18.0.14",
+    "marked": "^18.1.0",
     "rxjs": "~7.8.2",
     "tslib": "^2.8.1"
   },
@@ -72,11 +72,11 @@
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-boundaries": "^7.2.0",
     "jscpd": "5.4.0",
-    "postcss": "^8.5.28",
+    "postcss": "^8.5.29",
     "prettier": "^3.9.9",
     "prettier-plugin-organize-imports": "^4.3.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.1"
   }
 }

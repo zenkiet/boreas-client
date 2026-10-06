@@ -155,10 +155,6 @@ let instances = 0;
       font-feature-settings: normal;
     }
 
-    .env__box:has(.env__input:focus-visible) {
-      box-shadow: inset 0 0 0 2px var(--ion-color-primary);
-    }
-
     .env__mirror,
     .env__input {
       display: block;

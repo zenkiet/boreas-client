@@ -1,4 +1,6 @@
 import { Service, inject } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, NotificationType } from '@capacitor/haptics';
 import { ToastController } from '@ionic/angular/toast-controller';
 
 import { CIRCLE_CHECK, CIRCLE_EXCLAMATION } from '../glyph-urls';
@@ -25,6 +27,12 @@ export class NotifyService {
   }
 
   private show(message: string, success: boolean): void {
+    /* Native only: the web fallback is navigator.vibrate, refused without a fresh tap. */
+    if (Capacitor.isNativePlatform()) {
+      void Haptics.notification({
+        type: success ? NotificationType.Success : NotificationType.Error,
+      });
+    }
     void this.toasts
       .create({
         message,

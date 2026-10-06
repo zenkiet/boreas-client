@@ -47,6 +47,29 @@ export function toEnvText(environment: Readonly<Record<string, string>>): string
     .join('\n');
 }
 
+/** "Adds A · Changes B, C · Removes D", by key only, so no value ever shows; '' when equal. */
+export function describeEnvChange(
+  before: Readonly<Record<string, string>>,
+  after: Readonly<Record<string, string>>,
+): string {
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  /* hasOwn, not `in`: a key named constructor would match the prototype. */
+  const has = Object.hasOwn;
+  return (
+    [
+      ['Adds', keys.filter((key) => !has(before, key))],
+      [
+        'Changes',
+        keys.filter((key) => has(before, key) && has(after, key) && before[key] !== after[key]),
+      ],
+      ['Removes', keys.filter((key) => !has(after, key))],
+    ] as const
+  )
+    .filter(([, changed]) => changed.length)
+    .map(([verb, changed]) => `${verb} ${changed.join(', ')}`)
+    .join(' · ');
+}
+
 export function isSecretKey(key: string): boolean {
   return key
     .toUpperCase()

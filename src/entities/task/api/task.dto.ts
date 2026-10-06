@@ -50,6 +50,7 @@ export interface FleetProjectDto {
   slug: string;
   name: string;
   registry_credential_id?: string;
+  repositories?: string[] | null;
   my_role: TaskRoleDto;
   tasks: FleetTaskDto[] | null;
 }

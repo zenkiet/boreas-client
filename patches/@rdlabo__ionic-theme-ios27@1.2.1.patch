@@ -1,0 +1,32 @@
+diff --git a/dist/tab-bar-searchable/dismiss-button.js b/dist/tab-bar-searchable/dismiss-button.js
+index 02c3139b53005dd3f70f767782ad534535c9252b..9efc50035c180e0b7c1a9343306433216a4932f5 100644
+--- a/dist/tab-bar-searchable/dismiss-button.js
++++ b/dist/tab-bar-searchable/dismiss-button.js
+@@ -1,4 +1,3 @@
+-import { close } from "ionicons/icons";
+ //#region src/tab-bar-searchable/dismiss-button.ts
+ /** Keep the application's original dismissal handler for the focused search layout. */
+ const addSearchDismissButton = (footer) => {
+@@ -17,7 +16,7 @@ const addSearchDismissButton = (footer) => {
+ 	button.addEventListener("click", () => original.click());
+ 	const icon = footer.ownerDocument.createElement("ion-icon");
+ 	icon.slot = "icon-only";
+-	icon.icon = close;
++	icon.setAttribute("aria-hidden", "true");
+ 	button.append(icon);
+ 	buttons.append(button);
+ 	footer.addEventListener("focusin", (event) => {
+diff --git a/dist/transition/index.js b/dist/transition/index.js
+index d85b63949afe7b15eaea0244d1b0ccc77bb0240c..239e38a0a9aa979ceb0cdedac82d404f667abf3b 100644
+--- a/dist/transition/index.js
++++ b/dist/transition/index.js
+@@ -1,7 +1,8 @@
+ import { config, raf } from "../utils.js";
+ import { createFocusController } from "../focus-controller/index.js";
+ import { LIFECYCLE_DID_ENTER, LIFECYCLE_DID_LEAVE, LIFECYCLE_WILL_ENTER, LIFECYCLE_WILL_LEAVE } from "@ionic/core/components/index.js";
+-import { Build, writeTask } from "@stencil/core";
++const Build = { isBrowser: typeof window !== "undefined" };
++const writeTask = (cb) => raf(cb);
+ //#region src/transition/index.ts
+ const iosTransitionAnimation = () => import("./ios.transition.js");
+ const focusController = createFocusController();

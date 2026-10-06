@@ -88,6 +88,7 @@ export interface FleetProject {
     readonly name: string;
     readonly myRole: ProjectRole;
     readonly registryCredentialId?: string;
+    readonly repositories: readonly string[];
   };
   readonly tasks: readonly TaskSummary[];
 }
