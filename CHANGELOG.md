@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.16.0](https://github.com/zenkiet/boreas-client/compare/d12738bae911290b25d95c01f189349fbdce834a..v0.16.0) - 2026-10-06
+#### 🚀 Features
+- (**chat**) ✨ add code chat and project repositories - ([d12738b](https://github.com/zenkiet/boreas-client/commit/d12738bae911290b25d95c01f189349fbdce834a)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.15.0](https://github.com/zenkiet/boreas-client/compare/9db5095c6e032a315c4db54700ec5108705fce93..v0.15.0) - 2026-10-03
 #### 🚀 Features
 - (**events**) ✨ signal every successful write - ([9db5095](https://github.com/zenkiet/boreas-client/commit/9db5095c6e032a315c4db54700ec5108705fce93)) - [@zenkiet](https://github.com/zenkiet)
