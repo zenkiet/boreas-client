@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.16.1](https://github.com/zenkiet/boreas-client/compare/4c1a1c8631f9359c2af92f49294f3eaa858b6080..v0.16.1) - 2026-10-07
+#### ♻️ Code Refactoring
+- (**ui**) ♻️ polish desktop and phone UX after QA and user testing - ([4c1a1c8](https://github.com/zenkiet/boreas-client/commit/4c1a1c8631f9359c2af92f49294f3eaa858b6080)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.16.0](https://github.com/zenkiet/boreas-client/compare/d12738bae911290b25d95c01f189349fbdce834a..v0.16.0) - 2026-10-06
 #### 🚀 Features
 - (**chat**) ✨ add code chat and project repositories - ([d12738b](https://github.com/zenkiet/boreas-client/commit/d12738bae911290b25d95c01f189349fbdce834a)) - [@zenkiet](https://github.com/zenkiet)
