@@ -3,22 +3,19 @@ import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 
 import { taskKey } from '@entities/task/model';
+import { dayLabel } from '@shared/lib/format/day';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
-import {
-  AlertDescription,
-  dayLabel,
-  describeAlert,
-  matchesChip,
-  timeLabel,
-} from '../../model/activity';
+import { AlertDescription, describeAlert, matchesChip, timeLabel } from '../../model/activity';
 import { ProjectAlert } from '../../model/list-alerts.store';
 import { ActivityGlyph } from '../activity-glyph/activity-glyph';
 
 interface AlertRow {
   readonly alert: ProjectAlert;
   readonly about: AlertDescription;
+  readonly where: string;
   readonly time: string;
   readonly failed: boolean;
+  readonly opens: boolean;
   readonly ci?: string;
 }
 
@@ -54,7 +51,7 @@ export interface AlertOpen {
                   </span>
                   <span class="entry__time tabular">{{ row.time }}</span>
                 </span>
-                <span class="entry__where">{{ row.alert.project }} / {{ row.alert.taskName }}</span>
+                <span class="entry__where">{{ row.where }}</span>
               </span>
             </button>
           }
@@ -64,7 +61,14 @@ export interface AlertOpen {
       @for (group of groups(); track group.label) {
         <app-inset-group [label]="group.label" [trailing]="group.failed">
           @for (row of group.rows; track row.alert.id) {
-            <ion-item class="event" [class.failure]="row.failed">
+            <!-- A row without buttons opens its task: whole rows are targets. -->
+            <ion-item
+              class="event"
+              [class.failure]="row.failed"
+              [button]="row.opens"
+              [detail]="false"
+              (click)="row.opens && opened.emit({ alert: row.alert })"
+            >
               <app-activity-glyph slot="start" class="event__glyph" [kind]="row.alert.kind" />
               <ion-label class="event__body">
                 <span class="event__head">
@@ -76,7 +80,7 @@ export interface AlertOpen {
                   </span>
                   <span class="event__time tabular">{{ row.time }}</span>
                 </span>
-                <span class="event__where">{{ row.alert.project }} / {{ row.alert.taskName }}</span>
+                <span class="event__where">{{ row.where }}</span>
                 @if (row.about.detail) {
                   <span class="event__detail">{{ row.about.detail }}</span>
                 }
@@ -175,7 +179,6 @@ export interface AlertOpen {
     .event__where,
     .entry__where {
       overflow: hidden;
-      font-family: var(--app-font-mono);
       font-size: 0.8125rem;
       line-height: 1.125rem;
       color: var(--app-text-secondary);
@@ -194,7 +197,9 @@ export interface AlertOpen {
       word-break: break-word;
     }
 
+    /* A failure's cause often sits past the third line. */
     .failure .event__detail {
+      -webkit-line-clamp: 12;
       color: var(--ion-color-danger);
     }
 
@@ -292,6 +297,10 @@ export class AlertList {
   readonly selectedId = input<string | null>(null);
   /** The run to open per task, only while that task's build is still failing. */
   readonly ciUrls = input<ReadonlyMap<string, string>>(new Map());
+  /** Display names by slug; the feed carries slugs. */
+  readonly projectNames = input<ReadonlyMap<string, string>>(new Map());
+  /** Task keys still in the fleet: a deleted task's row stays plain. */
+  readonly tasks = input<ReadonlySet<string>>(new Set());
   readonly selected = output<ProjectAlert>();
   readonly opened = output<AlertOpen>();
 
@@ -302,12 +311,16 @@ export class AlertList {
     for (const alert of this.alerts()) {
       const label = dayLabel(alert.createdAt);
       if (groups.at(-1)?.label !== label) groups.push({ label, rows: [] });
+      const key = taskKey(alert.project, alert.taskName);
+      const failed = matchesChip(alert, 'failures');
       groups.at(-1)!.rows.push({
         alert,
         about: describeAlert(alert),
+        where: `${this.projectNames().get(alert.project) ?? alert.project} / ${alert.taskName}`,
         time: timeLabel(alert.createdAt),
-        failed: matchesChip(alert, 'failures'),
-        ci: this.ciUrls().get(taskKey(alert.project, alert.taskName)),
+        failed,
+        opens: !failed && this.tasks().has(key),
+        ci: this.ciUrls().get(key),
       });
     }
 

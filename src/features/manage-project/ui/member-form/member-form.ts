@@ -13,61 +13,71 @@ import { User } from '@entities/user';
   imports: [IonInput, IonItem, IonLabel, IonSelect, IonSelectOption],
   template: `
     <div class="form">
-      <!-- Non-admins cannot resolve usernames to ids, so they paste the user id. -->
-      @if (candidates(); as list) {
+      <!-- An empty picker would open onto nothing. -->
+      @if (candidates()?.length === 0) {
+        <ion-item>
+          <ion-label class="ion-text-wrap none">
+            Everyone with an active account is already listed. New accounts are made in
+            Settings&nbsp;›&nbsp;Users.
+          </ion-label>
+        </ion-item>
+      } @else {
+        <!-- Non-admins cannot resolve usernames to ids, so they paste the user id. -->
+        @if (candidates(); as list) {
+          <ion-item>
+            <ion-select
+              label="User"
+              interface="popover"
+              placeholder="Select a user…"
+              [value]="draftUserId()"
+              [disabled]="busy()"
+              (ionChange)="draftUserId.set($event.detail.value)"
+            >
+              @for (user of list; track user.id) {
+                <ion-select-option [value]="user.id">{{ user.username }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+        } @else {
+          <ion-item>
+            <ion-input
+              label="User ID"
+              placeholder="UUID"
+              autocomplete="off"
+              autocapitalize="off"
+              [spellcheck]="false"
+              [value]="draftUserId()"
+              (ionInput)="draftUserId.set(($event.detail.value ?? '').trim())"
+            />
+          </ion-item>
+        }
+
+        <span class="vsep" aria-hidden="true"></span>
+
         <ion-item>
           <ion-select
-            label="User"
+            label="Role"
             interface="popover"
-            placeholder="Select a user…"
-            [value]="draftUserId()"
+            [value]="draftRole()"
             [disabled]="busy()"
-            (ionChange)="draftUserId.set($event.detail.value)"
+            (ionChange)="draftRole.set($event.detail.value)"
           >
-            @for (user of list; track user.id) {
-              <ion-select-option [value]="user.id">{{ user.username }}</ion-select-option>
+            @for (role of roles(); track role) {
+              <ion-select-option [value]="role">{{ roleLabel[role] }}</ion-select-option>
             }
           </ion-select>
         </ion-item>
-      } @else {
-        <ion-item>
-          <ion-input
-            label="User ID"
-            placeholder="UUID"
-            autocomplete="off"
-            autocapitalize="off"
-            [spellcheck]="false"
-            [value]="draftUserId()"
-            (ionInput)="draftUserId.set(($event.detail.value ?? '').trim())"
-          />
+
+        <ion-item
+          button
+          class="add"
+          [detail]="false"
+          [disabled]="busy() || !draftUserId()"
+          (click)="add()"
+        >
+          <ion-label color="primary">{{ addLabel() }}</ion-label>
         </ion-item>
       }
-
-      <span class="vsep" aria-hidden="true"></span>
-
-      <ion-item>
-        <ion-select
-          label="Role"
-          interface="popover"
-          [value]="draftRole()"
-          [disabled]="busy()"
-          (ionChange)="draftRole.set($event.detail.value)"
-        >
-          @for (role of roles(); track role) {
-            <ion-select-option [value]="role">{{ roleLabel[role] }}</ion-select-option>
-          }
-        </ion-select>
-      </ion-item>
-
-      <ion-item
-        button
-        class="add"
-        [detail]="false"
-        [disabled]="busy() || !draftUserId()"
-        (click)="add()"
-      >
-        <ion-label color="primary">{{ addLabel() }}</ion-label>
-      </ion-item>
     </div>
   `,
   styles: `
@@ -79,6 +89,11 @@ import { User } from '@entities/user';
 
     .vsep {
       display: none;
+    }
+
+    .none {
+      font-size: 0.9375rem;
+      color: var(--app-text-secondary);
     }
 
     @container (min-width: 36rem) {

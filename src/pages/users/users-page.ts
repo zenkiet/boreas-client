@@ -28,6 +28,7 @@ import { EYE, EYE_SLASH } from '@shared/ui/glyph-urls';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
+import { PopoverAnchor, popoverAnchor } from '@shared/ui/popover-anchor/popover-anchor';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
 /* A client-side hint; the server has the final say. */
@@ -340,7 +341,9 @@ export class UsersPage {
     return disabled ? `${users.length} · ${disabled} disabled` : String(users.length);
   });
 
-  protected readonly menu = signal<{ readonly user: User; readonly event: Event } | null>(null);
+  protected readonly menu = signal<{ readonly user: User; readonly event: PopoverAnchor } | null>(
+    null,
+  );
   /* Separate from menu() so the popover keeps its rows while it animates out. */
   protected readonly menuOpen = signal(false);
   protected readonly adding = signal(false);
@@ -352,7 +355,7 @@ export class UsersPage {
   }
 
   protected openActions(event: Event, user: User): void {
-    this.menu.set({ user, event });
+    this.menu.set({ user, event: popoverAnchor(event) });
     this.menuOpen.set(true);
   }
 

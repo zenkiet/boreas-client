@@ -1,4 +1,4 @@
-import { Directive, computed, inject } from '@angular/core';
+import { Directive, ElementRef, afterRenderEffect, computed, inject } from '@angular/core';
 import { FormField } from '@angular/forms/signals';
 
 import { fieldError } from './field-error';
@@ -21,4 +21,14 @@ import { fieldError } from './field-error';
 export class FieldStatus {
   protected readonly state = inject(FormField).state;
   protected readonly error = computed(() => fieldError(this.state()));
+  private readonly host = inject<ElementRef<HTMLElement & { pattern?: string }>>(ElementRef);
+
+  constructor() {
+    /* Ionic writes FormField's RegExp array as a native pattern that fails valid text. */
+    afterRenderEffect(() => {
+      this.state().pattern();
+      const element = this.host.nativeElement;
+      if ('pattern' in element) element.pattern = undefined;
+    });
+  }
 }

@@ -1,5 +1,5 @@
 import { DOCUMENT, DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import type { SelectCustomEvent } from '@ionic/angular';
 import { IonBackButton } from '@ionic/angular/ion-back-button';
@@ -109,26 +109,28 @@ type View = (typeof VIEWS)[number];
           <span aria-hidden="true">›</span>
           <span aria-current="page">{{ displayName() }}</span>
         </nav>
+        <!-- New task leads: shown on Tasks only, it leaves the rest in place. -->
         <ion-buttons slot="end" class="narrow-only">
+          @if (canCreateHere()) {
+            <ion-button (click)="newTask()" aria-label="New task">
+              <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
+            </ion-button>
+          }
           @if (canAsk()) {
             <ion-button aria-label="Ask about this project" (click)="ask()">
               <span slot="icon-only" class="icon-[regular--message]" aria-hidden="true"></span>
             </ion-button>
           }
-          @if (canCreate()) {
-            <ion-button (click)="newTask()" aria-label="New task">
-              <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
-            </ion-button>
-          }
+          <ion-button aria-label="Activity for this project" (click)="openActivity()">
+            <span
+              slot="icon-only"
+              class="icon-[regular--clock-rotate-left]"
+              aria-hidden="true"
+            ></span>
+          </ion-button>
         </ion-buttons>
         <ion-buttons slot="end" class="wide-only">
-          @if (canAsk()) {
-            <ion-button fill="solid" class="act" (click)="ask()">
-              <span slot="start" class="icon-[light--message]" aria-hidden="true"></span>
-              Ask
-            </ion-button>
-          }
-          @if (canCreate()) {
+          @if (canCreateHere()) {
             <ion-button
               color="primary"
               fill="solid"
@@ -137,6 +139,12 @@ type View = (typeof VIEWS)[number];
             >
               <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
               New task
+            </ion-button>
+          }
+          @if (canAsk()) {
+            <ion-button fill="solid" class="act" (click)="ask()">
+              <span slot="start" class="icon-[light--message]" aria-hidden="true"></span>
+              Ask
             </ion-button>
           }
           <ion-button fill="solid" class="act" [id]="moreId()" aria-label="More actions">
@@ -163,7 +171,7 @@ type View = (typeof VIEWS)[number];
 
       @if (!wide()) {
         <div class="phone-title"><ng-container *ngTemplateOutlet="titleBlock" /></div>
-        <ion-toolbar class="phone-switch">
+        <ion-toolbar class="phone-switch" appPhoneSwitch>
           <ng-container *ngTemplateOutlet="sectionSwitch" />
         </ion-toolbar>
       }
@@ -212,8 +220,10 @@ type View = (typeof VIEWS)[number];
                 [tasks]="detail.tasks()"
                 [builds]="builds()"
                 [pendingTaskIds]="commands.pendingTaskIds()"
+                [canCreate]="canCreate()"
                 (actionRequested)="handleTaskAction($event)"
                 (taskOpened)="openTask($event)"
+                (createRequested)="newTask()"
               />
             }
           </div>
@@ -291,13 +301,13 @@ type View = (typeof VIEWS)[number];
 
                   <ion-item>
                     <ion-label>
-                      <span class="caption">Proxy prefix</span>
+                      <span class="caption">URL prefix</span>
                       <span class="prefix">{{ prefixLabel() }}</span>
                     </ion-label>
                     <ion-button
                       slot="end"
                       fill="clear"
-                      [attr.aria-label]="prefixCopied() ? 'Copied' : 'Copy proxy prefix'"
+                      [attr.aria-label]="prefixCopied() ? 'Copied' : 'Copy URL prefix'"
                       (click)="copyPrefix()"
                     >
                       <span
@@ -420,10 +430,13 @@ type View = (typeof VIEWS)[number];
       </div>
     </ion-content>
 
-    <!-- Pins only show where the sidebar exists, so the menu lives in the iPad header. -->
+    <!-- iPad only: pins need the sidebar; phones have the Activity disc. -->
     <ion-popover aria-label="Project actions" [trigger]="moreId()" [dismissOnSelect]="true">
       <ng-template>
         <ion-list>
+          <ion-item button [detail]="false" (click)="openActivity()">
+            <ion-label>Show activity</ion-label>
+          </ion-item>
           <ion-item button [detail]="false" (click)="pins.toggle(slug())">
             <ion-label>{{ pinned() ? 'Unpin from sidebar' : 'Pin to sidebar' }}</ion-label>
           </ion-item>
@@ -442,7 +455,15 @@ type View = (typeof VIEWS)[number];
               <span class="desk-only">· {{ memberCount() }}</span>
             }
             @if (lastDeploy(); as deploy) {
-              · <span [class.text-danger]="deploy.failed">{{ deploy.label }}</span>
+              ·
+              <a
+                class="history"
+                routerLink="/notifications"
+                routerDirection="root"
+                [queryParams]="{ project: slug() }"
+                [class.history--failed]="deploy.failed"
+                >{{ deploy.label }}</a
+              >
             }
           }
         </p>
@@ -457,12 +478,6 @@ type View = (typeof VIEWS)[number];
           <ion-segment-button value="members"><ion-label>Members</ion-label></ion-segment-button>
           <ion-segment-button value="about"><ion-label>About</ion-label></ion-segment-button>
         </ion-segment>
-        @if (canCreate()) {
-          <ion-button class="act act--primary desk-only" fill="solid" (click)="newTask()">
-            <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
-            New task
-          </ion-button>
-        }
       </span>
     </ng-template>
   `,
@@ -536,6 +551,16 @@ type View = (typeof VIEWS)[number];
       display: block;
     }
 
+    .history {
+      color: var(--ion-color-primary);
+      text-decoration: underline;
+      text-underline-offset: 0.15em;
+    }
+
+    .history--failed {
+      color: var(--ion-color-danger);
+    }
+
     .slug {
       font-family: var(--app-font-mono);
       font-size: 0.875rem;
@@ -577,6 +602,8 @@ export class ProjectDetailPage {
   protected readonly session = inject(SessionStore);
 
   readonly slug = input('');
+  /** The `?section=` deep link; switching tabs writes it back. */
+  readonly section = input<string>();
 
   protected readonly pins = inject(PinnedProjectsStore);
   protected readonly pinned = computed(() => this.pins.slugs().includes(this.slug()));
@@ -622,7 +649,12 @@ export class ProjectDetailPage {
     const role = this.detail.project()?.myRole ?? this.listed()?.project.myRole;
     return !role || atLeastRole(role, 'member');
   });
-  protected readonly view = signal<View>('tasks');
+  protected readonly view = linkedSignal<View>(() => {
+    const section = this.section();
+    return VIEWS.includes(section as View) ? (section as View) : 'tasks';
+  });
+  /* Only Tasks has a header action; Members adds from its list. */
+  protected readonly canCreateHere = computed(() => this.canCreate() && this.view() === 'tasks');
   protected readonly draftName = signal('');
   protected readonly condensed = signal(false);
   protected readonly adding = signal(false);
@@ -697,15 +729,31 @@ export class ProjectDetailPage {
       const project = this.detail.project();
       if (project) this.draftName.set(project.name);
     });
+
+    /* A deep link can open About directly, so the probe follows the view, not the switch. */
+    effect(() => {
+      if (this.view() === 'about') this.manage.probeCodeSearch();
+    });
   }
 
   protected setView(value: unknown): void {
-    if (VIEWS.includes(value as View)) this.view.set(value as View);
-    if (value === 'about') this.manage.probeCodeSearch();
+    if (!VIEWS.includes(value as View)) return;
+    this.view.set(value as View);
+    /* Replaced, not pushed: Back leaves the project instead of replaying tab switches. */
+    void this.router.navigate([], {
+      queryParams: { section: value === 'tasks' ? null : value },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   protected ask(): void {
     void this.navCtrl.navigateForward(['/chats/new'], { queryParams: { project: this.slug() } });
+  }
+
+  /* A tab, so the stack resets as it does from the tab bar. */
+  protected openActivity(): void {
+    void this.navCtrl.navigateRoot(['/notifications'], { queryParams: { project: this.slug() } });
   }
 
   protected chooseRepositories(project: Project): void {
@@ -752,7 +800,7 @@ export class ProjectDetailPage {
         this.prefixCopied.set(true);
         this.document.defaultView?.setTimeout(() => this.prefixCopied.set(false), 1600);
       },
-      error: () => this.notifications.failure('The proxy prefix could not be copied.'),
+      error: () => this.notifications.failure('The URL prefix could not be copied.'),
     });
   }
 

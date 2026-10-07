@@ -1,12 +1,14 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { IonButton } from '@ionic/angular/ion-button';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 import { IonRouterLink } from '@ionic/angular/ion-router-link';
 import { IonSearchbar } from '@ionic/angular/ion-searchbar';
 
-import { failedToday, taskKey } from '@entities/task';
+import { isDown, isFailing, taskKey } from '@entities/task';
 import { TaskApi } from '@entities/task/api';
 import { ListProjectsStore } from '@features/list-projects/model';
 import {
@@ -20,6 +22,7 @@ import {
   matchProjects,
   parseQuery,
   rankTasks,
+  statusToken,
 } from '@features/search-tasks';
 import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { TWO_PANE_QUERY, mediaQuery, wideScreen } from '@shared/ui/breakpoint/wide-screen';
@@ -34,16 +37,20 @@ type Scope = 'all' | 'tasks' | 'projects';
 
 @Component({
   selector: 'app-search-page',
+  /* On Home's column, so the desktop edges match from page to page. */
+  host: { class: 'desk-wide' },
   imports: [
     EmptyState,
     ErrorState,
     FilterChips,
     InsetGroup,
+    IonButton,
     IonItem,
     IonLabel,
     IonNote,
     IonRouterLink,
     IonSearchbar,
+    NgTemplateOutlet,
     PAGE_CHROME,
     PULL_REFRESH,
     RouterLink,
@@ -79,12 +86,15 @@ type Scope = 'all' | 'tasks' | 'projects';
           </ion-toolbar>
         </ion-header>
 
+        <!-- Announces the counts as the query changes. -->
+        <p class="sr-only" role="status">{{ announcement() }}</p>
+
         <!-- A blank phone query shows suggestions: nothing to scope. -->
         @if (wide() || !blank()) {
           <app-filter-chips label="Scope" [options]="scopes()" [(value)]="scope">
             @if (wide() && hintSlug()) {
               <span class="hint ms-auto">
-                Try <code>is:stopped</code> or <code>project:{{ hintSlug() }}</code>
+                Try <code>is:down</code> or <code>project:{{ hintSlug() }}</code>
               </span>
             }
           </app-filter-chips>
@@ -112,6 +122,10 @@ type Scope = 'all' | 'tasks' | 'projects';
                   (recentCleared)="search.clearRecent()"
                 />
               } @else {
+                <!-- A query naming a project lists it first. -->
+                @if (projectFirst()) {
+                  <ng-container *ngTemplateOutlet="projectGroup" />
+                }
                 @if (topHit(); as hit) {
                   <app-inset-group
                     label="Top hit"
@@ -132,27 +146,23 @@ type Scope = 'all' | 'tasks' | 'projects';
                     <app-search-results [entries]="listed()" (taskOpened)="openTask($event)" />
                   </app-inset-group>
                 }
-                @if (scope() !== 'tasks' && projects().length > 0) {
-                  <app-inset-group label="Projects" [trailing]="'' + projects().length">
-                    @for (match of projects(); track match.project.id) {
-                      <ion-item [routerLink]="['/projects', match.project.slug]">
-                        <ion-label>{{ match.project.name }}</ion-label>
-                        <ion-note>{{ match.note }}</ion-note>
-                      </ion-item>
-                    }
-                  </app-inset-group>
+                @if (!projectFirst()) {
+                  <ng-container *ngTemplateOutlet="projectGroup" />
                 }
                 @if (nothing()) {
                   <app-empty-state
                     class="m-5 block"
                     icon="icon-[light--magnifying-glass]"
                     [title]="blank() ? 'No tasks yet' : 'No matches'"
-                    [description]="
-                      blank()
-                        ? 'Tasks from every project you can see show up here.'
-                        : 'Try a project slug, a task name or part of its description.'
-                    "
-                  />
+                    [description]="emptyHint()"
+                  >
+                    <!-- A bare status word only searches text: offer its filter. -->
+                    @if (meant(); as token) {
+                      <ion-button fill="outline" size="small" (click)="pickFilter(token)">
+                        Show {{ token }}
+                      </ion-button>
+                    }
+                  </app-empty-state>
                 }
               }
             </div>
@@ -174,6 +184,19 @@ type Scope = 'all' | 'tasks' | 'projects';
         }
       </div>
     </ion-content>
+
+    <ng-template #projectGroup>
+      @if (scope() !== 'tasks' && projects().length > 0) {
+        <app-inset-group label="Projects" [trailing]="'' + projects().length">
+          @for (match of projects(); track match.project.id) {
+            <ion-item [routerLink]="['/projects', match.project.slug]">
+              <ion-label>{{ match.project.name }}</ion-label>
+              <ion-note>{{ match.note }}</ion-note>
+            </ion-item>
+          }
+        </app-inset-group>
+      }
+    </ng-template>
   `,
   styles: `
     .field-wrap {
@@ -274,8 +297,15 @@ export class SearchPage {
   );
 
   /* Phones only: on iPad the list's first row already is the best match. */
+  protected readonly projectFirst = computed(() => {
+    const text = this.query().text;
+    return this.projects().some(
+      ({ project }) => project.name.toLowerCase() === text || project.slug.toLowerCase() === text,
+    );
+  });
+
   protected readonly topHit = computed(() =>
-    !this.wide() && this.query().text && this.scope() !== 'projects'
+    !this.wide() && this.query().text && this.scope() !== 'projects' && !this.projectFirst()
       ? (this.matches()[0] ?? null)
       : null,
   );
@@ -287,6 +317,30 @@ export class SearchPage {
   protected readonly tasksTrailing = computed(() => {
     const count = this.listed().length;
     return `${count} ${count === 1 ? 'task' : 'tasks'}`;
+  });
+
+  protected readonly meant = computed(() => {
+    const query = this.query();
+    return query.states.length === 0 && !query.project ? statusToken(query.text) : null;
+  });
+
+  protected readonly emptyHint = computed(() => {
+    if (this.blank()) return 'Tasks from every project you can see show up here.';
+    const query = this.query();
+    if (query.states.length > 0 && !query.text) return 'No task is in that state right now.';
+    const token = this.meant();
+    return token
+      ? `No task name or description says “${this.query().text}”. Filter by status with ${token}.`
+      : 'Try part of a task or project name, or of a description.';
+  });
+
+  protected readonly announcement = computed(() => {
+    if (this.blank() || !this.overview.hasLoaded()) return '';
+    const tasks = this.scope() === 'projects' ? 0 : this.matches().length;
+    const projects = this.scope() === 'tasks' ? 0 : this.projects().length;
+    if (tasks + projects === 0) return 'No matches';
+    const count = (n: number, noun: string) => (n ? `${n} ${noun}${n === 1 ? '' : 's'}` : '');
+    return [count(tasks, 'task'), count(projects, 'project')].filter(Boolean).join(', ');
   });
 
   protected readonly nothing = computed(
@@ -319,9 +373,11 @@ export class SearchPage {
     if (!this.overview.hasLoaded()) return null;
     const fleet = this.fleet();
     return {
-      failed: fleet.filter(({ task }) => failedToday(task)).length,
+      failed: fleet.filter(({ task }) => isFailing(task)).length,
       blocked: fleet.filter(({ task }) => task.devStatus === 'blocked').length,
-      stopped: fleet.filter(({ task }) => task.status === 'stopped').length,
+      down: fleet.filter(({ task }) => isDown(task)).length,
+      ready: fleet.filter(({ task }) => task.devStatus === 'ready' && task.status === 'running')
+        .length,
     };
   });
 

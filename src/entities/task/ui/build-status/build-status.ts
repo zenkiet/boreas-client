@@ -21,6 +21,10 @@ const ARC = 2 * Math.PI * 7.5;
       @case ('canceled') {
         <span class="glyph icon-[regular--ban]" aria-hidden="true"></span>
       }
+      <!-- A clock: a still ring reads as loading. -->
+      @case ('quiet') {
+        <span class="glyph icon-[regular--clock]" aria-hidden="true"></span>
+      }
       @default {
         <svg viewBox="0 0 20 20" aria-hidden="true" [class.spin]="spin()">
           <circle cx="10" cy="10" r="7.5" class="track" />
@@ -30,7 +34,8 @@ const ARC = 2 * Math.PI * 7.5;
     }
     <span class="text">{{ text() }}</span>
   `,
-  host: { '[attr.data-state]': 'state()' },
+  /* The title carries what a narrow cell drops: the stage and age. */
+  host: { '[attr.data-state]': 'state()', '[attr.data-mode]': 'mode()', '[attr.title]': 'full()' },
   styles: `
     :host {
       display: inline-flex;
@@ -81,10 +86,6 @@ const ARC = 2 * Math.PI * 7.5;
       transform-origin: center;
     }
 
-    :host([data-state='quiet']) .arc {
-      stroke: currentColor;
-    }
-
     .spin {
       animation: spin 1.1s linear infinite;
     }
@@ -100,6 +101,11 @@ const ARC = 2 * Math.PI * 7.5;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+    /* A phone has no hover to read a cut stage. */
+    :host([data-mode='value']) .text {
+      white-space: normal;
+    }
   `,
 })
 export class BuildStatus {
@@ -112,6 +118,7 @@ export class BuildStatus {
   protected readonly spin = computed(() => this.state() === 'running' && !this.build().progress);
   protected readonly dash = computed(() => `${(ARC * (this.build().progress ?? 25)) / 100} ${ARC}`);
   protected readonly text = computed(() => describe(this.build(), this.state(), this.mode()));
+  protected readonly full = computed(() => describe(this.build(), this.state(), 'value'));
 }
 
 function describe({ stage, progress, at }: Build, state: string, mode: Mode): string {
@@ -120,7 +127,9 @@ function describe({ stage, progress, at }: Build, state: string, mode: Mode): st
   const where = stage ? ` at ${stage}` : '';
   switch (state) {
     case 'quiet':
-      return [`No ${line ? 'build ' : ''}report for ${age(at)}`, stage].filter(Boolean).join(' · ');
+      return [`${line ? 'Build quiet' : 'Quiet'} for ${age(at)}`, mode !== 'cell' && stage]
+        .filter(Boolean)
+        .join(' · ');
     case 'failure':
       return `${line ? 'Build failed' : 'Failed'}${where}${when}`;
     case 'success':

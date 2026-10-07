@@ -64,8 +64,8 @@ const DAY_MS = 86_400_000;
             (ionChange)="project.set($event.detail.value)"
           >
             <ion-select-option value="">All projects</ion-select-option>
-            @for (slug of projects(); track slug) {
-              <ion-select-option [value]="slug">{{ slug }}</ion-select-option>
+            @for (option of projects(); track option.slug) {
+              <ion-select-option [value]="option.slug">{{ option.name }}</ion-select-option>
             }
           </ion-select>
         </ion-item>
@@ -125,7 +125,8 @@ export class AlertFilterSheet {
   private readonly modals = inject(ModalController);
 
   readonly alerts = input.required<readonly ProjectAlert[]>();
-  readonly projects = input.required<readonly string[]>();
+  /** Values are slugs, the feed's key; labels are names. */
+  readonly projects = input.required<readonly { readonly slug: string; readonly name: string }[]>();
   readonly value = input.required<AlertFilter>();
 
   protected readonly today = localDay(new Date());

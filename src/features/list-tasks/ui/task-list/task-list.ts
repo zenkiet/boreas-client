@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, input, output, signal } from '@angular/core';
+import { IonButton } from '@ionic/angular/ion-button';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonItemOption } from '@ionic/angular/ion-item-option';
 import { IonItemOptions } from '@ionic/angular/ion-item-options';
@@ -17,6 +18,7 @@ import {
   Task,
   TaskAction,
   TaskActionRequest,
+  UNKNOWN_CONTAINER_HINT,
   isActiveBuild,
   sortByDevStatus,
 } from '@entities/task';
@@ -33,6 +35,7 @@ let instances = 0;
     BuildStatus,
     InsetGroup,
     NgTemplateOutlet,
+    IonButton,
     IonItem,
     IonItemOption,
     IonItemOptions,
@@ -69,6 +72,18 @@ let instances = 0;
           [value]="query()"
           (input)="query.set($any($event.target).value)"
         />
+        <!-- Here, not by the tab switch, which must not move between tabs. -->
+        @if (canCreate()) {
+          <ion-button
+            color="primary"
+            fill="solid"
+            class="act act--primary new"
+            (click)="createRequested.emit()"
+          >
+            <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
+            New task
+          </ion-button>
+        }
       </div>
 
       <app-inset-group>
@@ -118,8 +133,12 @@ let instances = 0;
               <ion-item-sliding #sliding [disabled]="!operates(task)">
                 <ion-item button (click)="taskOpened.emit(task)">
                   <ion-label class="stack">
+                    <!-- Any other state is read from the visible flag. -->
                     <span class="stack__name">
-                      {{ task.name }}<span class="sr-only">, {{ task.status }}</span>
+                      {{ task.name }}
+                      @if (task.status === 'running') {
+                        <span class="sr-only">, running</span>
+                      }
                     </span>
                     @if (task.description) {
                       <span class="stack__sub">{{ task.description }}</span>
@@ -130,12 +149,12 @@ let instances = 0;
                       </div>
                     }
                   </ion-label>
-                  <span slot="end" class="stack__meta tabular">
-                    <span>{{ age(task.updatedAt) }}</span>
-                    @if (task.status !== 'running') {
+                  <!-- No age: it never said what happened. -->
+                  @if (task.status !== 'running') {
+                    <span slot="end" class="stack__meta">
                       <span class="flag" [attr.data-state]="task.status">{{ task.status }}</span>
-                    }
-                  </span>
+                    </span>
+                  }
                 </ion-item>
                 <ng-container
                   *ngTemplateOutlet="swipe; context: { $implicit: task, sliding: sliding }"
@@ -163,14 +182,17 @@ let instances = 0;
       <ion-item-sliding #sliding [disabled]="!operates(task)">
         <ion-item
           class="row"
-          [class.acting]="operates(task) || desktop()"
+          [class.acting]="operates(task)"
           (click)="taskOpened.emit(task)"
           (keydown.r)="restartKey($event, task)"
         >
           <div class="cols">
             <i class="dot size-2 rounded-full" [class]="dotOf(task)" aria-hidden="true"></i>
             <button type="button" class="name" (click)="open($event, task)">
-              {{ task.name }}<span class="sr-only">, {{ task.status }}</span>
+              {{ task.name
+              }}<span class="sr-only"
+                >, {{ task.status === 'unknown' ? unknownHint : task.status }}</span
+              >
             </button>
             <span class="desc">{{ task.description || '—' }}</span>
             <span class="build">
@@ -189,7 +211,12 @@ let instances = 0;
                 }
               }
             </span>
-            <span class="state" [attr.data-state]="task.status">{{ task.status }}</span>
+            <span
+              class="state"
+              [attr.data-state]="task.status"
+              [attr.title]="task.status === 'unknown' ? unknownHint : null"
+              >{{ task.status }}</span
+            >
             <span class="image font-mono" [attr.title]="task.image">{{
               imageRef(task.image)
             }}</span>
@@ -224,11 +251,8 @@ let instances = 0;
                   <span class="sr-only">{{ task.name }}</span>
                 </button>
               }
-              @if (desktop()) {
-                <button type="button" class="mini" (click)="open($event, task)">
-                  Logs<span class="sr-only"> for {{ task.name }}</span>
-                </button>
-              } @else if (edits(task)) {
+              <!-- No Delete mini: Delete lives in the task's menu. -->
+              @if (!desktop() && edits(task)) {
                 <button
                   type="button"
                   class="mini mini--danger"
@@ -248,8 +272,9 @@ let instances = 0;
 
     <ng-template #swipe let-task let-sliding="sliding">
       <ion-item-options side="end">
+        <!-- Grey read as disabled; both colours take dark text (AA). -->
         <ion-item-option
-          color="medium"
+          [color]="task.status === 'running' ? 'warning' : 'success'"
           [disabled]="pendingTaskIds().has(task.name)"
           (click)="requestLifecycle(task); sliding.close()"
         >
@@ -259,6 +284,7 @@ let instances = 0;
             aria-hidden="true"
           ></span>
           {{ task.status === 'running' ? 'Stop' : 'Start' }}
+          <span class="sr-only"> {{ task.name }}</span>
         </ion-item-option>
         <ion-item-option
           color="primary"
@@ -267,6 +293,7 @@ let instances = 0;
         >
           <span slot="top" class="icon-[solid--arrow-rotate-right]" aria-hidden="true"></span>
           Restart
+          <span class="sr-only"> {{ task.name }}</span>
         </ion-item-option>
         @if (edits(task)) {
           <ion-item-option
@@ -276,6 +303,7 @@ let instances = 0;
           >
             <span slot="top" class="icon-[solid--trash]" aria-hidden="true"></span>
             Delete
+            <span class="sr-only"> {{ task.name }}</span>
           </ion-item-option>
         }
       </ion-item-options>
@@ -313,6 +341,7 @@ let instances = 0;
 
     .stack__meta {
       display: flex;
+      margin-inline-start: 0.75rem;
       flex-direction: column;
       align-items: flex-end;
       gap: 0.125rem;
@@ -393,6 +422,13 @@ let instances = 0;
 
     .state[data-state='running'] {
       visibility: hidden;
+    }
+
+    /* Its tooltip explains it; the dotted line says there is one. */
+    .state[data-state='unknown'] {
+      text-decoration: underline dotted;
+      text-underline-offset: 0.2em;
+      cursor: help;
     }
 
     .time {
@@ -485,7 +521,12 @@ let instances = 0;
       }
 
       .acts {
-        grid-column: 5 / span 3;
+        grid-column: 6 / span 2;
+      }
+
+      /* The state stays beside the minis: it is what they change. */
+      .row.acting:is(:hover, :focus-within) .state {
+        display: revert;
       }
 
       .row.acting:is(:hover, :focus-within) .image {
@@ -541,6 +582,11 @@ let instances = 0;
       color: var(--app-text-primary);
     }
 
+    /* Ionic's 2px button margin would stop it short of the table's edge. */
+    .new {
+      margin: 0;
+    }
+
     .filter:focus-visible {
       box-shadow: 0 0 0 2px var(--ion-color-primary);
     }
@@ -552,12 +598,16 @@ export class TaskList {
   readonly pendingTaskIds = input.required<ReadonlySet<string>>();
   /** The fleet's latest CI report per task name. */
   readonly builds = input<ReadonlyMap<string, Build>>(new Map());
+  /** Desktop puts New task in the list's toolbar. */
+  readonly canCreate = input(false);
   readonly actionRequested = output<TaskActionRequest>();
   readonly taskOpened = output<Task>();
+  readonly createRequested = output<void>();
 
   protected readonly wide = wideScreen();
   protected readonly desktop = desktopScreen();
   protected readonly dot = DEV_STATUS_DOT;
+  protected readonly unknownHint = UNKNOWN_CONTAINER_HINT;
   protected readonly age = age;
   protected readonly statusFilter = signal<DevStatus | null>(null);
   protected readonly query = signal('');

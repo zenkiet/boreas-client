@@ -112,27 +112,35 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
           <section class="live mx-5" aria-labelledby="live-h">
             <div class="head">
               <h2 id="live-h" aria-live="polite">{{ metrics.stale() ? 'Waiting' : 'Live' }}</h2>
-              <button
-                type="button"
-                class="toggle"
-                aria-controls="live-card"
-                [attr.aria-expanded]="!liveCollapsed()"
-                (click)="toggleLive()"
-              >
-                {{ liveCollapsed() ? 'Show' : 'Hide' }}<span class="sr-only"> chart</span>
-              </button>
+              @if (idle()) {
+                <span class="idle">Nothing is running</span>
+              } @else {
+                <button
+                  type="button"
+                  class="toggle"
+                  aria-controls="live-card"
+                  [attr.aria-expanded]="!liveCollapsed()"
+                  (click)="toggleLive()"
+                >
+                  {{ liveCollapsed() ? 'Show' : 'Hide' }}<span class="sr-only"> chart</span>
+                </button>
+              }
             </div>
-            <app-live-monitor
-              id="live-card"
-              [series]="metrics.series()"
-              [hostBytes]="metrics.hostBytes()"
-              [stale]="metrics.stale()"
-              [collapsed]="liveCollapsed()"
-            >
-              <div class="split mx-1 mt-4 border-t border-sep pt-3">
-                <app-project-split [loads]="metrics.loads()" />
-              </div>
-            </app-live-monitor>
+            <!-- Nothing running: one line, not a card of zeros. -->
+            @if (!idle()) {
+              <app-live-monitor
+                id="live-card"
+                [series]="metrics.series()"
+                [hostBytes]="metrics.hostBytes()"
+                [stale]="metrics.stale()"
+                [collapsed]="liveCollapsed()"
+                (expandRequested)="toggleLive()"
+              >
+                <div class="split mx-1 mt-4 border-t border-sep pt-3">
+                  <app-project-split [loads]="metrics.loads()" />
+                </div>
+              </app-live-monitor>
+            }
           </section>
 
           @if (overview.error()) {
@@ -241,6 +249,11 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
       }
     }
 
+    .idle {
+      font-size: 0.875rem;
+      color: var(--app-text-tertiary);
+    }
+
     .toggle {
       min-block-size: 1.5rem;
       padding: 0 0.25rem;
@@ -276,6 +289,14 @@ export class ProjectsPage {
   protected readonly metricLabels = ['CPU', 'Memory', 'Network'] as const;
 
   protected readonly liveCollapsed = signal(this.readLiveFolded());
+
+  protected readonly idle = computed(
+    () =>
+      !this.wide() &&
+      this.overview
+        .summaries()
+        .every(({ tasks }) => tasks.every((task) => task.status !== 'running')),
+  );
 
   protected readonly pull: PullRefreshSource = {
     busy: this.overview.loading,
@@ -342,6 +363,7 @@ export class ProjectsPage {
     } catch {
       stored = null;
     }
-    return stored ? stored === '1' : !!this.view?.matchMedia(SHORT_SCREEN).matches;
+    /* Folded on a phone, where the chart took half the screen. */
+    return stored ? stored === '1' : !this.wide() || !!this.view?.matchMedia(SHORT_SCREEN).matches;
   }
 }

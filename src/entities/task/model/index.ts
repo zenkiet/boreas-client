@@ -6,6 +6,8 @@ export {
   failedToday,
   isActiveBuild,
   isBuilding,
+  isDown,
+  isFailing,
   isQuietBuild,
   isTransitioningTask,
   newestDeploy,

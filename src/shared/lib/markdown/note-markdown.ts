@@ -27,6 +27,8 @@ const preview = new Marked({
     /* Angular's sanitizer keeps class and remote img, so raw HTML and images never reach it. */
     html: ({ text }) => escapeHtml(text),
     image: ({ text }) => escapeHtml(text),
+    /* Escaped as marked does, with a break after each slash for long paths. */
+    codespan: ({ text }) => `<code>${escapeHtml(text).replaceAll('/', '/<wbr>')}</code>`,
     link(token) {
       return SAFE_HREF.test(token.href) ? false : this.parser.parseInline(token.tokens);
     },

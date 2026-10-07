@@ -8,7 +8,7 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
 minimumReleaseAgeExclude:
-  - '@lottiefiles/dotlottie-web@0.80.0'
+  - '@lottiefiles/dotlottie-web@0.80.0 || 0.81.0'
   - '@angular-eslint/builder@22.2.0'
   - '@angular-eslint/bundled-angular-compiler@22.2.0'
   - '@angular-eslint/eslint-plugin-template@22.2.0'
@@ -18,10 +18,10 @@ minimumReleaseAgeExclude:
   - '@angular-eslint/utils@22.2.0'
   - angular-eslint@22.2.0
   - jscpd@5.1.0 || 5.3.3
-  - '@capacitor/android@8.5.1'
-  - '@capacitor/cli@8.5.1'
-  - '@capacitor/core@8.5.1'
-  - '@capacitor/ios@8.5.1'
+  - '@capacitor/android@8.5.1 || 8.5.3'
+  - '@capacitor/cli@8.5.1 || 8.5.3'
+  - '@capacitor/core@8.5.1 || 8.5.3'
+  - '@capacitor/ios@8.5.1 || 8.5.3'
   - '@tiptap/core@3.31.0'
   - '@tiptap/extension-blockquote@3.31.0'
   - '@tiptap/extension-bold@3.31.0'
@@ -47,12 +47,12 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/utils@8.69.0 || 8.71.1'
   - '@typescript-eslint/visitor-keys@8.69.0 || 8.71.1'
   - typescript-eslint@8.69.0 || 8.71.1
-  - '@angular-devkit/architect@0.2201.8 || 0.2202.1'
-  - '@angular-devkit/core@22.1.8 || 22.2.1'
-  - '@angular-devkit/schematics@22.1.8 || 22.2.1'
-  - '@angular/build@22.1.8 || 22.2.1'
-  - '@angular/cli@22.1.8 || 22.2.1'
-  - '@schematics/angular@22.1.8 || 22.2.1'
+  - '@angular-devkit/architect@0.2201.8 || 0.2202.1 || 0.2202.2'
+  - '@angular-devkit/core@22.1.8 || 22.2.1 || 22.2.2'
+  - '@angular-devkit/schematics@22.1.8 || 22.2.1 || 22.2.2'
+  - '@angular/build@22.1.8 || 22.2.1 || 22.2.2'
+  - '@angular/cli@22.1.8 || 22.2.1 || 22.2.2'
+  - '@schematics/angular@22.1.8 || 22.2.1 || 22.2.2'
   - jscpd-darwin-arm64@5.3.3
   - jscpd-darwin-x64@5.3.3
   - jscpd-linux-arm64-gnu@5.3.3
@@ -76,7 +76,9 @@ minimumReleaseAgeExclude:
   - eslint@10.12.0
   - marked@18.1.0
   - postcss@8.5.29
+  - '@ionic/angular@9.0.7'
+  - '@ionic/core@9.0.7'
 patchedDependencies:
-  '@ionic/core@9.0.6': patches/@ionic__core@9.0.6.patch
+  '@ionic/core@9.0.7': patches/@ionic__core@9.0.7.patch
   '@rdlabo/ionic-theme-ios27@1.2.1': patches/@rdlabo__ionic-theme-ios27@1.2.1.patch
   '@rdlabo/ionic-theme-utils@0.1.2': patches/@rdlabo__ionic-theme-utils@0.1.2.patch

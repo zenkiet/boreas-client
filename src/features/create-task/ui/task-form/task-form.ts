@@ -51,7 +51,7 @@ interface TaskDraft {
             autocomplete="off"
             autocapitalize="off"
             spellcheck="false"
-            placeholder="api-preview"
+            placeholder="e.g. api-preview"
             [formField]="draft.name"
           />
         </ion-item>

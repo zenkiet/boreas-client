@@ -46,7 +46,10 @@ import { noteToPreviewHtml } from './note-markdown';
       color: var(--app-text-primary);
     }
 
+    /* A wrapped span keeps its padding and corners on each line. */
     :host ::ng-deep .md code {
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
       padding: 1px 6px;
       border-radius: 7px;
       background: var(--app-fill);

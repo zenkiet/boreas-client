@@ -36,6 +36,13 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     SkeletonRows,
   ],
   host: { class: 'desk-wide' },
+  /* The theme pads the field 8px; 12px more puts it on the cards' edge, like New chat. */
+  styles: `
+    ion-searchbar {
+      inline-size: auto;
+      margin-inline: 0.75rem;
+    }
+  `,
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>

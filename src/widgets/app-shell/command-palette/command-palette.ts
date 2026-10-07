@@ -10,6 +10,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { ModalController } from '@ionic/angular/modal-controller';
 import { NavController } from '@ionic/angular/nav-controller';
 import { Observable, defer, from, switchMap } from 'rxjs';
@@ -101,7 +102,7 @@ export function presentCommandPalette(injector: Injector): Observable<unknown> {
         aria-expanded="true"
         aria-controls="cmd-list"
         aria-autocomplete="list"
-        [attr.aria-activedescendant]="options().length ? 'cmd-opt-' + current() : null"
+        [attr.aria-activedescendant]="current() >= 0 ? 'cmd-opt-' + current() : null"
         [value]="query()"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
@@ -156,7 +157,10 @@ export function presentCommandPalette(injector: Injector): Observable<unknown> {
 
     <div class="foot" aria-hidden="true">
       <span><kbd>↑</kbd><kbd>↓</kbd>move</span>
-      <span><kbd>↵</kbd>run</span>
+      @if (current() >= 0) {
+        <span><kbd>↵</kbd>{{ enterVerb() }}</span>
+      }
+      <span class="ms-auto">start · stop · restart + a task name</span>
     </div>
   `,
   styles: `
@@ -319,6 +323,7 @@ export class CommandPalette {
   private readonly document = inject(DOCUMENT);
   private readonly modals = inject(ModalController);
   private readonly navCtrl = inject(NavController);
+  private readonly router = inject(Router);
   private readonly fleet = inject(ListProjectsStore);
   private readonly search = inject(SearchTasksStore);
   private readonly control = inject(ControlTaskStore);
@@ -337,7 +342,7 @@ export class CommandPalette {
     const raw = this.query().trim();
     return raw
       ? [...this.actions(raw), ...this.tasks(raw), ...this.destinations(raw)]
-      : [...this.recent(), ...this.destinations('')];
+      : [...this.recent(), ...this.here(), ...this.destinations('')];
   });
 
   protected readonly groups = computed(() =>
@@ -351,9 +356,16 @@ export class CommandPalette {
   );
 
   /* Typing starts the selection over; a refresh landing mid-arrowing does not. */
-  protected readonly active = linkedSignal({ source: this.query, computation: () => 0 });
+  /* A bare verb picks nothing: Enter must not guess a task. */
+  protected readonly active = linkedSignal<string, number>({
+    source: this.query,
+    computation: (query) => (bareVerb(query) ? -1 : 0),
+  });
   protected readonly current = computed(() =>
-    Math.max(0, Math.min(this.active(), this.options().length - 1)),
+    this.active() < 0 ? -1 : Math.max(0, Math.min(this.active(), this.options().length - 1)),
+  );
+  protected readonly enterVerb = computed(() =>
+    this.options()[this.current()]?.section === 'Actions' ? 'run' : 'open',
   );
 
   protected readonly status = computed(() => {
@@ -395,7 +407,8 @@ export class CommandPalette {
         event.preventDefault();
         if (!count) return;
         const step = event.key === 'ArrowDown' ? 1 : -1;
-        this.active.set((this.current() + step + count) % count);
+        const from = this.current() < 0 ? (step > 0 ? -1 : count) : this.current();
+        this.active.set((from + step + count) % count);
         return;
       }
       case 'Enter': {
@@ -419,38 +432,50 @@ export class CommandPalette {
   private actions(raw: string): readonly PaletteOption[] {
     const [first, ...rest] = raw.split(/\s+/);
     const typed = first.toLowerCase();
-    const verbs = typed.length < 2 ? [] : VERBS.filter(({ action }) => action.startsWith(typed));
+    /* Whole verbs only: "sta" is likelier a task name, and Enter would run it. */
+    const verbs = VERBS.filter(({ action }) => action === typed);
     if (!verbs.length) return [];
+    const slug = this.openSlug();
 
-    return rankTasks(this.entries(), parseQuery(rest.join(' ')))
-      .map((entry, order) => {
-        const failed = entry.task.lastDeploy?.failed ?? false;
-        return { entry, order, failed, weight: entry.task.status === 'error' ? 0 : failed ? 1 : 2 };
-      })
-      .sort((a, b) => a.weight - b.weight || a.order - b.order)
-      .flatMap(({ entry, failed }) =>
-        verbs
-          .filter(({ action }) => available(entry.task, action))
-          .map((verb) => ({ entry, failed, verb })),
-      )
-      .slice(0, ACTIONS_MAX)
-      .map(({ entry, failed, verb }) => ({
-        key: `${verb.action}:${taskKey(entry.project.slug, entry.task.name)}`,
-        section: 'Actions' as const,
-        icon: verb.icon,
-        dot: '',
-        typed: verb.label.slice(0, typed.length),
-        text: `${verb.label.slice(typed.length)} `,
-        scope: '',
-        ref: taskKey(entry.project.slug, entry.task.name),
-        sub:
-          entry.task.status === 'error'
-            ? 'container error'
-            : failed
-              ? 'last deploy failed'
-              : entry.task.status,
-        run: () => this.command(entry, verb.action),
-      }));
+    return (
+      rankTasks(this.entries(), parseQuery(rest.join(' ')))
+        .map((entry, order) => {
+          const failed = entry.task.lastDeploy?.failed ?? false;
+          const here = entry.project.slug === slug;
+          return {
+            entry,
+            order,
+            failed,
+            here,
+            weight: entry.task.status === 'error' ? 0 : failed ? 1 : 2,
+          };
+        })
+        /* The open project's tasks first: the likeliest targets. */
+        .sort((a, b) => Number(b.here) - Number(a.here) || a.weight - b.weight || a.order - b.order)
+        .flatMap(({ entry, failed }) =>
+          verbs
+            .filter(({ action }) => available(entry.task, action))
+            .map((verb) => ({ entry, failed, verb })),
+        )
+        .slice(0, ACTIONS_MAX)
+        .map(({ entry, failed, verb }) => ({
+          key: `${verb.action}:${taskKey(entry.project.slug, entry.task.name)}`,
+          section: 'Actions' as const,
+          icon: verb.icon,
+          dot: '',
+          typed: verb.label.slice(0, typed.length),
+          text: `${verb.label.slice(typed.length)} `,
+          scope: '',
+          ref: taskKey(entry.project.slug, entry.task.name),
+          sub:
+            entry.task.status === 'error'
+              ? 'container error'
+              : failed
+                ? 'last deploy failed'
+                : entry.task.status,
+          run: () => this.command(entry, verb.action),
+        }))
+    );
   }
 
   private tasks(raw: string): readonly PaletteOption[] {
@@ -497,6 +522,19 @@ export class CommandPalette {
           )
       : [];
     return [...searchFor, ...sections, ...projects].slice(0, GO_TO_MAX);
+  }
+
+  private openSlug(): string {
+    return /^\/projects\/([^/?#]+)/.exec(this.router.url)?.[1] ?? '';
+  }
+
+  private here(): readonly PaletteOption[] {
+    const slug = this.openSlug();
+    const recent = new Set(this.search.recent().map(({ project, name }) => taskKey(project, name)));
+    return this.entries()
+      .filter(({ project, task }) => project.slug === slug && !recent.has(taskKey(slug, task.name)))
+      .slice(0, TASKS_MAX)
+      .map((entry) => this.taskOption('Tasks', entry, abnormal(entry.task)));
   }
 
   private taskOption(section: Section, entry: FleetTask, sub: string): PaletteOption {
@@ -557,4 +595,10 @@ function whyFound({ project, task }: FleetTask, text: string): string {
     if (has(task.image)) return task.image;
   }
   return abnormal(task);
+}
+
+/* "restart" alone, with no task named yet. */
+function bareVerb(query: string): boolean {
+  const [first = '', ...rest] = query.trim().toLowerCase().split(/\s+/);
+  return rest.length === 0 && VERBS.some(({ action }) => action === first);
 }

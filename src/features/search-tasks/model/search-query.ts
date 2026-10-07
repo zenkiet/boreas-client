@@ -1,9 +1,24 @@
-import { DEV_STATUSES, FleetProject, failedToday } from '@entities/task/model';
+import {
+  DEV_STATUSES,
+  FleetProject,
+  TaskSummary,
+  failedToday,
+  isDown,
+  isFailing,
+} from '@entities/task/model';
 import { FleetTask } from './search-tasks.store';
 
-/** `failed` is a deploy that failed today; the rest are dev or container states. */
+/** Dev or container states, plus `failed` (isFailing) and `down` (isDown). */
 export type StateToken =
-  'blocked' | 'progress' | 'ready' | 'running' | 'stopped' | 'error' | 'failed';
+  | 'blocked'
+  | 'progress'
+  | 'ready'
+  | 'running'
+  | 'stopped'
+  | 'error'
+  | 'unknown'
+  | 'down'
+  | 'failed';
 
 export interface SearchQuery {
   readonly text: string;
@@ -24,8 +39,22 @@ const STATES: Readonly<Record<string, StateToken>> = {
   running: 'running',
   stopped: 'stopped',
   error: 'error',
+  unknown: 'unknown',
+  down: 'down',
   failed: 'failed',
 };
+
+/** The `is:` filter meant by a status word typed without its prefix. */
+export function statusToken(text: string): string | null {
+  const word = text.split(/\s+/).find((candidate) => STATES[candidate]);
+  return word ? `is:${word}` : null;
+}
+
+/** Why `is:failed` holds, in words for a result row. */
+export function failureOf(task: TaskSummary): string {
+  if (task.build?.state === 'failure') return 'build failed';
+  return failedToday(task) ? 'deploy failed today' : '';
+}
 
 /* An unknown `is:x` stays text: a typo finds nothing, it never widens to everything. */
 export function parseQuery(raw: string): SearchQuery {
@@ -122,7 +151,9 @@ function holds({ task }: FleetTask, state: StateToken): boolean {
     case 'ready':
       return task.devStatus === 'ready';
     case 'failed':
-      return failedToday(task);
+      return isFailing(task);
+    case 'down':
+      return isDown(task);
     default:
       return task.status === state;
   }

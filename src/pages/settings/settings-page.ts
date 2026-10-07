@@ -28,6 +28,14 @@ const THEME_CHOICES: readonly { readonly theme: Theme; readonly label: string }[
   { theme: 'dark', label: 'Dark' },
 ];
 
+/* APG radio group: arrows move the choice and the focus. */
+const RADIO_STEP: Readonly<Record<string, number>> = {
+  ArrowRight: 1,
+  ArrowDown: 1,
+  ArrowLeft: -1,
+  ArrowUp: -1,
+};
+
 const ADMIN_LINKS = [
   { label: 'Users', icon: 'icon-[light--user-group]', pane: 'users' },
   { label: 'Registry credentials', icon: 'icon-[light--lock]', pane: 'registries' },
@@ -47,20 +55,28 @@ const ADMIN_LINKS = [
           <ion-toolbar><ion-title size="large">Settings</ion-title></ion-toolbar>
         </ion-header>
 
-        <!-- iPad reaches Account from the sidebar's foot and the default pane. -->
+        <!-- On iPad too: Account is the default pane, and a selected row says where you are. -->
         @if (session.user(); as user) {
-          <app-inset-group class="narrow-only">
-            <ion-item button class="account" (click)="open('account')">
+          <app-inset-group>
+            <ion-item
+              button
+              class="account"
+              [class.selected]="selected() === 'account'"
+              [attr.aria-current]="selected() === 'account' ? 'page' : null"
+              (click)="open('account')"
+            >
               <span slot="start" class="avatar" aria-hidden="true">{{
                 user.username.slice(0, 2)
               }}</span>
               <ion-label>
                 <span class="name">{{ user.username }}</span>
+                <!-- Or the button's name runs "adminAdmin". -->
+                <span class="sr-only">, </span>
                 <span class="role" [attr.data-role]="user.role">{{
                   user.role === 'admin' ? 'Admin' : 'User'
                 }}</span>
               </ion-label>
-              <ion-note>{{ user.email }}</ion-note>
+              <ion-note class="narrow-only">{{ user.email }}</ion-note>
             </ion-item>
           </app-inset-group>
         }
@@ -129,12 +145,15 @@ const ADMIN_LINKS = [
           <ion-item lines="none">
             <div class="themes" role="radiogroup" aria-label="Appearance">
               @for (option of themeChoices; track option.theme) {
+                <!-- One tab stop for the group, the checked radio; arrows do the rest. -->
                 <button
                   type="button"
                   role="radio"
                   class="theme"
                   [attr.aria-checked]="theme.theme() === option.theme"
+                  [tabIndex]="theme.theme() === option.theme ? 0 : -1"
                   (click)="theme.setMode(option.theme)"
+                  (keydown)="stepTheme($event, $index)"
                 >
                   <span class="theme__preview" [attr.data-theme]="option.theme" aria-hidden="true">
                     <span class="theme__title"></span>
@@ -189,10 +208,12 @@ const ADMIN_LINKS = [
   `,
   styles: `
     /* Not an end-slot note: it would squeeze the label to one letter. */
+    /* Ionic keeps 8px for an end slot this row lacks. */
     ion-label.server {
       display: flex;
       align-items: baseline;
       gap: 1rem;
+      margin-inline-end: 0;
     }
 
     ion-label.server ion-note {
@@ -228,7 +249,8 @@ const ADMIN_LINKS = [
       block-size: 3rem;
       border-radius: 999px;
       background: var(--app-accent-soft);
-      color: var(--ion-color-primary);
+      /* The accent ink, as on the member lists: the accent fails AA here. */
+      color: var(--app-accent-text);
       font-size: 1rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -258,6 +280,26 @@ const ADMIN_LINKS = [
         border-radius: 0.875rem;
         background: rgba(120, 120, 128, 0.16);
         color: var(--ion-color-primary);
+      }
+
+      .account {
+        --row-min-height: 3.5rem;
+      }
+
+      /* The label takes the avatar's height; centred, the name sits on its middle. */
+      .account ion-label {
+        display: flex;
+        align-items: center;
+      }
+
+      .avatar {
+        inline-size: 2.25rem;
+        block-size: 2.25rem;
+        font-size: 0.875rem;
+      }
+
+      .name {
+        font-size: 1rem;
       }
     }
 
@@ -418,6 +460,16 @@ export class SettingsPage {
   }
 
   /* Off pins the current appearance, so nothing jumps on toggle. */
+  protected stepTheme(event: KeyboardEvent, index: number): void {
+    const step = RADIO_STEP[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const next = (index + step + THEME_CHOICES.length) % THEME_CHOICES.length;
+    this.theme.setMode(THEME_CHOICES[next].theme);
+    const radios = (event.currentTarget as HTMLElement).parentElement?.children;
+    (radios?.[next] as HTMLElement | undefined)?.focus();
+  }
+
   protected setAutomatic(automatic: boolean): void {
     this.theme.setMode(automatic ? 'system' : this.theme.theme());
   }

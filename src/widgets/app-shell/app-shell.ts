@@ -8,6 +8,7 @@ import {
   ElementRef,
   inject,
   linkedSignal,
+  signal,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -84,7 +85,13 @@ import { NAV, TABS, type NavItem } from './nav';
   ],
   template: `
     <ion-split-pane contentId="main" [when]="wideQuery" [disabled]="chromeless()">
-      <ion-menu contentId="main" type="overlay" [swipeGesture]="false" [disabled]="chromeless()">
+      <ion-menu
+        contentId="main"
+        type="overlay"
+        [swipeGesture]="false"
+        [disabled]="chromeless()"
+        [inert]="covered()"
+      >
         <ion-content>
           <div class="side">
             <div class="side__brand">
@@ -195,11 +202,12 @@ import { NAV, TABS, type NavItem } from './nav';
         <ion-tab-bar
           slot="bottom"
           [class.tabs-hidden]="!tabs()"
-          [inert]="searching()"
+          [inert]="searching() || covered()"
           [selectedTab]="tab().link"
         >
           @for (item of tabItems; track item.link) {
-            <ion-tab-button [tab]="item.link" (click)="open(item.link)">
+            <!-- href makes Ionic's <a> focusable; Ionic still prevents the navigation. -->
+            <ion-tab-button [tab]="item.link" [href]="item.link" (click)="open(item.link)">
               <!-- ion-icon, not a span: the theme's search morph looks that tag up. -->
               <ion-icon [class]="item.tab" aria-hidden="true" />
               <ion-label>
@@ -222,7 +230,7 @@ import { NAV, TABS, type NavItem } from './nav';
             vertical="bottom"
             horizontal="end"
             [class.tabs-hidden]="!tabs()"
-            [inert]="searching()"
+            [inert]="searching() || covered()"
           >
             <ion-fab-button #searchFab aria-label="Search" (click)="open('/search')">
               <ion-icon class="icon-[regular--magnifying-glass]" aria-hidden="true" />
@@ -232,7 +240,7 @@ import { NAV, TABS, type NavItem } from './nav';
             #searchFooter
             [translucent]="true"
             [class.tabs-hidden]="!tabs()"
-            [inert]="!searching()"
+            [inert]="!searching() || covered()"
           >
             <ion-toolbar>
               <ion-buttons slot="start">
@@ -245,10 +253,11 @@ import { NAV, TABS, type NavItem } from './nav';
                   <ion-icon slot="icon-only" [class]="tab().tab" aria-hidden="true" />
                 </ion-button>
               </ion-buttons>
+              <!-- No is: hint: a phone's field clipped it. -->
               <ion-searchbar
                 #searchField
                 appTaskFilterBar
-                placeholder="Tasks, projects, is:blocked"
+                placeholder="Tasks and projects"
                 [(query)]="search.query"
               />
             </ion-toolbar>
@@ -536,6 +545,7 @@ export class AppShell {
 
   /* String refs: a class token would drag the deferred components back into main. */
   private readonly tabBar = viewChild.required(IonTabBar, { read: ElementRef });
+  private readonly outlet = viewChild.required(IonRouterOutlet, { read: ElementRef });
   private readonly fab = viewChild('searchFab', { read: ElementRef });
   private readonly footer = viewChild('searchFooter', { read: ElementRef });
   private readonly closeSearch = viewChild('searchClose', { read: ElementRef });
@@ -543,6 +553,9 @@ export class AppShell {
 
   protected readonly nav = NAV;
   protected readonly tabItems = TABS;
+
+  /* An overlay hides only the router outlet from screen readers; the chrome beside it follows. */
+  protected readonly covered = signal(false);
 
   private readonly url = toSignal(
     this.router.events.pipe(
@@ -618,6 +631,14 @@ export class AppShell {
     effect(() => {
       this.searching();
       untracked(() => this.morph());
+    });
+    afterNextRender(() => {
+      const outlet: HTMLElement = this.outlet().nativeElement;
+      const observer = new MutationObserver(() =>
+        this.covered.set(outlet.getAttribute('aria-hidden') === 'true'),
+      );
+      observer.observe(outlet, { attributeFilter: ['aria-hidden'] });
+      this.destroyRef.onDestroy(() => observer.disconnect());
     });
     afterNextRender(() => {
       const bar: HTMLElement = this.tabBar().nativeElement;

@@ -13,6 +13,9 @@ export const DEV_STATUS_LABEL: Record<DevStatus, string> = {
   ready: 'Ready',
 };
 
+/** Explains the server's "unknown", which says nothing on its own. */
+export const UNKNOWN_CONTAINER_HINT = 'Boreas can’t find or inspect this task’s container.';
+
 /* Literal class names, so Tailwind generates them. */
 export const DEV_STATUS_DOT: Record<DevStatus, string> = {
   blocked: 'bg-blocked',
@@ -106,6 +109,14 @@ export function failedToday(task: TaskSummary): boolean {
   return (
     !!task.lastDeploy?.failed && task.lastDeploy.at.toDateString() === new Date().toDateString()
   );
+}
+
+export function isDown(task: TaskSummary): boolean {
+  return task.status === 'stopped' || task.status === 'error' || task.status === 'unknown';
+}
+
+export function isFailing(task: TaskSummary): boolean {
+  return failedToday(task) || task.build?.state === 'failure';
 }
 
 export function sortByDevStatus(tasks: readonly Task[]): readonly Task[] {

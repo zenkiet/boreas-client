@@ -12,6 +12,8 @@ import { QUESTION_MAX, questionLength } from '@entities/chat';
 import { desktopScreen } from '@shared/ui/breakpoint/wide-screen';
 
 const COUNT_FROM = 1800;
+/* Ionic keeps several chat pages in the DOM: ids must be unique. */
+let composers = 0;
 
 @Component({
   selector: 'app-chat-composer',
@@ -25,13 +27,20 @@ const COUNT_FROM = 1800;
         [placeholder]="placeholder()"
         [disabled]="off()"
         [attr.aria-label]="label()"
+        [attr.aria-invalid]="over() || null"
+        [attr.aria-describedby]="length() >= COUNT_FROM ? countId : null"
         (input)="draftChange.emit(field.value)"
         (keydown.enter)="enter($event)"
       ></textarea>
       <span class="side">
         @if (length() >= COUNT_FROM) {
-          <span class="count tabular" [class.text-danger]="length() > MAX">
+          <span class="count tabular" [id]="countId" [class.text-danger]="over()">
             {{ length().toLocaleString('en') }} / {{ MAX.toLocaleString('en') }}
+            <span class="sr-only">
+              characters{{
+                over() ? ', ' + (length() - MAX).toLocaleString('en') + ' too many' : ''
+              }}
+            </span>
           </span>
         }
         <button
@@ -51,6 +60,7 @@ const COUNT_FROM = 1800;
   `,
   styles: `
     :host {
+      position: relative;
       display: block;
     }
 
@@ -96,11 +106,20 @@ const COUNT_FROM = 1800;
       gap: 0.375rem;
     }
 
+    /* Above the box: beside Send it narrowed the field. */
     .count {
+      position: absolute;
+      inset-block-end: calc(100% + 0.375rem);
+      inset-inline-end: 0.75rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      background: var(--color-glass);
+      box-shadow: var(--shadow-glass);
       font-size: 0.75rem;
       line-height: 1rem;
       font-weight: 600;
       color: var(--app-text-tertiary);
+      white-space: nowrap;
     }
 
     .count.text-danger {
@@ -183,7 +202,9 @@ export class ChatComposer {
   private readonly desktop = desktopScreen();
   private readonly field = viewChild.required<ElementRef<HTMLTextAreaElement>>('field');
 
+  protected readonly countId = `composer-count-${composers++}`;
   protected readonly length = computed(() => questionLength(this.draft()));
+  protected readonly over = computed(() => this.length() > QUESTION_MAX);
   protected readonly ready = computed(
     () => !this.busy() && !this.off() && this.length() > 0 && this.length() <= QUESTION_MAX,
   );
@@ -196,6 +217,13 @@ export class ChatComposer {
       field.style.height = 'auto';
       field.style.height = `${field.scrollHeight}px`;
     });
+  }
+
+  /** Caret at the end, to edit a picked suggestion before sending. */
+  focus(): void {
+    const field = this.field().nativeElement;
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
   }
 
   /* Return sends on desktop only; an IME (Telex) commits its word with Enter first. */

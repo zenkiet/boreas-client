@@ -3,8 +3,9 @@ import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 
-import { DEV_STATUS_DOT } from '@entities/task';
+import { DEV_STATUS_DOT, DEV_STATUS_LABEL } from '@entities/task';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
+import { failureOf } from '../../model/search-query';
 import { FleetTask } from '../../model/search-tasks.store';
 
 @Component({
@@ -20,10 +21,25 @@ import { FleetTask } from '../../model/search-tasks.store';
             ><span class="text-label-3">{{ entry.project.slug }}/</span
             ><span class="font-semibold">{{ entry.task.name }}</span></span
           >
+          @let why = failure(entry.task);
+          @if (wide()) {
+            <span class="sr-only"
+              >, {{ devLabel[entry.task.devStatus] }}{{ why ? ', ' + why : '' }}</span
+            >
+          }
         </ion-label>
         <!-- @if, not CSS: the theme makes any row holding a note a 64px two-line row. -->
+        <!-- The dot's meaning in words, so colour is never the only cue. -->
         @if (!wide()) {
-          <ion-note>{{ entry.task.description || '—' }}</ion-note>
+          <ion-note
+            >{{ devLabel[entry.task.devStatus] }}
+            @if (why) {
+              · <span class="why">{{ why }}</span>
+            }
+            @if (entry.task.description) {
+              · {{ entry.task.description }}
+            }
+          </ion-note>
         }
         @if (entry.task.status !== 'running') {
           <span slot="end" class="state" [attr.data-state]="entry.task.status">
@@ -47,7 +63,13 @@ import { FleetTask } from '../../model/search-tasks.store';
       line-height: 1.25rem;
     }
 
+    .why {
+      font-weight: 600;
+      color: var(--ion-color-danger);
+    }
+
     .state {
+      margin-inline-start: 0.75rem;
       font-size: 0.8125rem;
       color: var(--app-text-tertiary);
     }
@@ -74,4 +96,6 @@ export class SearchResults {
 
   protected readonly wide = wideScreen();
   protected readonly dot = DEV_STATUS_DOT;
+  protected readonly devLabel = DEV_STATUS_LABEL;
+  protected readonly failure = failureOf;
 }

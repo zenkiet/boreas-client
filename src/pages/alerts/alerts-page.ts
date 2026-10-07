@@ -3,6 +3,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   linkedSignal,
   signal,
   untracked,
@@ -171,6 +172,8 @@ interface FilterTag {
                 [twoPane]="twoPane()"
                 [selectedId]="selectedId()"
                 [ciUrls]="ciUrls()"
+                [projectNames]="projectNames()"
+                [tasks]="fleetTasks()"
                 (selected)="selectedId.set($event.id)"
                 (opened)="openTask($event)"
               />
@@ -277,7 +280,17 @@ export class AlertsPage {
   private readonly tasks = inject(TaskApi);
   protected readonly twoPane = mediaQuery(TWO_PANE_QUERY);
 
-  protected readonly filter = signal<AlertFilter>(EMPTY_ALERT_FILTER);
+  /** `?project=`: opens Activity on one project. */
+  readonly project = input<string>();
+
+  /* The range survives a new ?project=: the URL only carries the project. */
+  protected readonly filter = linkedSignal<string | undefined, AlertFilter>({
+    source: this.project,
+    computation: (project, previous) => ({
+      ...(previous?.value ?? EMPTY_ALERT_FILTER),
+      project: project ?? '',
+    }),
+  });
   protected readonly chip = signal<ActivityChip>('all');
 
   protected readonly pull: PullRefreshSource = {
@@ -309,6 +322,15 @@ export class AlertsPage {
         ? previous.value
         : (shown[0]?.id ?? null),
   });
+
+  protected readonly fleetTasks = computed(
+    () =>
+      new Set(
+        this.fleet
+          .summaries()
+          .flatMap(({ project, tasks }) => tasks.map((task) => taskKey(project.slug, task.name))),
+      ),
+  );
 
   /* The feed carries slugs; names and the picker's list come from the fleet. */
   protected readonly projectNames = computed(
@@ -354,7 +376,7 @@ export class AlertsPage {
   protected readonly tags = computed<readonly FilterTag[]>(() => {
     const { project, range } = this.filter();
     const tags: FilterTag[] = [];
-    if (project) tags.push({ key: 'project', label: project });
+    if (project) tags.push({ key: 'project', label: this.projectNames().get(project) ?? project });
     if (range)
       tags.push({ key: 'range', label: `${formatDay(range.from)} – ${formatDay(range.to)}` });
     return tags;
@@ -362,7 +384,7 @@ export class AlertsPage {
 
   protected readonly scopeLabel = computed(() => {
     const { project, range } = this.filter();
-    const where = project || 'All projects';
+    const where = project ? (this.projectNames().get(project) ?? project) : 'All projects';
     return range ? `${where} · ${formatDay(range.from)} – ${formatDay(range.to)}` : where;
   });
 
@@ -391,7 +413,7 @@ export class AlertsPage {
             'Filter activity',
             {
               alerts: this.alerts.alerts().filter((alert) => matchesChip(alert, this.chip())),
-              projects: this.fleet.summaries().map(({ project }) => project.slug),
+              projects: this.fleet.summaries().map(({ project }) => project),
               value: this.filter(),
             },
             /* Room for the date rows the Date range toggle reveals. */
@@ -399,7 +421,7 @@ export class AlertsPage {
           ),
         ),
       )
-      .subscribe((filter) => this.filter.set(filter));
+      .subscribe((filter) => this.applyFilter(filter));
   }
 
   protected openTask({ alert, section }: AlertOpen): void {
@@ -409,14 +431,24 @@ export class AlertsPage {
   }
 
   protected removeTag(key: FilterTag['key']): void {
-    this.filter.update((filter) =>
-      key === 'project' ? { ...filter, project: '' } : { ...filter, range: null },
-    );
+    const filter = this.filter();
+    this.applyFilter(key === 'project' ? { ...filter, project: '' } : { ...filter, range: null });
   }
 
   protected clearFilters(): void {
-    this.filter.set(EMPTY_ALERT_FILTER);
+    this.applyFilter(EMPTY_ALERT_FILTER);
     this.chip.set('all');
+  }
+
+  /* The URL follows the filter, so a reload keeps it. */
+  private applyFilter(filter: AlertFilter): void {
+    this.filter.set(filter);
+    if ((this.project() ?? '') === filter.project) return;
+    void this.router.navigate([], {
+      queryParams: { project: filter.project || null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 }
 

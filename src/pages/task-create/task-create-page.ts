@@ -20,9 +20,14 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
       <ion-toolbar>
         <!-- No discard confirm: only typing is lost, and only the irreversible is confirmed. -->
         <ion-buttons slot="start">
-          <ion-button aria-label="Cancel" (click)="cancel()">
-            <span slot="icon-only" class="icon-[regular--xmark]" aria-hidden="true"></span>
-          </ion-button>
+          <!-- A dialog names its buttons; a pushed page keeps discs. -->
+          @if (dialog()) {
+            <ion-button fill="solid" class="act" (click)="cancel()">Cancel</ion-button>
+          } @else {
+            <ion-button aria-label="Cancel" (click)="cancel()">
+              <span slot="icon-only" class="icon-[regular--xmark]" aria-hidden="true"></span>
+            </ion-button>
+          }
         </ion-buttons>
         <ion-title>New task</ion-title>
         <ion-buttons slot="end">
@@ -32,11 +37,15 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
             fill="solid"
             color="primary"
             form="create-task-form"
-            aria-label="Create task"
+            [class.act]="dialog()"
+            [class.act--primary]="dialog()"
+            [attr.aria-label]="dialog() ? null : 'Create task'"
             [disabled]="create.creating()"
           >
             @if (create.creating()) {
               <ion-spinner name="lines-small" />
+            } @else if (dialog()) {
+              Create
             } @else {
               <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
             }

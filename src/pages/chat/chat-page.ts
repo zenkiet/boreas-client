@@ -92,16 +92,11 @@ const SUGGESTIONS = [
             }
           </span>
         </ion-title>
-        @if (id()) {
-          <ion-buttons slot="end" class="narrow-only">
+        <!-- Beside the list, its rows delete on hover. -->
+        @if (id() && !split()) {
+          <ion-buttons slot="end">
             <ion-button [id]="menuId()" aria-label="More">
               <span slot="icon-only" class="icon-[regular--ellipsis]" aria-hidden="true"></span>
-            </ion-button>
-          </ion-buttons>
-          <ion-buttons slot="end" class="wide-only">
-            <ion-button fill="solid" class="act act--danger" (click)="remove()">
-              <span slot="start" class="icon-[regular--trash]" aria-hidden="true"></span>
-              Delete chat…
             </ion-button>
           </ion-buttons>
         }
@@ -156,11 +151,12 @@ const SUGGESTIONS = [
           }
           <app-inset-group label="Try asking">
             @for (suggestion of suggestions; track suggestion) {
-              <ion-item button [detail]="false" (click)="chats.type('', suggestion)">
+              <!-- Points down at the field it fills. -->
+              <ion-item button [detail]="false" (click)="suggest(suggestion)">
                 <ion-label class="ion-text-wrap">{{ suggestion }}</ion-label>
                 <span
                   slot="end"
-                  class="icon-[regular--arrow-up-left] text-accent"
+                  class="icon-[regular--arrow-down-left] text-accent"
                   aria-hidden="true"
                 ></span>
               </ion-item>
@@ -197,6 +193,7 @@ const SUGGESTIONS = [
             }
           }
           <app-chat-composer
+            #composer
             [draft]="turn().draft"
             [placeholder]="id() ? 'Ask a follow-up' : 'Ask about ' + projectName()"
             [label]="id() ? 'Ask a follow-up' : 'Your question'"
@@ -209,7 +206,7 @@ const SUGGESTIONS = [
       </ion-footer>
     }
 
-    @if (id()) {
+    @if (id() && !split()) {
       <ion-popover aria-label="Chat actions" [trigger]="menuId()" [dismissOnSelect]="true">
         <ng-template>
           <ion-list>
@@ -292,10 +289,6 @@ const SUGGESTIONS = [
       padding: 0.5rem 1rem max(var(--ion-safe-area-bottom, 0px), 0.75rem);
     }
 
-    .act--danger {
-      --color: var(--ion-color-danger);
-    }
-
     .retry {
       display: flex;
       align-items: center;
@@ -306,6 +299,27 @@ const SUGGESTIONS = [
     .retry ion-button {
       flex: none;
       margin: -0.5rem -0.5rem -0.5rem 0;
+    }
+
+    @media (min-width: 64rem) and (min-height: 31.25rem) {
+      /* On the pane title's 20px edge. */
+      app-chat-thread {
+        padding: 1.25rem;
+      }
+
+      .foot {
+        padding-inline: 1.25rem;
+      }
+
+      /* Both reserve the scrollbar's width, so the composer ends where the bubbles do. */
+      ion-content::part(scroll) {
+        scrollbar-gutter: stable;
+      }
+
+      ion-footer {
+        overflow: hidden;
+        scrollbar-gutter: stable;
+      }
     }
   `,
 })
@@ -318,6 +332,7 @@ export class ChatPage {
   private readonly deleteChat = chatDeleter();
   private readonly notifications = inject(NotifyService);
   private readonly content = viewChild(IonContent);
+  private readonly composer = viewChild<ChatComposer>('composer');
 
   readonly id = input<string>();
   /** `?project=`: New chat for it, without the picker. */
@@ -405,6 +420,11 @@ export class ChatPage {
         void this.content()?.scrollToBottom(askedAt ? 300 : 0);
       }
     });
+  }
+
+  protected suggest(question: string): void {
+    this.chats.type('', question);
+    this.composer()?.focus();
   }
 
   protected send(): void {

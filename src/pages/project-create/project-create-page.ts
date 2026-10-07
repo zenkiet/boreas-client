@@ -20,9 +20,14 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
     <ion-header [translucent]="true">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button aria-label="Cancel" (click)="cancel()">
-            <span slot="icon-only" class="icon-[regular--xmark]" aria-hidden="true"></span>
-          </ion-button>
+          <!-- A dialog names its buttons; a pushed page keeps discs. -->
+          @if (dialog()) {
+            <ion-button fill="solid" class="act" (click)="cancel()">Cancel</ion-button>
+          } @else {
+            <ion-button aria-label="Cancel" (click)="cancel()">
+              <span slot="icon-only" class="icon-[regular--xmark]" aria-hidden="true"></span>
+            </ion-button>
+          }
         </ion-buttons>
         <ion-title>New project</ion-title>
         <!-- Never validity-disabled: submitting empty fields must reveal their errors. -->
@@ -32,10 +37,16 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
             form="create-project-form"
             fill="solid"
             color="primary"
-            aria-label="Create project"
+            [class.act]="dialog()"
+            [class.act--primary]="dialog()"
+            [attr.aria-label]="dialog() ? null : 'Create project'"
             [disabled]="manage.busy()"
           >
-            <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
+            @if (dialog()) {
+              Create
+            } @else {
+              <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
+            }
           </ion-button>
         </ion-buttons>
       </ion-toolbar>

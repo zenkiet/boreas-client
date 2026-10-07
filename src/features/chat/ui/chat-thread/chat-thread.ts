@@ -1,8 +1,10 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, input, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { interval, map } from 'rxjs';
 
 import type { ChatMessage } from '@entities/chat';
+import { pathParts } from '@shared/lib/format/path';
 import { splitRepo } from '@shared/lib/format/repo';
 import { MarkdownView } from '@shared/lib/markdown/markdown-view';
 import { chatDay } from '../../model/chat-time';
@@ -82,12 +84,12 @@ export class ChatWaiting {
 
 @Component({
   selector: 'app-chat-thread',
-  imports: [ChatWaiting, MarkdownView],
+  imports: [ChatWaiting, MarkdownView, NgTemplateOutlet],
   template: `
     @if (when(); as label) {
       <p class="when">{{ label }}</p>
     }
-    @for (message of messages(); track $index) {
+    @for (message of messages(); track $index; let last = $last) {
       @if (message.role === 'user') {
         <p class="me">{{ message.content }}</p>
       } @else {
@@ -99,26 +101,25 @@ export class ChatWaiting {
               @for (source of message.sources; track $index) {
                 @if (source.url) {
                   <a class="file" target="_blank" rel="noopener noreferrer" [href]="source.url">
-                    <span class="grow">
-                      <b>{{ repo(source.repo) }}</b> · {{ source.path }}
-                    </span>
+                    <ng-container *ngTemplateOutlet="file; context: { $implicit: source }" />
                     <span
-                      class="icon-[regular--arrow-up-right] text-accent"
+                      class="icon-[regular--arrow-up-right] flex-none text-accent"
                       aria-hidden="true"
                     ></span>
                   </a>
                 } @else {
                   <span class="file text-label-3">
-                    <span class="grow"
-                      ><b>{{ repo(source.repo) }}</b> · {{ source.path }}</span
-                    >
+                    <ng-container *ngTemplateOutlet="file; context: { $implicit: source }" />
                   </span>
                 }
               }
             </section>
           }
         </article>
-        <p class="fine">AI-generated from the code, may be wrong</p>
+        <!-- Once, under the newest answer: repeated per answer it is noise. -->
+        @if (last && !asking()) {
+          <p class="fine">AI-generated from the code, may be wrong</p>
+        }
       }
     }
     @if (asking(); as asking) {
@@ -126,6 +127,16 @@ export class ChatWaiting {
       <app-chat-waiting [since]="asking.since" />
     }
     <span class="sr-only" role="status">{{ status() }}</span>
+
+    <ng-template #file let-source>
+      <span class="grow"
+        ><b>{{ repo(source.repo) }}</b> ·
+        @for (part of parts(source.path); track $index) {
+          <span>{{ part }}</span
+          ><wbr />
+        }
+      </span>
+    </ng-template>
   `,
   styles: `
     :host {
@@ -249,6 +260,8 @@ export class ChatThread {
       return previous?.source.waiting && now.count > previous.source.count ? 'Answer ready' : '';
     },
   });
+
+  protected readonly parts = pathParts;
 
   protected repo(full: string): string {
     return splitRepo(full).name;

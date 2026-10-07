@@ -63,6 +63,7 @@ import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
+import { PopoverAnchor, popoverAnchor } from '@shared/ui/popover-anchor/popover-anchor';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 import { TaskNoteCard, TaskOverview } from '@widgets/task-overview';
 
@@ -237,7 +238,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
 
       @if (!wide()) {
         <div class="phone-title"><ng-container *ngTemplateOutlet="titleBlock" /></div>
-        <ion-toolbar class="phone-switch">
+        <ion-toolbar class="phone-switch" appPhoneSwitch>
           <ng-container *ngTemplateOutlet="sectionSwitch" />
         </ion-toolbar>
       }
@@ -308,13 +309,17 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                   [connected]="logs.connected()"
                   [connecting]="!detail.task() || logs.connecting()"
                   [downloading]="logs.downloading()"
+                  [status]="detail.task()?.status ?? null"
+                  [canStart]="logsCanStart()"
                   (downloadRequested)="downloadLogs()"
+                  (startRequested)="changeState('start')"
                 />
               </div>
 
               @if (detail.task()) {
                 <div [class.hidden]="mainView() !== 'environment'">
-                  <app-inset-group>
+                  <!-- Labelled like Container logs, so both tabs start level with Overview. -->
+                  <app-inset-group [label]="wide() ? 'Environment variables' : ''">
                     <app-environment-editor
                       class="tall"
                       [footer]="edit()"
@@ -328,8 +333,16 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                   @if (edit()) {
                     <div class="apply">
                       <p class="apply__note">
-                        @if (environmentChange(); as change) {
+                        <!-- The disabled Apply says why. -->
+                        @if (environmentErrors().length > 0) {
+                          <span class="apply__change text-danger!">
+                            Fix {{ environmentErrors().length === 1 ? 'the line' : 'the lines' }}
+                            marked above to apply.
+                          </span>
+                        } @else if (environmentChange(); as change) {
                           <span class="apply__change">{{ change }}.</span>
+                        } @else {
+                          <span class="apply__change">No changes to apply yet.</span>
                         }
                         Applying replaces the whole map and recreates the container.
                       </p>
@@ -357,11 +370,10 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
 
             <div class="aside" [class.hidden]="!desktop() && view() !== 'info'">
               @if (detail.task(); as task) {
-                <!-- One DOM for every width: the order-* classes arrange it. -->
+                <!-- DOM order is the reading order; iPad splits it into two columns. -->
                 <div class="info">
                   <div class="info__col">
                     <app-task-overview
-                      class="order-1"
                       [task]="task"
                       [proxyUrl]="detail.proxyUrl()"
                       [lastDeploy]="summary()?.lastDeploy ?? null"
@@ -369,7 +381,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                       [usage]="usage.points().at(-1) ?? null"
                       [editable]="edit()"
                       (copyFailed)="
-                        notifications.failure('The proxy URL could not be copied to the clipboard.')
+                        notifications.failure('The app URL could not be copied to the clipboard.')
                       "
                       (imageCopyFailed)="
                         notifications.failure(
@@ -378,14 +390,28 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                       "
                       (statusChange)="changeDevStatus(task, $event)"
                     />
+                  </div>
+
+                  <div class="info__col">
+                    <!-- Stopped tasks are absent from the stream; desktop has a Usage row. -->
+                    @if (task.status === 'running') {
+                      <app-inset-group class="desk-hide" label="Live usage" trailing="last 60 s">
+                        <app-task-usage [points]="usage.points()" />
+                      </app-inset-group>
+                    }
+                    @if (task.note?.trim() || edit()) {
+                      <app-inset-group label="Note">
+                        <app-task-note-card
+                          [note]="task.note ?? ''"
+                          [updatedAt]="task.updatedAt"
+                          [editLink]="edit() ? noteLink() : null"
+                        />
+                      </app-inset-group>
+                    }
 
                     <!-- Listing grants is owner-only: a null list self-gates the panel. -->
                     @if (grants.grants(); as grantList) {
-                      <app-inset-group
-                        class="order-4"
-                        label="Access"
-                        [trailing]="grantSummary(grantList.length)"
-                      >
+                      <app-inset-group label="Access" [trailing]="grantSummary(grantList.length)">
                         <app-member-list
                           dateVerb="Granted"
                           [members]="grantList"
@@ -417,28 +443,6 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                         <ion-note>
                           A grant raises one person above their project role for this task only.
                         </ion-note>
-                      </app-inset-group>
-                    }
-                  </div>
-
-                  <div class="info__col">
-                    <!-- Stopped tasks are absent from the stream; desktop has a Usage row. -->
-                    @if (task.status === 'running') {
-                      <app-inset-group
-                        class="desk-hide order-2"
-                        label="Live usage"
-                        trailing="last 60 s"
-                      >
-                        <app-task-usage [points]="usage.points()" />
-                      </app-inset-group>
-                    }
-                    @if (task.note?.trim() || edit()) {
-                      <app-inset-group class="order-3" label="Note">
-                        <app-task-note-card
-                          [note]="task.note ?? ''"
-                          [updatedAt]="task.updatedAt"
-                          [editLink]="edit() ? noteLink() : null"
-                        />
                       </app-inset-group>
                     }
                   </div>
@@ -489,6 +493,13 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
             ></i>
             <span class="truncate">
               {{ devLabel[task.devStatus] }}
+              <!-- Without it "Ready" reads as testable. -->
+              @if (task.status !== 'running') {
+                ·
+                <span class="down" [attr.data-state]="task.status"
+                  >container {{ task.status }}</span
+                >
+              }
               @if (task.description) {
                 · {{ task.description }}
               }
@@ -499,7 +510,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
     </ng-template>
 
     <ng-template #sectionSwitch>
-      <ion-segment [value]="mainView()" (ionChange)="view.set($any($event.detail.value))">
+      <ion-segment [value]="mainView()" (ionChange)="setView($event.detail.value)">
         <ion-segment-button value="info" class="desk-hide">
           <ion-label>Overview</ion-label>
         </ion-segment-button>
@@ -528,6 +539,31 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
 
     .title-row > div {
       min-inline-size: 0;
+    }
+
+    /* Phones show the whole description; the iPad header keeps one line. */
+    .phone-title p {
+      align-items: flex-start;
+    }
+
+    .phone-title p > i {
+      margin-block-start: 0.375rem;
+    }
+
+    .phone-title .truncate {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      white-space: normal;
+    }
+
+    .down {
+      font-weight: 600;
+      color: var(--app-text-primary);
+    }
+
+    .down[data-state='error'] {
+      color: var(--ion-color-danger);
     }
 
     ion-button.act--icon {
@@ -644,6 +680,15 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
         margin-inline-end: 0.625rem;
       }
 
+      /* Apply ends on the editor card's edge, which the aside's gap pulls in. */
+      .apply {
+        margin-inline-end: 0.625rem;
+      }
+
+      .apply ion-button {
+        margin-inline-end: 0;
+      }
+
       :host ::ng-deep .aside app-inset-group .list-ios.list-inset {
         margin-inline-start: 0.625rem;
       }
@@ -697,6 +742,10 @@ export class TaskDetailPage {
   private readonly role = computed(() => this.detail.task()?.myRole ?? 'viewer');
   protected readonly operate = computed(() => atLeastRole(this.role(), 'operator'));
   protected readonly edit = computed(() => atLeastRole(this.role(), 'member'));
+  protected readonly logsCanStart = computed(() => {
+    const task = this.detail.task();
+    return !!task && this.operate() && !this.actionDisabled(task);
+  });
   /* Below operator the phone menu only holds Open, which needs a running task. */
   protected readonly narrowMenu = computed(() => {
     const task = this.detail.task();
@@ -732,7 +781,7 @@ export class TaskDetailPage {
 
   protected readonly menuOpen = signal(false);
   protected readonly condensed = signal(false);
-  protected readonly menuEvent = signal<Event | null>(null);
+  protected readonly menuEvent = signal<PopoverAnchor | null>(null);
   protected readonly granting = signal(false);
 
   protected readonly draftEnvironment = signal<Record<string, string>>({});
@@ -796,8 +845,19 @@ export class TaskDetailPage {
     if (slug && name) this.detail.refresh(slug, name);
   }
 
+  protected setView(value: unknown): void {
+    if (!VIEWS.includes(value as View)) return;
+    this.view.set(value as View);
+    /* Replaced, not pushed, like the project tabs: a reload or a shared link keeps the tab. */
+    void this.router.navigate([], {
+      queryParams: { section: value },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
   protected openMenu(event: Event): void {
-    this.menuEvent.set(event);
+    this.menuEvent.set(popoverAnchor(event));
     this.menuOpen.set(true);
   }
 

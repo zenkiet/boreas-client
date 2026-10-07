@@ -56,9 +56,17 @@ import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
               <ion-label>Member since</ion-label>
               <ion-note slot="end" class="tabular">{{ user.createdAt | date: 'MMM y' }}</ion-note>
             </ion-item>
-            <ion-note>
-              Accounts live on your server. Ask an administrator to change your email or password.
-            </ion-note>
+            <!-- Others ask an admin: point them at Users. -->
+            @if (user.role === 'admin') {
+              <ion-note>
+                Accounts live on your server. Change emails and passwords, yours too, in Settings ›
+                Users.
+              </ion-note>
+            } @else {
+              <ion-note>
+                Accounts live on your server. Ask an administrator to change your email or password.
+              </ion-note>
+            }
           </app-inset-group>
         }
 

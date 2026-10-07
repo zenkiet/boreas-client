@@ -1,10 +1,14 @@
 import { DatePipe } from '@angular/common';
 import {
   Component,
+  DestroyRef,
   ElementRef,
+  afterNextRender,
   afterRenderEffect,
   computed,
+  inject,
   input,
+  linkedSignal,
   output,
   signal,
   viewChild,
@@ -15,7 +19,10 @@ import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 import { IonSpinner } from '@ionic/angular/ion-spinner';
 
+import type { Task } from '@entities/task';
 import { LogEntry, LogTone } from '@entities/task-log';
+import { dayLabel } from '@shared/lib/format/day';
+import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
 const FOLLOW_THRESHOLD = 24;
@@ -105,26 +112,35 @@ const TONES: Record<LogTone, string> = {
           (scroll)="onScroll($event)"
         >
           @if (visibleEntries().length === 0) {
-            @if (connecting()) {
+            <!-- Lines exist, so the filter hid them, whatever the stream is doing. -->
+            @if (entries().length > 0) {
+              <p class="logs__empty">No line matches the filter.</p>
+            } @else if (connecting()) {
               <!-- An indeterminate wait: the one place a spinner belongs. -->
               <p class="logs__empty logs__empty--connecting" role="status">
                 <ion-spinner name="lines-small" />
                 Connecting to the log stream…
               </p>
+            } @else if (connected()) {
+              <p class="logs__empty">Waiting for log output.</p>
             } @else {
-              <p class="logs__empty">
-                {{
-                  connected()
-                    ? query() || errorsOnly()
-                      ? 'No line matches the filter.'
-                      : 'Waiting for log output.'
-                    : 'Logs are unavailable while the stream is disconnected.'
-                }}
-              </p>
+              <div class="logs__empty logs__empty--down">
+                <p class="m-0">{{ downReason() }}</p>
+                @if (canStart() && status() !== 'running') {
+                  <ion-button size="small" fill="outline" (click)="startRequested.emit()">
+                    <span slot="start" class="icon-[solid--play]" aria-hidden="true"></span>
+                    Start task
+                  </ion-button>
+                }
+              </div>
             }
           } @else {
             <!-- By entry: past the line cap an index key would rewrite every row per line. -->
             @for (entry of visibleEntries(); track entry) {
+              <!-- The time column has no date. -->
+              @if (dayStarts().get(entry); as day) {
+                <p class="logs__day">{{ day }}</p>
+              }
               @let error = isError(entry);
               <p class="logs__line" [class.logs__line--error]="error">
                 <span class="logs__time">{{ entry.timestamp | date: 'HH:mm:ss' }}</span>
@@ -212,6 +228,21 @@ const TONES: Record<LogTone, string> = {
       }
     }
 
+    /* Pinned, so the newest lines still show their day. */
+    .logs__day {
+      position: sticky;
+      inset-block-start: -0.5rem;
+      inset-inline-start: 0;
+      z-index: 1;
+      margin: 0;
+      background: var(--ion-item-background);
+      padding: 0.75rem 1rem 0.25rem;
+      font-family: var(--app-font-text);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--app-text-secondary);
+    }
+
     .logs__line:hover {
       background: var(--app-background-neutral-1);
     }
@@ -252,7 +283,8 @@ const TONES: Record<LogTone, string> = {
       text-align: center;
     }
 
-    .logs__empty--connecting {
+    .logs__empty--connecting,
+    .logs__empty--down {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -262,19 +294,41 @@ const TONES: Record<LogTone, string> = {
 })
 export class LogConsole {
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly entries = input.required<readonly LogEntry[]>();
   readonly connected = input.required<boolean>();
   readonly connecting = input(false);
   readonly downloading = input(false);
+  /** The container's state, to say why the stream is down. */
+  readonly status = input<Task['status'] | null>(null);
+  /** Operator and up: the down state offers Start. */
+  readonly canStart = input(false);
+  readonly startRequested = output<void>();
   readonly downloadRequested = output<void>();
 
   protected readonly tones = TONES;
   protected readonly query = signal('');
   protected readonly errorsOnly = signal(false);
-  protected readonly wrap = signal(false);
+  private readonly wide = wideScreen();
+  /* Unwrapped, a phone shows a few dozen characters of each line. */
+  protected readonly wrap = linkedSignal(() => !this.wide());
 
   private readonly follow = signal(true);
+
+  protected readonly downReason = computed(() => {
+    switch (this.status()) {
+      case 'running':
+        return 'Reconnecting to the log stream…';
+      case 'creating':
+      case 'starting':
+        return 'The container is starting; its logs follow once it runs.';
+      case 'stopped':
+        return 'The container is stopped. Start it to stream new lines.';
+      default:
+        return 'No container is running for this task, so there are no logs yet.';
+    }
+  });
 
   protected readonly visibleEntries = computed(() => {
     const query = this.query().trim().toLowerCase();
@@ -288,6 +342,18 @@ export class LogConsole {
         (!errorsOnly || this.isError(entry)) &&
         (!query || entry.message.toLowerCase().includes(query)),
     );
+  });
+
+  protected readonly dayStarts = computed(() => {
+    const starts = new Map<LogEntry, string>();
+    let last = '';
+    for (const entry of this.visibleEntries()) {
+      const at = new Date(entry.timestamp);
+      const day = at.toDateString();
+      if (day !== last) starts.set(entry, dayLabel(at));
+      last = day;
+    }
+    return starts;
   });
 
   protected readonly countLabel = computed(() => {
@@ -308,6 +374,16 @@ export class LogConsole {
       const element = this.body()?.nativeElement;
       if (!element || !this.follow() || !hasEntries) return;
       element.scrollTop = element.scrollHeight;
+    });
+    /* A hidden tab has no height to follow: catch up once it shows. */
+    afterNextRender(() => {
+      const element = this.body()?.nativeElement;
+      if (!element) return;
+      const observer = new ResizeObserver(() => {
+        if (this.follow()) element.scrollTop = element.scrollHeight;
+      });
+      observer.observe(element);
+      this.destroyRef.onDestroy(() => observer.disconnect());
     });
   }
 

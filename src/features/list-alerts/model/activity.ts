@@ -1,5 +1,6 @@
 import type { NotificationKind } from '@entities/notification';
 import { DEV_STATUSES, DEV_STATUS_LABEL } from '@entities/task/model';
+import { dayLabel, sameDay } from '@shared/lib/format/day';
 import { ProjectAlert } from './list-alerts.store';
 
 export type ActivityChip = 'all' | 'failures' | 'deploys' | 'status' | 'created';
@@ -67,21 +68,6 @@ export function describeAlert(alert: ProjectAlert): AlertDescription {
   }
 }
 
-export function dayLabel(date: Date): string {
-  const today = new Date();
-  if (sameDay(date, today)) return 'Today';
-
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (sameDay(date, yesterday)) return 'Yesterday';
-
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
-  }).format(date);
-}
-
 export function timeLabel(date: Date): string {
   const elapsed = Date.now() - date.getTime();
   if (!sameDay(date, new Date())) return clock(date);
@@ -104,14 +90,6 @@ export function whenLabel(date: Date): string {
         ? `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`
         : `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
   return `${at} · ${ago}`;
-}
-
-export function sameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
 }
 
 function clock(date: Date): string {

@@ -18,8 +18,6 @@ import { toByteSize } from '@shared/lib/format/bytes';
 import { ProjectSummary } from '../../model/list-projects.store';
 
 const NO_LOADS: ReadonlyMap<string, ProjectLoad> = new Map();
-/* Past five tasks a row says "+n": a dot per task would outgrow the status column. */
-const MAX_DOTS = 5;
 
 /** Switches on its own width (container query), so iPad portrait keeps the stacked rows. */
 @Component({
@@ -53,7 +51,7 @@ const MAX_DOTS = 5;
       <ion-label class="cells">
         <span>Project</span>
         <span>Slug</span>
-        <span>Tasks</span>
+        <span class="count">Tasks</span>
         <span>Status</span>
         <span class="load text-end">CPU</span>
         <span class="load text-end">Memory</span>
@@ -64,23 +62,30 @@ const MAX_DOTS = 5;
     @for (row of rows(); track row.project.id) {
       <ion-item button (click)="projectOpened.emit(row.project)">
         <ion-label class="cells">
-          <span class="name truncate">{{ row.project.name }}</span>
+          <!-- Outside the truncated name, so a long name never hides it. -->
+          <span class="name">
+            <span class="truncate">{{ row.project.name }}</span>
+            @if (row.failing) {
+              <span class="failing">{{ row.failing }}</span>
+            }
+          </span>
+          <!-- No slug on phones: it pushed the running count off the line. -->
           <span class="sub truncate">
             <span class="slug truncate font-mono">/{{ row.project.slug }}</span>
-            <span class="meta"> · {{ row.meta }}</span>
+            <span class="meta">{{ row.meta }}</span>
           </span>
           <span class="count tabular"
             >{{ row.tasks }}<span class="sr-only"> {{ row.noun }}</span></span
           >
           <span class="bar-cell">
-            <span class="dots" role="img" [attr.aria-label]="row.status">
-              @for (dot of row.dots; track $index) {
-                <i [attr.data-dev]="dot"></i>
+            <!-- Counts, not only colours: colour alone fails colour-blind readers. -->
+            <span class="dots" role="img" [attr.aria-label]="row.status" [attr.title]="row.status">
+              @for (part of row.parts; track part.status) {
+                <span class="dots__part tabular"
+                  ><i [attr.data-dev]="part.status"></i>{{ part.count }}</span
+                >
               } @empty {
                 <i class="none"></i>
-              }
-              @if (row.more) {
-                <span class="dots__more tabular">+{{ row.more }}</span>
               }
             </span>
           </span>
@@ -117,7 +122,16 @@ const MAX_DOTS = 5;
       display: flex;
       flex: none;
       align-items: center;
-      gap: 0.1875rem;
+      gap: 0.625rem;
+    }
+
+    .dots__part {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3125rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-label-2);
     }
 
     .dots i {
@@ -129,13 +143,6 @@ const MAX_DOTS = 5;
     /* A project without tasks keeps an empty slot, so its status cell never reads as broken. */
     .dots .none {
       box-shadow: inset 0 0 0 1px var(--color-label-3);
-    }
-
-    .dots__more {
-      margin-inline-start: 0.25rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--color-label-3);
     }
 
     [data-dev='blocked'] {
@@ -165,10 +172,17 @@ const MAX_DOTS = 5;
     }
 
     .name {
+      display: flex;
+      align-items: baseline;
       grid-area: name;
+      min-inline-size: 0;
       font-size: 1rem;
       line-height: 1.3125rem;
       font-weight: 500;
+    }
+
+    .name > .truncate {
+      min-inline-size: 0;
     }
 
     .sub {
@@ -179,12 +193,21 @@ const MAX_DOTS = 5;
     }
 
     .slug {
+      display: none;
       font-size: 0.8125rem;
     }
 
     .bar-cell {
       display: flex;
       grid-area: bar;
+    }
+
+    .failing {
+      flex: none;
+      margin-inline-start: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-danger);
     }
 
     .head,
@@ -241,6 +264,7 @@ const MAX_DOTS = 5;
       }
 
       .slug {
+        display: block;
         color: var(--color-label-3);
       }
 
@@ -253,6 +277,16 @@ const MAX_DOTS = 5;
         display: revert;
         font-size: 0.875rem;
         color: var(--color-label-2);
+      }
+
+      /* Numbers align on their last digit; the gap keeps "3" apart from the status counts. */
+      .count {
+        text-align: end;
+      }
+
+      .bar-cell,
+      .head .cells > .count + span {
+        padding-inline-start: 0.75rem;
       }
 
       .deploy {
@@ -324,10 +358,8 @@ export class ProjectList {
         project,
         tasks: tasks.length,
         noun: tasks.length === 1 ? 'task' : 'tasks',
-        dots: counted
-          .flatMap(({ status, count }) => Array<DevStatus>(count).fill(status))
-          .slice(0, MAX_DOTS),
-        more: Math.max(0, tasks.length - MAX_DOTS),
+        parts: counted,
+        failing: failingBuilds(tasks),
         status:
           counted.length > 0 ? counted.map((p) => `${p.count} ${p.label}`).join(', ') : 'No tasks',
         meta: meta(tasks, deploy),
@@ -358,25 +390,33 @@ function parts(tasks: readonly TaskSummary[]) {
   }));
 }
 
+/* Counts every container not running, unknown ones included. */
 function meta(tasks: readonly TaskSummary[], deploy: DeployOutcome | undefined): string {
+  const running = tasks.filter((task) => task.status === 'running').length;
   const count =
-    tasks.length === 0 ? 'No tasks' : `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`;
+    tasks.length === 0
+      ? 'No tasks'
+      : running === tasks.length
+        ? `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`
+        : tasks.length === 1
+          ? 'not running'
+          : `${running} of ${tasks.length} running`;
   const errors = tasks.filter((task) => task.status === 'error').length;
-  const stopped = tasks.filter((task) => task.status === 'stopped').length;
   const building = tasks.filter((task) => isBuilding(task.build)).length;
-  const broken = tasks.find((task) => task.build?.state === 'failure')?.build;
-  const fact = broken
-    ? `build failed ${age(broken.at)} ago`
-    : deploy?.failed
-      ? `deploy failed ${age(deploy.at)} ago`
-      : errors > 0
-        ? `${errors} ${errors === 1 ? 'error' : 'errors'}`
-        : building > 0
-          ? `${building} building`
-          : stopped > 0
-            ? `${stopped} stopped`
-            : deploy
-              ? `deployed ${age(deploy.at)} ago`
-              : '';
+  /* A failing build has its own red badge beside the name. */
+  const fact = deploy?.failed
+    ? `deploy failed ${age(deploy.at)} ago`
+    : errors > 0
+      ? `${errors} ${errors === 1 ? 'error' : 'errors'}`
+      : building > 0
+        ? `${building} building`
+        : deploy
+          ? `deployed ${age(deploy.at)} ago`
+          : '';
   return fact ? `${count} · ${fact}` : count;
+}
+
+function failingBuilds(tasks: readonly TaskSummary[]): string {
+  const count = tasks.filter((task) => task.build?.state === 'failure').length;
+  return count === 0 ? '' : `${count} ${count === 1 ? 'build' : 'builds'} failed`;
 }

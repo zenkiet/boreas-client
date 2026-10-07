@@ -1,4 +1,4 @@
-export { matchProjects, parseQuery, rankTasks } from './model/search-query';
+export { matchProjects, parseQuery, rankTasks, statusToken } from './model/search-query';
 export { SearchTasksStore } from './model/search-tasks.store';
 export type { FleetTask, RecentTask } from './model/search-tasks.store';
 export { SearchResults } from './ui/search-results/search-results';

@@ -333,7 +333,8 @@ let instances = 0;
       background: var(--app-fill);
       font-size: 0.9375rem;
       font-weight: 500;
-      color: var(--ion-color-primary);
+      /* The accent ink: the accent itself fails AA on the grey fill. */
+      color: var(--app-accent-text);
       white-space: nowrap;
       cursor: pointer;
     }

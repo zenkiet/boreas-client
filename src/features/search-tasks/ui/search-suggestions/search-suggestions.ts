@@ -9,16 +9,18 @@ import { RecentTask } from '../../model/search-tasks.store';
 export interface SuggestionCounts {
   readonly failed: number;
   readonly blocked: number;
-  readonly stopped: number;
+  readonly down: number;
+  readonly ready: number;
 }
 
-/* Severity order: what needs someone first. */
+/* Severity order, then what QA can pick up. */
 const FILTERS = [
   {
     key: 'failed',
     token: 'is:failed',
-    label: 'Failed deploys today',
-    short: 'Failed today',
+    label: 'Failed builds and deploys',
+    hint: 'Builds failing now, deploys that failed today',
+    short: 'Failed',
     icon: 'icon-[regular--circle-xmark]',
     tone: 'bg-danger-soft text-danger',
   },
@@ -26,17 +28,30 @@ const FILTERS = [
     key: 'blocked',
     token: 'is:blocked',
     label: 'Blocked tasks',
+    hint: '',
     short: 'Blocked',
     icon: 'icon-[regular--triangle-exclamation]',
     tone: 'bg-warn-soft text-warn',
   },
+  /* Unknown containers too: "stopped" alone missed them. */
   {
-    key: 'stopped',
-    token: 'is:stopped',
-    label: 'Stopped containers',
-    short: 'Stopped',
+    key: 'down',
+    token: 'is:down',
+    label: 'Containers not running',
+    hint: 'Stopped, failed or not found',
+    short: 'Not running',
     icon: 'icon-[regular--pause]',
     tone: 'bg-fill text-label-2',
+  },
+  /* Ready and running: a ready build with no container cannot be tested. */
+  {
+    key: 'ready',
+    token: 'is:ready is:running',
+    label: 'Ready to test',
+    hint: 'Ready, with the container running',
+    short: 'Ready to test',
+    icon: 'icon-[regular--circle-check]',
+    tone: 'bg-ok-soft text-ok',
   },
 ] as const;
 
@@ -50,14 +65,19 @@ const FILTERS = [
           <span slot="start" class="tile" [class]="filter.tone" aria-hidden="true">
             <span [class]="filter.icon"></span>
           </span>
-          <ion-label>{{ compact() ? filter.short : filter.label }}</ion-label>
+          <ion-label>
+            {{ compact() ? filter.short : filter.label }}
+            @if (!compact() && filter.hint) {
+              <p class="hint">{{ filter.hint }}</p>
+            }
+          </ion-label>
           @if (filter.count !== null) {
             <ion-note slot="end" class="tabular">{{ filter.count }}</ion-note>
           }
         </ion-item>
       } @empty {
         <ion-item>
-          <ion-label class="text-label-3!">Nothing failed, blocked or stopped.</ion-label>
+          <ion-label class="text-label-3!">No task fits a quick filter right now.</ion-label>
         </ion-item>
       }
     </app-inset-group>
@@ -97,6 +117,11 @@ const FILTERS = [
 
     ion-item {
       --row-min-height: 3.5rem;
+    }
+
+    /* Ionic's grey for a second line fails AA on a dark cell. */
+    .hint {
+      color: var(--app-text-tertiary);
     }
 
     .recent-icon {

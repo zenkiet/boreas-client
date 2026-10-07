@@ -331,6 +331,17 @@ ion-buttons:empty {
     --app-column: 65rem;
   }
 
+  /* Desktop reads left to right: the condensed title stays where the large one stood. */
+  .split-pane-visible
+    .ion-page
+    > ion-header:has(~ ion-content ion-header[collapse='condense'])
+    > ion-toolbar
+    > ion-title {
+    position: static;
+    padding-inline: 0 !important;
+    text-align: start;
+  }
+
   :root {
     --radius-card: 1.5rem;
   }
@@ -407,6 +418,12 @@ ion-input.font-mono.ios {
   font-size: 0.9375rem;
 }
 
+/* The theme's 40% placeholder fails AA on the glass. */
+ion-searchbar.ios {
+  --placeholder-color: var(--app-text-tertiary);
+  --placeholder-opacity: 1 !important;
+}
+
 /* At rest an image field shows its tail (the tag); focus restores the normal edit. */
 ion-input.value-tail:not(.has-focus) .native-input {
   direction: rtl;
@@ -475,6 +492,12 @@ ion-input.value-input .native-input {
   > ion-content:has(ion-header[collapse='condense'])
   > ion-refresher {
   top: var(--ion-safe-area-top, 0px);
+}
+
+/* Ionic misses a lone row that follows a component. */
+.list-ios.list-inset ion-item-group > ion-item:only-of-type:last-child {
+  --border-width: 0;
+  --inner-border-width: 0;
 }
 
 /* Ionic drops each parent's last separator; restore it where more rows follow in the group. */
@@ -600,8 +623,20 @@ ion-header .title-row {
     line-height: 2.25rem;
   }
 
+  /* The theme insets the field 36px at the right, 16px at the left. */
+  app-shell ion-footer ion-toolbar {
+    --padding-end: 12px !important;
+  }
+
+  app-shell ion-footer ion-searchbar.ios {
+    padding-inline-end: 0 !important;
+  }
+
+  /* Glass like the header, not a solid band over the scrolling rows. */
   ion-toolbar.phone-switch {
-    --background: var(--ion-background-color);
+    --background: color-mix(in srgb, var(--ion-background-color) 82%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
     --padding-start: max(1.25rem, (100% - var(--app-column)) / 2 + 1.25rem);
     --padding-end: max(1.25rem, (100% - var(--app-column)) / 2 + 1.25rem);
     position: sticky;
@@ -614,6 +649,11 @@ ion-header .title-row {
   ion-toolbar.phone-switch ion-segment {
     inline-size: 100%;
     margin: 0;
+  }
+
+  /* Ionic margins only a bar's last ion-buttons, often the hidden wide-only group. */
+  ion-toolbar > ion-buttons.narrow-only[slot='end'] {
+    margin-inline-end: 12px !important;
   }
 
   /* Opacity only: changing a fullscreen header's height makes ion-content jump. */
@@ -715,14 +755,15 @@ ion-item > button.disclose {
     --padding-end: calc(var(--app-gutter) + 1.25rem) !important;
   }
 
-  /* The theme's 12px button margins would pull the capsules in from the cards' edges. */
+  /* The theme's 12px margins pull capsules off the cards' edge; its :has() outranks this. */
   .split-pane-visible .ion-page > ion-header > ion-toolbar > ion-buttons.ios {
-    margin-inline: 0;
+    margin-inline: 0 !important;
   }
 
-  /* The large title starts on the cards' edge; the theme pads condensed bars by only 4px. */
+  /* On the cards' edge, both sides: the theme pads condensed bars by only 4px. */
   .split-pane-visible ion-content ion-header[collapse='condense'] ion-toolbar {
     --padding-start: 0.5rem !important;
+    --padding-end: 0.5rem !important;
   }
 
   ion-header.wide-head > ion-toolbar:first-of-type ion-title {
@@ -746,6 +787,29 @@ ion-item > button.disclose {
     flex: none;
     inline-size: 23.75rem;
     margin: 0;
+  }
+
+  /* The theme's 70px tab-bar clearance; the sidebar replaces the tab bar. */
+  .split-pane-visible ion-content.content-fullscreen {
+    --padding-bottom: 1.25rem !important;
+  }
+
+  /* Over scrolling rows the theme's 8px blur leaves their text legible right under the title. */
+  ion-header.wide-head::before,
+  .split-view .split__pane ion-header.header-translucent::before,
+  .split-pane-visible
+    .ion-page
+    > ion-header.header-translucent:not(.header-collapse-condense-inactive)::before {
+    background-color: color-mix(in srgb, var(--ion-background-color) 82%, transparent) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+  }
+}
+
+/* Big screens left the logs 670px wide between wide gutters. */
+@media (min-width: 100rem) {
+  .desk-wide {
+    --app-column: 80rem;
   }
 }
 
@@ -927,7 +991,8 @@ ion-modal.ios.app-palette {
   padding-block-start: 7.5rem;
 }
 
-.ion-palette-dark ion-modal.ios.app-palette {
+.ion-palette-dark ion-modal.ios.app-palette,
+.ion-palette-dark ion-modal.ios.app-dialog {
   --backdrop-opacity: 0.5;
 }
 
@@ -950,6 +1015,18 @@ ion-modal.app-sheet {
   --width: calc(100% - 1rem);
   --border-radius: 2.125rem;
   --background: var(--app-sheet);
+}
+
+/* Black on black hides a dialog's shadow: a hairline marks its edge in both themes. */
+ion-modal.ios.app-dialog::part(content) {
+  box-shadow:
+    0 0 0 0.5px var(--app-border-normal),
+    0 1.5rem 4rem rgba(0, 0, 0, 0.3);
+}
+
+/* No tab bar under a dialog, so no 70px clearance. */
+ion-modal.app-dialog ion-content.content-fullscreen {
+  --padding-bottom: 0px !important;
 }
 
 /* .ios to outrank the theme's ion-modal.ios:not(…) sizes. */
@@ -1002,6 +1079,15 @@ ion-modal.app-sheet ion-content {
 
 ion-modal.app-sheet app-inset-group .list-ios.list-inset {
   margin-inline: 0.75rem;
+}
+
+/* A form's pill keeps the cards' edge in a sheet too. */
+ion-modal.app-sheet ion-content div:has(> ion-button.cta) {
+  margin-inline: 0.75rem;
+}
+
+ion-modal.app-sheet ion-button.cta {
+  margin-inline: 0;
 }
 
 /* In dark the sheet already is the cell colour, so its cells step up to the elevated grey. */
@@ -1062,9 +1148,9 @@ ion-toast.toast-negative::part(icon) {
   --padding-end: calc(max(0px, (100% - var(--app-column)) / 2) + 1.25rem);
 }
 
-/* The global 12px-margin reset needs .ion-page, which panes are not. */
+/* The global 12px-margin reset needs .ion-page, which panes are not; !important as there. */
 .split-view .split__pane ion-header > ion-toolbar > ion-buttons {
-  margin-inline: 0;
+  margin-inline: 0 !important;
 }
 
 .split-view .split__pane ion-header ion-title {
@@ -1151,9 +1237,39 @@ ion-toast.toast-negative::part(icon) {
 ion-item.ion-focused:focus-within::part(native),
 ion-segment-button.ion-focused,
 ion-button.ion-focused::part(native),
-ion-back-button.ion-focused::part(native) {
+ion-back-button.ion-focused::part(native),
+ion-fab-button.ion-focused::part(native) {
   outline: 0.125rem solid var(--ion-color-primary);
   outline-offset: -0.125rem;
+}
+
+/* The theme's thin glass left labels unreadable; unspecific so Reduce Transparency still wins. */
+ion-tab-bar {
+  --background: rgba(
+    var(--ios-theme-glass-background-rgb, var(--ios26-glass-background-rgb)),
+    0.88
+  ) !important;
+}
+
+ion-tab-bar::before {
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+/* The light accent fails AA on the selected pill over dark content. */
+:root:not(.ion-palette-dark) ion-tab-button {
+  --color-selected: var(--app-accent-text);
+}
+
+/* Touch screens get 44px targets, outlined small buttons included. */
+@media (pointer: coarse) {
+  ion-button.button-small:is(.button-clear, .button-outline) {
+    min-block-size: 2.75rem;
+  }
+
+  ion-button.button-small.button-clear.button-has-icon-only {
+    min-inline-size: 2.75rem;
+  }
 }
 
 /* Chrome's default light scrollbar cuts through the dark canvas and the log panel. */
@@ -1161,6 +1277,22 @@ ion-back-button.ion-focused::part(native) {
 ion-content::part(scroll) {
   scrollbar-width: thin;
   scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+/* Both edges, so a classic scrollbar never shifts the column off the header's. */
+.ion-page:not(.split-view .ion-page) > ion-content::part(scroll) {
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Chrome reserves room for its spinner. */
+input[type='number'] {
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Narrow screens give a scrollbar no width, as touch platforms do. */
@@ -1186,6 +1318,10 @@ ion-content::part(scroll) {
 @media (prefers-reduced-transparency: reduce) {
   :root {
     --app-sheet: #fafafc;
+  }
+
+  ion-toolbar.phone-switch {
+    --background: var(--ion-background-color) !important;
   }
 
   :root.ion-palette-dark {

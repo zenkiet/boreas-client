@@ -5,7 +5,6 @@ import { IonBackButton } from '@ionic/angular/ion-back-button';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonButtons } from '@ionic/angular/ion-buttons';
 import { IonItem } from '@ionic/angular/ion-item';
-import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 import { IonRouterLink } from '@ionic/angular/ion-router-link';
 import { defer, filter, from, switchMap, throwError } from 'rxjs';
@@ -34,7 +33,6 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     IonButton,
     IonButtons,
     IonItem,
-    IonLabel,
     IonNote,
     IonRouterLink,
     PAGE_CHROME,
@@ -103,10 +101,15 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
               }
 
               @if (past().length > 0) {
-                <ion-item button [detail]="false" (click)="showHistory.set(!showHistory())">
-                  <ion-label color="primary">
+                <ion-item>
+                  <button
+                    type="button"
+                    class="disclose"
+                    [attr.aria-expanded]="showHistory()"
+                    (click)="showHistory.set(!showHistory())"
+                  >
                     {{ showHistory() ? 'Hide' : 'Show' }} {{ past().length }} revoked and expired
-                  </ion-label>
+                  </button>
                 </ion-item>
               }
             }

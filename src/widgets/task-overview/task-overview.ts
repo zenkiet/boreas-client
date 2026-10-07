@@ -18,8 +18,16 @@ import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import { EMPTY, defer, from } from 'rxjs';
 
 import type { Build, DeployOutcome } from '@entities/task';
-import { BuildStatus, DEV_STATUS_LABEL, DevStatus, Task, TaskVolumes } from '@entities/task';
+import {
+  BuildStatus,
+  DEV_STATUS_LABEL,
+  DevStatus,
+  Task,
+  TaskVolumes,
+  UNKNOWN_CONTAINER_HINT,
+} from '@entities/task';
 import { toByteSize } from '@shared/lib/format/bytes';
+import { pathParts } from '@shared/lib/format/path';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 
@@ -73,17 +81,33 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
         }
       </ion-item>
 
+      <!-- Caption over value, like About's URL prefix: the whole address fits on two lines. -->
       <ion-item>
-        <ion-label class="row-label">Proxy URL</ion-label>
-        <!-- min-width lets the nowrap link shrink; without it the copy button leaves the group. -->
-        <a class="value value--link value--tail" rel="noopener" target="_blank" [href]="proxyUrl()"
-          ><bdi>{{ proxyLabel() }}</bdi></a
-        >
+        <ion-label class="stacked">
+          <span class="caption">App URL</span>
+          <!-- Named whole: the line-break spans would otherwise read as separate words. -->
+          <a
+            class="full value--link"
+            rel="noopener"
+            target="_blank"
+            [href]="proxyUrl()"
+            [attr.aria-label]="proxyParts().join('')"
+          >
+            @for (part of proxyParts(); track $index) {
+              <span class="seg">{{ part }}</span
+              ><wbr />
+            }
+          </a>
+          <!-- A container that is not running answers 503: say so before the tap. -->
+          @if (unreachable(); as why) {
+            <span class="why">{{ why }}</span>
+          }
+        </ion-label>
         <ion-button
           slot="end"
           fill="clear"
           size="small"
-          [attr.aria-label]="copied() ? 'Copied' : 'Copy proxy URL'"
+          [attr.aria-label]="copied() ? 'Copied' : 'Copy app URL'"
           (click)="copyUrl()"
         >
           <span
@@ -94,16 +118,32 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
         </ion-button>
       </ion-item>
 
-      <ion-item>
-        <ion-label class="row-label">Container</ion-label>
-        <span class="value" [attr.data-state]="task().status">{{ task().status }}</span>
-      </ion-item>
+      <!-- Unknown explains itself in text: a tooltip is neither found nor read aloud. -->
+      @if (task().status === 'unknown') {
+        <ion-item>
+          <ion-label class="stacked">
+            <span class="caption">Container</span>
+            <span class="full">unknown · {{ unknownHint }}</span>
+          </ion-label>
+        </ion-item>
+      } @else {
+        <ion-item>
+          <ion-label class="row-label">Container</ion-label>
+          <span class="value" [attr.data-state]="task().status">{{ task().status }}</span>
+        </ion-item>
+      }
 
       <ion-item>
-        <ion-label class="row-label">Image</ion-label>
-        <span class="value value--tail font-mono" [attr.title]="task().image"
-          ><bdi>{{ shortImage() }}</bdi></span
-        >
+        <ion-label class="stacked">
+          <span class="caption">Image</span>
+          <span class="sr-only">{{ imageParts().join('') }}</span>
+          <span class="full font-mono" aria-hidden="true" [attr.title]="task().image">
+            @for (part of imageParts(); track $index) {
+              <span class="seg">{{ part }}</span
+              ><wbr />
+            }
+          </span>
+        </ion-label>
         <ion-button
           slot="end"
           fill="clear"
@@ -128,10 +168,13 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
         </ion-item>
       }
 
+      <!-- Stacked, so a wrapped stage stays beside its glyph. -->
       @if (build(); as build) {
         <ion-item>
-          <ion-label class="row-label">Build</ion-label>
-          <span class="value"><app-build-status mode="value" [build]="build" /></span>
+          <ion-label class="stacked">
+            <span class="caption">Build</span>
+            <span class="full"><app-build-status mode="value" [build]="build" /></span>
+          </ion-label>
           @if (build.url) {
             <ion-button
               slot="end"
@@ -175,6 +218,37 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
       white-space: nowrap;
     }
 
+    .stacked {
+      padding-block: 0.25rem;
+    }
+
+    .caption {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--app-text-secondary);
+    }
+
+    .full {
+      display: block;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+      color: var(--app-text-tertiary);
+      white-space: normal;
+    }
+
+    .why {
+      display: block;
+      margin-block-start: 0.125rem;
+      font-size: 0.8125rem;
+      line-height: 1.125rem;
+      color: var(--app-text-secondary);
+    }
+
+    /* Lines break after a slash only: "pos-portal" never splits at its hyphen. */
+    .seg {
+      white-space: nowrap;
+    }
+
     .value {
       flex: 1;
       min-inline-size: 0;
@@ -196,13 +270,6 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
       font-family: var(--app-font-mono);
       color: var(--ion-color-primary);
       text-decoration: none;
-    }
-
-    /* Clipped at the head, where rows are alike; in rtl, inline-end is the label's side. */
-    .value--tail {
-      direction: rtl;
-      padding-inline: 0 0.75rem;
-      text-align: start;
     }
 
     .value[data-state='running'] {
@@ -250,16 +317,32 @@ export class TaskOverview {
   protected readonly statusOptions = STATUS_OPTIONS;
   protected readonly statusMenu = STATUS_MENU;
   protected readonly devLabel = DEV_STATUS_LABEL;
+  protected readonly unknownHint = UNKNOWN_CONTAINER_HINT;
 
-  /* Every task shares the host; the path is what tells them apart. */
-  protected readonly proxyLabel = computed(() => this.proxyUrl().replace(/^https?:\/\/[^/]+/, '…'));
-
-  /* "…/storefront@9f86d0"; copy keeps the full reference. */
-  protected readonly shortImage = computed(() => {
-    const image = this.task().image.replace(/@sha256:([0-9a-f]{6})[0-9a-f]+$/, '@$1');
-    const slash = image.lastIndexOf('/', image.includes('@') ? image.indexOf('@') : image.length);
-    return slash < 0 ? image : `…${image.slice(slash)}`;
+  /* Worded like the Container row; Ready gets "Can't test yet". */
+  protected readonly unreachable = computed(() => {
+    const { status, devStatus } = this.task();
+    if (status === 'running') return '';
+    if (status === 'creating' || status === 'starting') {
+      return 'Answers once the container is running.';
+    }
+    const why =
+      status === 'stopped'
+        ? 'the container is stopped'
+        : status === 'error'
+          ? 'the container failed'
+          : 'Boreas can’t find the container';
+    return `${devStatus === 'ready' ? 'Can’t test yet' : 'Not reachable now'}: ${why}.`;
   });
+
+  protected readonly proxyParts = computed(() =>
+    pathParts(this.proxyUrl().replace(/^https?:\/\//, '')),
+  );
+
+  /* "ghcr.io/acme/storefront@9f86d0"; copy keeps the full digest. */
+  protected readonly imageParts = computed(() =>
+    pathParts(this.task().image.replace(/@sha256:([0-9a-f]{6})[0-9a-f]+$/, '@$1')),
+  );
 
   protected readonly copied = signal(false);
   protected readonly copiedImage = signal(false);

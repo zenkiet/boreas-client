@@ -25,7 +25,11 @@ import { FleetTask } from '../../model/search-tasks.store';
             · {{ hit.task.description }}
           }
         </p>
-        <p class="state" [class]="tone()">{{ state() }}</p>
+        <!-- Only the dev status is coloured: all green read as healthy. -->
+        <p class="state">
+          <span [class]="tone()">{{ devLabel() }}</span> ·
+          <span class="container" [attr.data-state]="hit.task.status">{{ container() }}</span>
+        </p>
         <div class="mt-3.5 flex flex-wrap gap-2">
           <button type="button" class="act" (click)="taskOpened.emit(hit)">Open</button>
           <button type="button" class="act" (click)="logsOpened.emit(hit)">Logs</button>
@@ -82,6 +86,18 @@ import { FleetTask } from '../../model/search-tasks.store';
       font-weight: 600;
     }
 
+    .container {
+      color: var(--app-text-primary);
+    }
+
+    .container[data-state='running'] {
+      color: var(--app-status-positive);
+    }
+
+    .container[data-state='error'] {
+      color: var(--ion-color-danger);
+    }
+
     .act {
       display: inline-flex;
       align-items: center;
@@ -122,8 +138,10 @@ export class TopHit {
         : 'text-progress',
   );
 
-  protected readonly state = computed(() => {
-    const { devStatus, status } = this.entry().task;
-    return `${DEV_STATUS_LABEL[devStatus]} · ${status}`;
+  protected readonly devLabel = computed(() => DEV_STATUS_LABEL[this.entry().task.devStatus]);
+
+  protected readonly container = computed(() => {
+    const { status } = this.entry().task;
+    return status === 'running' ? 'running' : `container ${status}`;
   });
 }

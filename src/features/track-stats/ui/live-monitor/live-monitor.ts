@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 
 import type { MetricPoint } from '@entities/system-stats';
 import { toByteSize } from '@shared/lib/format/bytes';
@@ -19,8 +19,8 @@ const ZERO: MetricPoint = { at: 0, cpu: 0, mem: 0, net: 0 };
         <button
           type="button"
           class="flex min-w-0 cursor-pointer flex-col items-start gap-0.5 rounded-2xl border-0 bg-transparent px-2.5 pt-2 pb-[9px] text-start text-label aria-pressed:bg-fill"
-          [attr.aria-pressed]="focus() === metric.key"
-          (click)="focus.set(metric.key)"
+          [attr.aria-pressed]="collapsed() ? null : focus() === metric.key"
+          (click)="pick(metric.key)"
         >
           <span
             class="flex items-center gap-1.5 text-xs leading-4 font-semibold tracking-[0.04em] text-label-3 uppercase"
@@ -80,6 +80,8 @@ export class LiveMonitor {
   /** Dims the chart only; the numbers keep full contrast. */
   readonly stale = input(false);
   readonly collapsed = input(false);
+  /** A tile picked while the chart is folded: the page unfolds it on that metric. */
+  readonly expandRequested = output<void>();
 
   protected readonly focus = signal<Metric>('cpu');
 
@@ -107,6 +109,11 @@ export class LiveMonitor {
             : `peak ${peakBytes(peak('net'), now.net)}`,
     }));
   });
+
+  protected pick(metric: Metric): void {
+    this.focus.set(metric);
+    if (this.collapsed()) this.expandRequested.emit();
+  }
 }
 
 function level(percent: number): string {
