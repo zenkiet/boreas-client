@@ -14,5 +14,5 @@ export {
   taskKey,
 } from './task';
 export type { Build, DeployOutcome, DevStatus, FleetProject, Task, TaskSummary } from './task';
-export { describeCompletedAction } from './task-state-action';
+export { PENDING_LABEL, describeCompletedAction } from './task-state-action';
 export type { TaskStateAction } from './task-state-action';

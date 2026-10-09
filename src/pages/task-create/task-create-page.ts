@@ -43,7 +43,8 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
             [disabled]="create.creating()"
           >
             @if (create.creating()) {
-              <ion-spinner name="lines-small" />
+              <ion-spinner name="lines-small" aria-hidden="true" />
+              <span class="sr-only">Create</span>
             } @else if (dialog()) {
               Create
             } @else {
@@ -74,7 +75,7 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
             [disabled]="create.creating()"
           >
             @if (create.creating()) {
-              <ion-spinner name="lines-small" />
+              <ion-spinner name="lines-small" aria-hidden="true" />
               Creating
             } @else {
               Create task

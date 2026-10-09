@@ -64,7 +64,7 @@ const LIMIT = 20;
             (click)="save()"
           >
             @if (saving()) {
-              <ion-spinner slot="icon-only" name="lines-small" />
+              <ion-spinner slot="icon-only" name="lines-small" aria-hidden="true" />
             } @else {
               <span slot="icon-only" class="icon-[regular--check]" aria-hidden="true"></span>
             }

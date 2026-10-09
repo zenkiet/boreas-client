@@ -71,7 +71,7 @@ import { SHEET_DONE } from '@shared/ui/sheet/sheet.service';
             [disabled]="manage.busy()"
           >
             @if (manage.busy()) {
-              <ion-spinner name="lines-small" />
+              <ion-spinner name="lines-small" aria-hidden="true" />
               Creating
             } @else {
               Create project

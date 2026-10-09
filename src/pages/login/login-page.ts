@@ -96,7 +96,7 @@ interface LoginDraft {
           <div class="mx-5">
             <ion-button type="submit" expand="block" class="cta" [disabled]="login.signingIn()">
               @if (login.signingIn()) {
-                <ion-spinner slot="start" name="lines-small" />
+                <ion-spinner slot="start" name="lines-small" aria-hidden="true" />
                 Signing in
               } @else {
                 Sign in

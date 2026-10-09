@@ -1,6 +1,8 @@
-import { Component, input } from '@angular/core';
+import { Component, DestroyRef, inject, input } from '@angular/core';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
+
+import { skeletonLeft } from '../motion/page-motion';
 
 export type SkeletonRowVariant = 'task' | 'project' | 'member';
 
@@ -20,7 +22,11 @@ const WIDTHS: readonly (readonly [number, number])[] = [
   template: `
     <span class="sr-only" role="status">{{ label() }}</span>
 
-    <div class="skeleton-defer" aria-hidden="true">
+    <div
+      class="skeleton-defer"
+      aria-hidden="true"
+      (animationend)="seen = seen || $event.animationName === 'skeleton-appear'"
+    >
       @for (width of widths; track $index) {
         <ion-item [detail]="variant() !== 'member'">
           @if (variant() === 'task') {
@@ -45,4 +51,12 @@ export class SkeletonRows {
   readonly label = input('Loading');
 
   protected readonly widths = WIDTHS;
+  /* Rows rise in only where a skeleton was actually seen. */
+  protected seen = false;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      if (this.seen) skeletonLeft();
+    });
+  }
 }

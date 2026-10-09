@@ -1,5 +1,16 @@
 import { DOCUMENT, DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import type { SelectCustomEvent } from '@ionic/angular';
 import { IonBackButton } from '@ionic/angular/ion-back-button';
@@ -17,7 +28,7 @@ import { IonSegmentButton } from '@ionic/angular/ion-segment-button';
 import { IonSelect } from '@ionic/angular/ion-select';
 import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import { NavController } from '@ionic/angular/nav-controller';
-import { EMPTY, defer, filter, from, switchMap } from 'rxjs';
+import { filter, from, switchMap } from 'rxjs';
 
 import { AddMemberInput, Member, Project, TaskDefaultsInput } from '@entities/project';
 import { toCredentialOptions } from '@entities/registry-credential';
@@ -53,6 +64,9 @@ import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { rise, sectionDir } from '@shared/ui/motion/page-motion';
+import { SymbolGlyph, clipboardCopy } from '@shared/ui/motion/symbol';
+import { Announcer } from '@shared/ui/notify/announcer';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { NEW_TASK_DIALOG, SheetService } from '@shared/ui/sheet/sheet.service';
@@ -92,6 +106,7 @@ type View = (typeof VIEWS)[number];
     PULL_REFRESH,
     RouterLink,
     SkeletonRows,
+    SymbolGlyph,
     TaskList,
   ],
   providers: [ViewProjectStore, ControlTaskStore, ManageProjectStore],
@@ -176,7 +191,12 @@ type View = (typeof VIEWS)[number];
         </ion-toolbar>
       }
 
-      <div class="mx-auto max-w-(--app-column)">
+      <div
+        class="mx-auto max-w-(--app-column)"
+        [attr.data-dir]="sections.dir()"
+        (transitionend)="sections.landed($event)"
+        (transitioncancel)="sections.landed($event)"
+      >
         @if (detail.error() && detail.hasLoaded()) {
           <app-callout class="m-5" tone="negative" role="alert">
             {{ detail.error() }} Existing data is still shown.
@@ -199,7 +219,7 @@ type View = (typeof VIEWS)[number];
           </app-inset-group>
         } @else {
           <!-- Sections hide, never unmount: the member form and scroll state survive switching. -->
-          <div [class.hidden]="view() !== 'tasks'">
+          <div class="fx fx-section" [class.hidden]="view() !== 'tasks'">
             @if (detail.tasks().length === 0) {
               <app-inset-group label="Tasks">
                 <app-empty-state
@@ -219,16 +239,17 @@ type View = (typeof VIEWS)[number];
               <app-task-list
                 [tasks]="detail.tasks()"
                 [builds]="builds()"
-                [pendingTaskIds]="commands.pendingTaskIds()"
+                [pending]="commands.pending()"
                 [canCreate]="canCreate()"
                 (actionRequested)="handleTaskAction($event)"
                 (taskOpened)="openTask($event)"
                 (createRequested)="newTask()"
+                (moved)="announcer.say($event)"
               />
             }
           </div>
 
-          <div [class.hidden]="view() !== 'members'">
+          <div class="fx fx-section" [class.hidden]="view() !== 'members'">
             @if (detail.members(); as members) {
               <app-inset-group label="Members" [trailing]="memberSummary()">
                 <app-member-list
@@ -269,8 +290,8 @@ type View = (typeof VIEWS)[number];
           </div>
 
           @if (detail.project(); as project) {
-            <div [class.hidden]="view() !== 'about'">
-              <div class="about">
+            <div class="fx fx-section" [class.hidden]="view() !== 'about'">
+              <div class="about" [animate.enter]="rise()">
                 <app-inset-group label="Project">
                   @if (canManage()) {
                     <ion-item>
@@ -307,14 +328,15 @@ type View = (typeof VIEWS)[number];
                     <ion-button
                       slot="end"
                       fill="clear"
-                      [attr.aria-label]="prefixCopied() ? 'Copied' : 'Copy URL prefix'"
+                      aria-label="Copy URL prefix"
                       (click)="copyPrefix()"
                     >
-                      <span
+                      <app-symbol
                         slot="icon-only"
-                        [class]="prefixCopied() ? 'icon-[light--check]' : 'icon-[light--copy]'"
-                        aria-hidden="true"
-                      ></span>
+                        [name]="
+                          prefixCopy.copied() ? 'icon-[light--check] text-ok' : 'icon-[light--copy]'
+                        "
+                      />
                     </ion-button>
                   </ion-item>
 
@@ -588,6 +610,8 @@ type View = (typeof VIEWS)[number];
 export class ProjectDetailPage {
   protected readonly detail = inject(ViewProjectStore);
   protected readonly commands = inject(ControlTaskStore);
+  protected readonly announcer = inject(Announcer);
+  private handOff = false;
   protected readonly manage = inject(ManageProjectStore);
   private readonly config = inject(ServerConfigStore);
   private readonly confirmations = inject(ConfirmActionService);
@@ -653,12 +677,16 @@ export class ProjectDetailPage {
     const section = this.section();
     return VIEWS.includes(section as View) ? (section as View) : 'tasks';
   });
+  protected readonly sections = sectionDir();
+  protected readonly rise = rise();
   /* Only Tasks has a header action; Members adds from its list. */
   protected readonly canCreateHere = computed(() => this.canCreate() && this.view() === 'tasks');
   protected readonly draftName = signal('');
   protected readonly condensed = signal(false);
   protected readonly adding = signal(false);
-  protected readonly prefixCopied = signal(false);
+  protected readonly prefixCopy = clipboardCopy(() =>
+    this.notifications.failure('The URL prefix could not be copied.'),
+  );
 
   protected readonly pull: PullRefreshSource = {
     busy: this.detail.loading,
@@ -734,10 +762,26 @@ export class ProjectDetailPage {
     effect(() => {
       if (this.view() === 'about') this.manage.probeCodeSearch();
     });
+
+    /* The last row took its focus with it: the empty state's title takes over. */
+    const injector = inject(Injector);
+    const host: HTMLElement = inject(ElementRef).nativeElement;
+    effect(() => {
+      if (this.detail.tasks().length || !this.handOff) return;
+      this.handOff = false;
+      afterNextRender(
+        () => {
+          if (this.document.activeElement !== this.document.body) return;
+          host.querySelector<HTMLElement>('app-empty-state h2')?.focus();
+        },
+        { injector },
+      );
+    });
   }
 
   protected setView(value: unknown): void {
     if (!VIEWS.includes(value as View)) return;
+    this.sections.go(VIEWS.indexOf(this.view()), VIEWS.indexOf(value as View));
     this.view.set(value as View);
     /* Replaced, not pushed: Back leaves the project instead of replaying tab switches. */
     void this.router.navigate([], {
@@ -793,15 +837,7 @@ export class ProjectDetailPage {
   }
 
   protected copyPrefix(): void {
-    const clipboard = this.document.defaultView?.navigator.clipboard;
-    const full = `${this.config.baseUrl()}/${this.detail.slug()}/`;
-    defer(() => (clipboard ? from(clipboard.writeText(full)) : EMPTY)).subscribe({
-      next: () => {
-        this.prefixCopied.set(true);
-        this.document.defaultView?.setTimeout(() => this.prefixCopied.set(false), 1600);
-      },
-      error: () => this.notifications.failure('The URL prefix could not be copied.'),
-    });
+    this.prefixCopy.copy(`${this.config.baseUrl()}/${this.detail.slug()}/`);
   }
 
   /* Reversible lifecycle actions do not require confirmation. */
@@ -826,7 +862,10 @@ export class ProjectDetailPage {
           filter(Boolean),
           switchMap(() => this.commands.delete(slug, task)),
         )
-        .subscribe((result) => this.completeCommand(result));
+        .subscribe((result) => {
+          this.handOff = result.success && this.detail.tasks().length <= 1;
+          this.completeCommand(result);
+        });
       return;
     }
 

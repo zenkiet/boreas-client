@@ -1,7 +1,10 @@
 import { Component, computed, input, output, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { map, of, switchMap, timer } from 'rxjs';
 
 import type { MetricPoint } from '@entities/system-stats';
 import { toByteSize } from '@shared/lib/format/bytes';
+import { T } from '@shared/ui/motion/motion';
 import { LiveChart } from '../live-chart/live-chart';
 import { METRICS, METRIC_COLOR, METRIC_LABEL, Metric, splitMetric } from './metric';
 
@@ -44,33 +47,40 @@ const ZERO: MetricPoint = { at: 0, cpu: 0, mem: 0, net: 0 };
       }
     </div>
 
-    @if (!collapsed()) {
-      <!-- On idle, not on viewport: that trigger's runtime would land in the initial bundle. -->
-      @defer (on idle) {
-        <app-live-chart
-          class="relative mx-1 mt-3 block h-[150px] touch-pan-y md:h-[190px] xl:h-[200px]"
-          [series]="series()"
-          [focus]="focus()"
-          [hostBytes]="hostBytes()"
-          [stale]="stale()"
-        />
-      } @placeholder {
-        <div class="skeleton skeleton-defer mx-1 mt-3 h-[150px] md:h-[190px] xl:h-[200px]"></div>
-      }
+    <div class="fx-fold fx" [class.open]="!collapsed()">
+      <!-- Out to a phone's edge, as the halo and the scrub tooltip reach past the chart. -->
+      <div class="-mx-9 px-9" [inert]="collapsed()">
+        @if (mounted()) {
+          <!-- On idle, not on viewport: that trigger's runtime would land in the initial bundle. -->
+          @defer (on idle) {
+            <app-live-chart
+              class="relative mx-1 mt-3 block h-[150px] touch-pan-y md:h-[190px] xl:h-[200px]"
+              [series]="series()"
+              [focus]="focus()"
+              [hostBytes]="hostBytes()"
+              [stale]="stale()"
+            />
+          } @placeholder {
+            <div
+              class="skeleton skeleton-defer mx-1 mt-3 h-[150px] md:h-[190px] xl:h-[200px]"
+            ></div>
+          }
 
-      <div
-        class="mx-1 mt-1.5 flex justify-between text-[11px] text-label-3 tabular"
-        aria-hidden="true"
-      >
-        <span>60 s ago</span>
-        <span class="hidden md:inline">45 s</span>
-        <span>30 s</span>
-        <span class="hidden md:inline">15 s</span>
-        <span>now</span>
+          <div
+            class="mx-1 mt-1.5 flex justify-between text-[11px] text-label-3 tabular"
+            aria-hidden="true"
+          >
+            <span>60 s ago</span>
+            <span class="hidden md:inline">45 s</span>
+            <span>30 s</span>
+            <span class="hidden md:inline">15 s</span>
+            <span>now</span>
+          </div>
+
+          <ng-content />
+        }
       </div>
-
-      <ng-content />
-    }
+    </div>
   `,
 })
 export class LiveMonitor {
@@ -84,6 +94,14 @@ export class LiveMonitor {
   readonly expandRequested = output<void>();
 
   protected readonly focus = signal<Metric>('cpu');
+
+  /* Mounted until the fold has closed, so the chart leaves after its rows. */
+  protected readonly mounted = toSignal(
+    toObservable(this.collapsed).pipe(
+      switchMap((folded) => (folded ? timer(T.quick + T.base).pipe(map(() => false)) : of(true))),
+    ),
+    { initialValue: false },
+  );
 
   protected readonly metrics = computed(() => {
     const series = this.series();

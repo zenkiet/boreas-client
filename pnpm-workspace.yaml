@@ -17,7 +17,7 @@ minimumReleaseAgeExclude:
   - '@angular-eslint/template-parser@22.2.0'
   - '@angular-eslint/utils@22.2.0'
   - angular-eslint@22.2.0
-  - jscpd@5.1.0 || 5.3.3
+  - jscpd@5.1.0 || 5.3.3 || 5.4.1
   - '@capacitor/android@8.5.1 || 8.5.3'
   - '@capacitor/cli@8.5.1 || 8.5.3'
   - '@capacitor/core@8.5.1 || 8.5.3'
@@ -53,14 +53,14 @@ minimumReleaseAgeExclude:
   - '@angular/build@22.1.8 || 22.2.1 || 22.2.2'
   - '@angular/cli@22.1.8 || 22.2.1 || 22.2.2'
   - '@schematics/angular@22.1.8 || 22.2.1 || 22.2.2'
-  - jscpd-darwin-arm64@5.3.3
-  - jscpd-darwin-x64@5.3.3
-  - jscpd-linux-arm64-gnu@5.3.3
-  - jscpd-linux-arm64-musl@5.3.3
-  - jscpd-linux-x64-gnu@5.3.3
-  - jscpd-linux-x64-musl@5.3.3
-  - jscpd-windows-arm64-msvc@5.3.3
-  - jscpd-windows-x64-msvc@5.3.3
+  - jscpd-darwin-arm64@5.3.3 || 5.4.1
+  - jscpd-darwin-x64@5.3.3 || 5.4.1
+  - jscpd-linux-arm64-gnu@5.3.3 || 5.4.1
+  - jscpd-linux-arm64-musl@5.3.3 || 5.4.1
+  - jscpd-linux-x64-gnu@5.3.3 || 5.4.1
+  - jscpd-linux-x64-musl@5.3.3 || 5.4.1
+  - jscpd-windows-arm64-msvc@5.3.3 || 5.4.1
+  - jscpd-windows-x64-msvc@5.3.3 || 5.4.1
   - '@rdlabo/ionic-theme-ios27@1.2.0 || 1.2.1'
   - '@angular/common@22.2.1'
   - '@angular/compiler-cli@22.2.1'

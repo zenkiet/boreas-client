@@ -4,6 +4,8 @@ import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { NumericText } from '@shared/ui/motion/numeric-text';
+import { rise } from '@shared/ui/motion/page-motion';
 import { RecentTask } from '../../model/search-tasks.store';
 
 export interface SuggestionCounts {
@@ -57,11 +59,16 @@ const FILTERS = [
 
 @Component({
   selector: 'app-search-suggestions',
-  imports: [InsetGroup, IonItem, IonLabel, IonNote],
+  imports: [InsetGroup, IonItem, IonLabel, IonNote, NumericText],
   template: `
     <app-inset-group label="Quick filters" [trailing]="compact() ? '' : 'From live state'">
       @for (filter of filters(); track filter.key) {
-        <ion-item button [detail]="!compact()" (click)="filterPicked.emit(filter.token)">
+        <ion-item
+          button
+          [detail]="!compact()"
+          [animate.enter]="rise()"
+          (click)="filterPicked.emit(filter.token)"
+        >
           <span slot="start" class="tile" [class]="filter.tone" aria-hidden="true">
             <span [class]="filter.icon"></span>
           </span>
@@ -72,7 +79,7 @@ const FILTERS = [
             }
           </ion-label>
           @if (filter.count !== null) {
-            <ion-note slot="end" class="tabular">{{ filter.count }}</ion-note>
+            <ion-note slot="end"><app-numeric-text [value]="filter.count" /></ion-note>
           }
         </ion-item>
       } @empty {
@@ -86,7 +93,12 @@ const FILTERS = [
       <!-- Clear is a row: anything interactive in the list header sits in role="list" (AXE). -->
       <app-inset-group label="Recent">
         @for (entry of recent(); track entry.project + '/' + entry.name) {
-          <ion-item button [detail]="false" (click)="recentOpened.emit(entry)">
+          <ion-item
+            button
+            [detail]="false"
+            [animate.enter]="rise()"
+            (click)="recentOpened.emit(entry)"
+          >
             <span slot="start" class="recent-icon icon-[light--clock]" aria-hidden="true"></span>
             <!-- A span, because the theme pins the label's own size. -->
             <ion-label>
@@ -146,6 +158,7 @@ export class SearchSuggestions {
   readonly recentOpened = output<RecentTask>();
   readonly recentCleared = output<void>();
 
+  protected readonly rise = rise();
   /* A filter that finds nothing is not worth a row. */
   protected readonly filters = computed(() =>
     FILTERS.map((filter) => ({ ...filter, count: this.counts()?.[filter.key] ?? null })).filter(

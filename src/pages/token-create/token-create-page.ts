@@ -13,11 +13,11 @@ import { IonButtons } from '@ionic/angular/ion-buttons';
 import { IonRouterOutlet } from '@ionic/angular/ion-router-outlet';
 import { IonSpinner } from '@ionic/angular/ion-spinner';
 import { NavController } from '@ionic/angular/nav-controller';
-import { defer, from } from 'rxjs';
 
 import { CreateApiTokenInput, CreatedApiToken } from '@entities/api-token';
 import { ManageTokensStore, TokenForm } from '@features/manage-tokens';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
+import { SymbolGlyph, clipboardCopy } from '@shared/ui/motion/symbol';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 
@@ -25,7 +25,7 @@ const FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
 
 @Component({
   selector: 'app-token-create-page',
-  imports: [IonButton, IonButtons, IonSpinner, PAGE_CHROME, TokenForm],
+  imports: [IonButton, IonButtons, IonSpinner, PAGE_CHROME, SymbolGlyph, TokenForm],
   template: `
     <ion-header [translucent]="true">
       <ion-toolbar>
@@ -86,13 +86,17 @@ const FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
           </div>
 
           <div class="mx-5 mt-[22px] grid gap-2.5">
-            <ion-button #copyButton expand="block" class="cta" (click)="copy(result.token)">
-              <span
+            <ion-button
+              #copyButton
+              expand="block"
+              class="cta"
+              (click)="tokenCopy.copy(result.token)"
+            >
+              <app-symbol
                 slot="start"
-                [class]="copied() ? 'icon-[regular--check]' : 'icon-[regular--copy]'"
-                aria-hidden="true"
-              ></span>
-              {{ copied() ? 'Copied' : 'Copy token' }}
+                [name]="tokenCopy.copied() ? 'icon-[regular--check]' : 'icon-[regular--copy]'"
+              />
+              Copy token
             </ion-button>
             <ion-button expand="block" fill="clear" class="done" (click)="finish()">
               Done
@@ -115,7 +119,8 @@ const FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
               [disabled]="tokens.busy()"
             >
               @if (tokens.busy()) {
-                <ion-spinner name="lines-small" />
+                <ion-spinner name="lines-small" aria-hidden="true" />
+                <span class="sr-only">Create token</span>
               } @else {
                 Create token
               }
@@ -202,7 +207,9 @@ export class TokenCreatePage {
   private readonly copyButton = viewChild('copyButton', { read: ElementRef });
 
   protected readonly created = signal<CreatedApiToken | undefined>(undefined);
-  protected readonly copied = signal(false);
+  protected readonly tokenCopy = clipboardCopy(() =>
+    this.notifications.failure('The token could not be copied. Select it and copy manually.'),
+  );
 
   /* The same "expires" instant the list prints, so the two screens never disagree. */
   protected readonly validity = computed(() => {
@@ -239,14 +246,6 @@ export class TokenCreatePage {
       /* A swipe back would lose the plaintext for good. */
       if (this.outlet) this.outlet.swipeGesture = false;
       this.tokens.load();
-    });
-  }
-
-  protected copy(token: string): void {
-    defer(() => from(this.document.defaultView!.navigator.clipboard.writeText(token))).subscribe({
-      next: () => this.copied.set(true),
-      error: () =>
-        this.notifications.failure('The token could not be copied. Select it and copy manually.'),
     });
   }
 

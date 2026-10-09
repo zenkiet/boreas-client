@@ -5,6 +5,7 @@ import { ChatsStore } from '@features/chat';
 import { ChatPage } from '@pages/chat/chat-page';
 import { ChatsPage } from '@pages/chats/chats-page';
 import { onReturn } from '@shared/lib/pull-to-refresh/pull-to-refresh';
+import { entrance } from '@shared/ui/motion/page-motion';
 
 /** iPad and desktop chat split. Lives in `app` because it composes pages. */
 @Component({
@@ -13,9 +14,14 @@ import { onReturn } from '@shared/lib/pull-to-refresh/pull-to-refresh';
   host: { class: 'split-view' },
   template: `
     <app-chats-page class="ion-page split__list" [split]="true" [selected]="pane()?.id ?? ''" />
-    <section id="chat-pane" class="split__pane" aria-label="Conversation">
-      <!-- Keyed: each conversation gets a fresh page, as a push would. -->
-      @for (key of [paneKey()]; track key) {
+    <!-- Keyed, so each conversation gets a fresh page as a push would; 'chat:' avoids NG0956. -->
+    @for (key of [paneKey()]; track 'chat:' + key) {
+      <section
+        id="chat-pane"
+        class="split__pane"
+        aria-label="Conversation"
+        [animate.enter]="fade()"
+      >
         @if (pane(); as pane) {
           <ng-container
             *ngComponentOutlet="
@@ -24,8 +30,8 @@ import { onReturn } from '@shared/lib/pull-to-refresh/pull-to-refresh';
             "
           />
         }
-      }
-    </section>
+      </section>
+    }
   `,
   styles: `
     :host {
@@ -46,6 +52,7 @@ export class ChatSplit {
   readonly project = input<string>();
 
   protected readonly page = ChatPage;
+  protected readonly fade = entrance('fx-in');
 
   protected readonly pane = computed(() => {
     const chat = this.chat();

@@ -1,16 +1,19 @@
 import { Component, input } from '@angular/core';
 
+import { entrance } from '../motion/page-motion';
+
 @Component({
   selector: 'app-empty-state',
   /* Bare means inside an inset group, whose ion-list Ionic marks role="list". */
   host: { '[attr.role]': "bordered() ? null : 'listitem'" },
   template: `
     <div class="state" [class.state--bare]="!bordered()">
-      <span class="state__icon" aria-hidden="true">
+      <span class="state__icon" aria-hidden="true" [animate.enter]="appear()">
         <span [class]="icon()"></span>
       </span>
-      <h2 class="state__title">{{ title() }}</h2>
-      <p class="state__description">{{ description() }}</p>
+      <!-- Focus lands here when the last row is deleted. -->
+      <h2 class="state__title" tabindex="-1" [animate.enter]="fade()">{{ title() }}</h2>
+      <p class="state__description" [animate.enter]="fade()">{{ description() }}</p>
       <div class="state__actions empty:hidden">
         <ng-content />
       </div>
@@ -63,6 +66,10 @@ import { Component, input } from '@angular/core';
       color: var(--app-text-secondary);
     }
 
+    .fx-in {
+      animation-delay: 60ms;
+    }
+
     .state__actions {
       display: flex;
       gap: 0.5rem;
@@ -76,4 +83,7 @@ export class EmptyState {
   readonly title = input.required<string>();
   readonly description = input.required<string>();
   readonly bordered = input(true);
+
+  protected readonly appear = entrance('fx-appear');
+  protected readonly fade = entrance('fx-in');
 }

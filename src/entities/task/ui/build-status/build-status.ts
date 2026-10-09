@@ -1,6 +1,7 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, ElementRef, computed, input, linkedSignal, viewChild } from '@angular/core';
 
 import { age } from '@shared/lib/format/age';
+import { replaced, swap } from '@shared/ui/motion/effects';
 import { Build, isQuietBuild } from '../../model/task';
 
 /* `line` names itself (a list's third line), `cell` sits under a Build header, `value` adds when. */
@@ -8,34 +9,35 @@ type Mode = 'line' | 'cell' | 'value';
 
 const ARC = 2 * Math.PI * 7.5;
 
+const GLYPH: Partial<Record<string, string>> = {
+  failure: 'icon-[regular--circle-xmark]',
+  success: 'icon-[regular--circle-check]',
+  canceled: 'icon-[regular--ban]',
+  /* A clock: a still ring reads as loading. */
+  quiet: 'icon-[regular--clock]',
+};
+
 @Component({
   selector: 'app-build-status',
   template: `
-    @switch (state()) {
-      @case ('failure') {
-        <span class="glyph icon-[regular--circle-xmark]" aria-hidden="true"></span>
-      }
-      @case ('success') {
-        <span class="glyph icon-[regular--circle-check]" aria-hidden="true"></span>
-      }
-      @case ('canceled') {
-        <span class="glyph icon-[regular--ban]" aria-hidden="true"></span>
-      }
-      <!-- A clock: a still ring reads as loading. -->
-      @case ('quiet') {
-        <span class="glyph icon-[regular--clock]" aria-hidden="true"></span>
-      }
-      @default {
-        <svg viewBox="0 0 20 20" aria-hidden="true" [class.spin]="spin()">
+    <span #mark class="mark" aria-hidden="true">
+      @if (glyph()) {
+        <span [class]="glyph()"></span>
+      } @else {
+        <svg
+          viewBox="0 0 20 20"
+          [class.spin]="spin()"
+          (animationend)="spun.set(true); $event.stopPropagation()"
+        >
           <circle cx="10" cy="10" r="7.5" class="track" />
           <circle cx="10" cy="10" r="7.5" class="arc" [attr.stroke-dasharray]="dash()" />
         </svg>
       }
-    }
-    <span class="text">{{ text() }}</span>
+    </span>
+    <span #words class="text">{{ text() }}</span>
   `,
   /* The title carries what a narrow cell drops: the stage and age. */
-  host: { '[attr.data-state]': 'state()', '[attr.data-mode]': 'mode()', '[attr.title]': 'full()' },
+  host: { '[attr.data-state]': 'said()', '[attr.data-mode]': 'mode()', '[attr.title]': 'full()' },
   styles: `
     :host {
       display: inline-flex;
@@ -62,15 +64,15 @@ const ARC = 2 * Math.PI * 7.5;
       color: var(--color-label-2);
     }
 
-    .glyph {
+    .mark {
+      display: grid;
       flex: none;
       font-size: 0.9375rem;
     }
 
     svg {
-      flex: none;
-      inline-size: 0.9375rem;
-      block-size: 0.9375rem;
+      inline-size: 1em;
+      block-size: 1em;
       fill: none;
       stroke-width: 2.6;
     }
@@ -84,10 +86,11 @@ const ARC = 2 * Math.PI * 7.5;
       stroke-linecap: round;
       transform: rotate(-90deg);
       transform-origin: center;
+      transition: stroke-dasharray 300ms var(--e-out);
     }
 
     .spin {
-      animation: spin 1.1s linear infinite;
+      animation: spin 1.1s linear 4;
     }
 
     @keyframes spin {
@@ -116,8 +119,20 @@ export class BuildStatus {
     isQuietBuild(this.build()) ? 'quiet' : this.build().state,
   );
   protected readonly spin = computed(() => this.state() === 'running' && !this.build().progress);
+  /* Four turns, then a still hammer: a spinner past its cap reads as stuck. */
+  protected readonly spun = linkedSignal({ source: this.state, computation: () => false });
   protected readonly dash = computed(() => `${(ARC * (this.build().progress ?? 25)) / 100} ${ARC}`);
-  protected readonly text = computed(() => describe(this.build(), this.state(), this.mode()));
+
+  private readonly mark = viewChild<ElementRef<HTMLElement>>('mark');
+  private readonly words = viewChild<ElementRef<HTMLElement>>('words');
+  protected readonly glyph = replaced(
+    computed(
+      () => GLYPH[this.state()] ?? (this.spin() && this.spun() ? 'icon-[regular--hammer]' : ''),
+    ),
+    () => this.mark()?.nativeElement,
+  );
+  protected readonly said = replaced(this.state, () => this.words()?.nativeElement, swap);
+  protected readonly text = computed(() => describe(this.build(), this.said(), this.mode()));
   protected readonly full = computed(() => describe(this.build(), this.state(), 'value'));
 }
 

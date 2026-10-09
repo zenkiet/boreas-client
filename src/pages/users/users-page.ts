@@ -26,6 +26,7 @@ import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { EYE, EYE_SLASH } from '@shared/ui/glyph-urls';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { rise } from '@shared/ui/motion/page-motion';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { PopoverAnchor, popoverAnchor } from '@shared/ui/popover-anchor/popover-anchor';
@@ -88,7 +89,7 @@ interface UserDraft {
           } @else {
             <app-inset-group label="Accounts" [trailing]="summary()">
               @for (user of users.items(); track user.id) {
-                <ion-item [class.muted]="user.disabled">
+                <ion-item [class.muted]="user.disabled" [animate.enter]="rise()">
                   <span slot="start" class="avatar" aria-hidden="true">{{
                     user.username.slice(0, 2)
                   }}</span>
@@ -197,7 +198,7 @@ interface UserDraft {
               <ion-item button [detail]="false" [disabled]="users.busy()" (click)="create()">
                 <ion-label color="primary">Create user</ion-label>
                 @if (users.busy()) {
-                  <ion-spinner slot="end" name="lines-small" />
+                  <ion-spinner slot="end" name="lines-small" aria-hidden="true" />
                 }
               </ion-item>
             </app-inset-group>
@@ -309,6 +310,7 @@ interface UserDraft {
   `,
 })
 export class UsersPage {
+  protected readonly rise = rise();
   protected readonly eye = EYE;
   protected readonly eyeSlash = EYE_SLASH;
   protected readonly users = inject(ManageUsersStore);

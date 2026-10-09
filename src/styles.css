@@ -200,27 +200,27 @@ button {
 }
 
 /* Ionic sizes only a slotted ion-icon; :where lets a component's own glyph size win. */
-ion-item > [slot]:where([class*='icon-[']) {
+ion-item > [slot]:where([class*='icon-['], .fx-busy) {
   font-size: 1.6em;
 }
 
-ion-button > [slot][class*='icon-['] {
+ion-button > [slot]:is([class*='icon-['], .fx-busy) {
   font-size: 1.4em;
 }
 
-ion-button > [slot='icon-only'][class*='icon-['] {
+ion-button > [slot='icon-only']:is([class*='icon-['], .fx-busy) {
   font-size: 1.4rem;
 }
 
-ion-item ion-button[slot='end'] > [slot='icon-only'][class*='icon-['] {
+ion-item ion-button[slot='end'] > [slot='icon-only']:is([class*='icon-['], .fx-busy) {
   font-size: 1.2rem;
 }
 
-ion-button > [slot='start'][class*='icon-['] {
+ion-button > [slot='start']:is([class*='icon-['], .fx-busy) {
   margin-inline: -0.15em 0.15em;
 }
 
-ion-button > [slot='end'][class*='icon-['] {
+ion-button > [slot='end']:is([class*='icon-['], .fx-busy) {
   margin-inline: 0.15em -0.15em;
 }
 
@@ -1303,7 +1303,221 @@ input[type='number']::-webkit-outer-spin-button {
   }
 }
 
+/* Motion: the classes animate.enter and animate.leave add (src/shared/ui/motion). */
+:root {
+  --t-quick: 120ms;
+  --t-base: 200ms;
+  --e-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --e-in: cubic-bezier(0.4, 0, 1, 1);
+  --slide: 8px;
+}
+
+.fx-in {
+  animation: fx-fade var(--t-base) var(--e-out) both;
+}
+
+.fx-out {
+  animation: fx-gone var(--t-quick) var(--e-in) both;
+}
+
+.fx-appear {
+  animation: fx-appear 383ms var(--e-out) both;
+}
+
+.fx-draw {
+  animation: fx-draw 350ms var(--e-out) both;
+}
+
+.fx-tick {
+  animation: fx-draw 250ms var(--e-out) 300ms both;
+}
+
+.fx-rise {
+  animation: fx-rise var(--t-base) var(--e-out) both;
+}
+
+/* A row born in a hidden section must not rise later, when that section shows. */
+.hidden .fx-rise {
+  animation: none;
+}
+
+/* Render order from rise(): an :nth-child delay would restyle every later row on each insert. */
+.fx-rise-2 {
+  animation-delay: 30ms;
+}
+
+.fx-rise-3 {
+  animation-delay: 60ms;
+}
+
+.fx-rise-4 {
+  animation-delay: 90ms;
+}
+
+.fx-rise-5 {
+  animation-delay: 120ms;
+}
+
+.fx-rise-6 {
+  animation-delay: 150ms;
+}
+
+@keyframes fx-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fx-gone {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    translate: 0 var(--slide);
+  }
+}
+
+@keyframes fx-appear {
+  from {
+    opacity: 0;
+    scale: var(--appear-scale, 0.92);
+  }
+}
+
+@keyframes fx-draw {
+  from {
+    stroke-dashoffset: var(--draw-from, 1);
+    opacity: var(--draw-fade, 1);
+  }
+
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* Rows open from 0fr so what follows moves along; the fade leads out. Safari before 16 snaps. */
+.fx-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    opacity var(--t-quick) var(--e-in),
+    grid-template-rows var(--t-base) var(--e-out) var(--t-quick);
+}
+
+.fx-fold.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 320ms var(--e-out),
+    opacity var(--t-base) var(--e-out);
+}
+
+.fx-fold > *,
+.fx-reveal > * {
+  min-block-size: 0;
+}
+
+.fx-fold > * {
+  overflow: hidden;
+}
+
+.fx-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  animation: fx-reveal var(--t-base) var(--e-out) both;
+}
+
+@keyframes fx-reveal {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Subgrid stands in for animatable grid rows (Safari 16); older engines only fade. */
+@supports (grid-template-rows: subgrid) {
+  @keyframes fx-reveal {
+    from {
+      grid-template-rows: 0fr;
+      margin-block: 0;
+      opacity: 0;
+    }
+  }
+}
+
+/* Instant before Safari 17.5, which has no @starting-style. */
+[data-dir] .fx-section {
+  transition:
+    opacity var(--t-base) var(--e-out),
+    translate var(--t-base) var(--e-out);
+}
+
+@starting-style {
+  [data-dir] .fx-section {
+    opacity: 0;
+    translate: var(--slide) 0;
+  }
+
+  [data-dir='-1'] .fx-section {
+    translate: calc(-1 * var(--slide)) 0;
+  }
+}
+
+/* The lists move their rows themselves; scroll anchoring would shift them again (Chrome, Firefox; WebKit has none). */
+ion-content:has(app-task-list, app-alert-list)::part(scroll) {
+  overflow-anchor: none;
+}
+
+/* A row that just changed group: JS fades --glow; colour only, so Reduce Motion keeps it. */
+ion-item-sliding.fx-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--app-accent-soft);
+  opacity: var(--glow, 0);
+  pointer-events: none;
+}
+
+.fx-busy {
+  display: inline-grid;
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+.fx-busy > ion-spinner {
+  inline-size: 100%;
+  block-size: 100%;
+  color: inherit;
+}
+
+.nt-c {
+  position: relative;
+  display: inline-block;
+}
+
+.nt-c > span {
+  display: inline-block;
+}
+
+.nt-c > .nt-out {
+  position: absolute;
+  inset: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --appear-scale: 1;
+    --draw-from: 0;
+    --draw-fade: 0;
+    --slide: 0px;
+  }
+
   *,
   *::before,
   *::after {
@@ -1311,6 +1525,29 @@ input[type='number']::-webkit-outer-spin-button {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  /* A crossfade still says what changed: opacity only, on the marked element only. */
+  .fx {
+    transition-property: opacity !important;
+    transition-duration: var(--t-quick) !important;
+    transition-timing-function: linear !important;
+    animation-duration: var(--t-quick) !important;
+    animation-timing-function: linear !important;
+    animation-delay: 0s !important;
+  }
+
+  @keyframes fx-reveal {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* A fold still fades first; its rows then close at once. */
+  .fx-fold.fx:not(.open) {
+    transition-property: opacity, grid-template-rows !important;
+    transition-duration: var(--t-quick), 0s !important;
+    transition-delay: 0s, var(--t-quick) !important;
   }
 }
 

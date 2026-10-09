@@ -7,6 +7,7 @@ import type { ChatMessage } from '@entities/chat';
 import { pathParts } from '@shared/lib/format/path';
 import { splitRepo } from '@shared/lib/format/repo';
 import { MarkdownView } from '@shared/lib/markdown/markdown-view';
+import { rise } from '@shared/ui/motion/page-motion';
 import { chatDay } from '../../model/chat-time';
 
 const TIME = new Intl.DateTimeFormat('en', {
@@ -91,9 +92,9 @@ export class ChatWaiting {
     }
     @for (message of messages(); track $index; let last = $last) {
       @if (message.role === 'user') {
-        <p class="me">{{ message.content }}</p>
+        <p class="me" [animate.enter]="rise()">{{ message.content }}</p>
       } @else {
-        <article class="ans" aria-label="Answer">
+        <article class="ans" aria-label="Answer" [animate.enter]="rise()">
           <app-markdown [text]="message.content" />
           @if (message.sources.length) {
             <section class="src" aria-label="Sources">
@@ -246,6 +247,7 @@ export class ChatThread {
   readonly messages = input.required<readonly ChatMessage[]>();
   readonly asking = input<{ readonly question: string; readonly since: number }>();
 
+  protected readonly rise = rise();
   protected readonly when = computed(() => {
     const asking = this.asking();
     const at = this.messages()[0]?.at ?? (asking && new Date(asking.since));

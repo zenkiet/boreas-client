@@ -118,7 +118,7 @@ const TONES: Record<LogTone, string> = {
             } @else if (connecting()) {
               <!-- An indeterminate wait: the one place a spinner belongs. -->
               <p class="logs__empty logs__empty--connecting" role="status">
-                <ion-spinner name="lines-small" />
+                <ion-spinner name="lines-small" aria-hidden="true" />
                 Connecting to the log stream…
               </p>
             } @else if (connected()) {

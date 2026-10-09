@@ -8,6 +8,7 @@ import { IonNote } from '@ionic/angular/ion-note';
 
 import type { Chat } from '@entities/chat';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { rise } from '@shared/ui/motion/page-motion';
 import { chatWhen } from '../../model/chat-time';
 
 @Component({
@@ -18,7 +19,11 @@ import { chatWhen } from '../../model/chat-time';
       @for (row of rows(); track row.chat.id) {
         @if (split()) {
           <!-- Not an ion-item button: Delete would be nested interactive content (AXE). -->
-          <ion-item class="pick" [class.picked]="row.chat.id === selected()">
+          <ion-item
+            class="pick"
+            [class.picked]="row.chat.id === selected()"
+            [animate.enter]="rise()"
+          >
             <button
               type="button"
               class="open"
@@ -35,7 +40,7 @@ import { chatWhen } from '../../model/chat-time';
             </button>
           </ion-item>
         } @else {
-          <ion-item-sliding #sliding>
+          <ion-item-sliding #sliding [animate.enter]="rise()">
             <ion-item button (click)="opened.emit(row.chat)">
               <ion-label class="ion-text-wrap">
                 <span class="title line-clamp-2">{{ row.chat.title }}</span>
@@ -134,6 +139,7 @@ export class ChatList {
   readonly opened = output<Chat>();
   readonly deleteRequested = output<Chat>();
 
+  protected readonly rise = rise();
   protected readonly count = computed(() => {
     const count = this.chats().length;
     return `${count} ${count === 1 ? 'chat' : 'chats'}`;

@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, defer, finalize, of } from 'rxjs';
 
+import type { TaskAction } from '@entities/task';
 import { TaskApi } from '@entities/task/api';
 import {
   DEV_STATUS_LABEL,
@@ -15,12 +16,12 @@ import { CommandResult, toCommandResult } from '@shared/api/command';
 @Injectable()
 export class ControlTaskStore {
   private readonly api = inject(TaskApi);
-  private readonly pendingTaskIdsState = signal<ReadonlySet<string>>(new Set());
+  private readonly pendingState = signal<ReadonlyMap<string, TaskAction>>(new Map());
 
-  readonly pendingTaskIds = this.pendingTaskIdsState.asReadonly();
+  readonly pending = this.pendingState.asReadonly();
 
   isPending(name: string): boolean {
-    return this.pendingTaskIdsState().has(name);
+    return this.pendingState().has(name);
   }
 
   changeState(
@@ -30,6 +31,7 @@ export class ControlTaskStore {
   ): Observable<CommandResult> {
     return this.execute(
       task.name,
+      action,
       this.api.changeState(project, task.name, action),
       `Task ${task.name} ${describeCompletedAction(action)}.`,
     );
@@ -38,6 +40,7 @@ export class ControlTaskStore {
   setDevStatus(project: string, task: Task, status: DevStatus): Observable<CommandResult> {
     return this.execute(
       task.name,
+      'edit',
       this.api.update(project, task.name, { devStatus: status }),
       `Task ${task.name} marked ${DEV_STATUS_LABEL[status]}.`,
     );
@@ -46,6 +49,7 @@ export class ControlTaskStore {
   setNote(project: string, task: Task, note: string): Observable<CommandResult> {
     return this.execute(
       task.name,
+      'edit',
       this.api.update(project, task.name, { note }),
       note ? `Note saved for ${task.name}.` : `Note cleared for ${task.name}.`,
     );
@@ -54,6 +58,7 @@ export class ControlTaskStore {
   delete(project: string, task: Task): Observable<CommandResult> {
     return this.execute(
       task.name,
+      'delete',
       this.api.delete(project, task.name),
       `Task ${task.name} deleted.`,
     );
@@ -62,6 +67,7 @@ export class ControlTaskStore {
   /* Both outcomes become values so command subscribers only route toast results. */
   private execute(
     name: string,
+    action: TaskAction,
     command: Observable<unknown>,
     successMessage: string,
   ): Observable<CommandResult> {
@@ -70,23 +76,23 @@ export class ControlTaskStore {
         return of({ success: false, message: `An action is already running for task ${name}.` });
       }
 
-      this.setPending(name, true);
+      this.setPending(name, action);
 
       return toCommandResult(command, successMessage).pipe(
-        finalize(() => this.setPending(name, false)),
+        finalize(() => this.setPending(name, null)),
       );
     });
   }
 
-  private setPending(name: string, pending: boolean): void {
-    const next = new Set(this.pendingTaskIdsState());
+  private setPending(name: string, action: TaskAction | null): void {
+    const next = new Map(this.pendingState());
 
-    if (pending) {
-      next.add(name);
+    if (action) {
+      next.set(name, action);
     } else {
       next.delete(name);
     }
 
-    this.pendingTaskIdsState.set(next);
+    this.pendingState.set(next);
   }
 }

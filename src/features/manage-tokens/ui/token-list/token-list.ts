@@ -6,13 +6,14 @@ import { IonLabel } from '@ionic/angular/ion-label';
 import { IonNote } from '@ionic/angular/ion-note';
 
 import { ApiToken, isRevocable } from '@entities/api-token';
+import { rise } from '@shared/ui/motion/page-motion';
 
 @Component({
   selector: 'app-token-list',
   imports: [DatePipe, IonButton, IonItem, IonLabel, IonNote],
   template: `
     @for (token of tokens(); track token.id) {
-      <ion-item [class.dead]="!revocable(token)">
+      <ion-item [class.dead]="!revocable(token)" [animate.enter]="rise()">
         <span slot="start" class="dot" [attr.data-status]="token.status" aria-hidden="true"></span>
         <ion-label
           ><span class="name">{{ token.name }}</span></ion-label
@@ -88,6 +89,7 @@ export class TokenList {
   readonly busy = input(false);
   readonly revokeRequested = output<ApiToken>();
 
+  protected readonly rise = rise();
   protected readonly revocable = isRevocable;
 
   /* Status alone reads as jargon; the date it turns on is what operators check. */

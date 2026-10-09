@@ -15,6 +15,9 @@ import {
 } from '@entities/task';
 import { age } from '@shared/lib/format/age';
 import { toByteSize } from '@shared/lib/format/bytes';
+import { bounce } from '@shared/ui/motion/effects';
+import { NumericText } from '@shared/ui/motion/numeric-text';
+import { rise } from '@shared/ui/motion/page-motion';
 import { ProjectSummary } from '../../model/list-projects.store';
 
 const NO_LOADS: ReadonlyMap<string, ProjectLoad> = new Map();
@@ -22,10 +25,10 @@ const NO_LOADS: ReadonlyMap<string, ProjectLoad> = new Map();
 /** Switches on its own width (container query), so iPad portrait keeps the stacked rows. */
 @Component({
   selector: 'app-project-list',
-  imports: [IonItem, IonLabel],
+  imports: [IonItem, IonLabel, NumericText],
   template: `
     @if (summary() && tasks().length > 0) {
-      <ion-item class="summary">
+      <ion-item class="summary" [animate.enter]="rise()">
         <div class="flex w-full flex-col gap-2.5 py-4">
           <span class="bar" aria-hidden="true">
             @for (part of fleet(); track part.status) {
@@ -60,19 +63,26 @@ const NO_LOADS: ReadonlyMap<string, ProjectLoad> = new Map();
     </ion-item>
 
     @for (row of rows(); track row.project.id) {
-      <ion-item button (click)="projectOpened.emit(row.project)">
+      <ion-item button [animate.enter]="rise()" (click)="projectOpened.emit(row.project)">
         <ion-label class="cells">
           <!-- Outside the truncated name, so a long name never hides it. -->
           <span class="name">
             <span class="truncate">{{ row.project.name }}</span>
-            @if (row.failing) {
-              <span class="failing">{{ row.failing }}</span>
-            }
+            <!-- Kept, not @if: the first failure has to roll and bounce too. -->
+            <span #fail class="failing" [hidden]="!row.failing"
+              ><app-numeric-text [value]="row.failing" (rose)="bounce(fail)" />
+              {{ row.failing === 1 ? 'build' : 'builds' }} failed</span
+            >
           </span>
           <!-- No slug on phones: it pushed the running count off the line. -->
           <span class="sub truncate">
             <span class="slug truncate font-mono">/{{ row.project.slug }}</span>
-            <span class="meta">{{ row.meta }}</span>
+            <span class="meta">
+              @if (row.meta.running !== null) {
+                <app-numeric-text [value]="row.meta.running" />
+              }
+              {{ row.meta.text }}</span
+            >
           </span>
           <span class="count tabular"
             >{{ row.tasks }}<span class="sr-only"> {{ row.noun }}</span></span
@@ -337,6 +347,9 @@ export class ProjectList {
   readonly summary = input(true);
   readonly projectOpened = output<ProjectSummary['project']>();
 
+  protected readonly rise = rise();
+  protected readonly bounce = bounce;
+
   protected readonly tasks = computed(() => this.summaries().flatMap(({ tasks }) => tasks));
 
   protected readonly fleet = computed(() => parts(this.tasks()));
@@ -391,16 +404,20 @@ function parts(tasks: readonly TaskSummary[]) {
 }
 
 /* Counts every container not running, unknown ones included. */
-function meta(tasks: readonly TaskSummary[], deploy: DeployOutcome | undefined): string {
+function meta(
+  tasks: readonly TaskSummary[],
+  deploy: DeployOutcome | undefined,
+): { running: number | null; text: string } {
   const running = tasks.filter((task) => task.status === 'running').length;
+  const partial = tasks.length > 1 && running < tasks.length;
   const count =
     tasks.length === 0
       ? 'No tasks'
       : running === tasks.length
         ? `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`
-        : tasks.length === 1
-          ? 'not running'
-          : `${running} of ${tasks.length} running`;
+        : partial
+          ? `of ${tasks.length} running`
+          : 'not running';
   const errors = tasks.filter((task) => task.status === 'error').length;
   const building = tasks.filter((task) => isBuilding(task.build)).length;
   /* A failing build has its own red badge beside the name. */
@@ -413,10 +430,9 @@ function meta(tasks: readonly TaskSummary[], deploy: DeployOutcome | undefined):
         : deploy
           ? `deployed ${age(deploy.at)} ago`
           : '';
-  return fact ? `${count} · ${fact}` : count;
+  return { running: partial ? running : null, text: fact ? `${count} · ${fact}` : count };
 }
 
-function failingBuilds(tasks: readonly TaskSummary[]): string {
-  const count = tasks.filter((task) => task.build?.state === 'failure').length;
-  return count === 0 ? '' : `${count} ${count === 1 ? 'build' : 'builds'} failed`;
+function failingBuilds(tasks: readonly TaskSummary[]): number {
+  return tasks.filter((task) => task.build?.state === 'failure').length;
 }

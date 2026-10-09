@@ -31,6 +31,7 @@ import {
   DEV_STATUS_DOT,
   DEV_STATUS_LABEL,
   DevStatus,
+  PENDING_LABEL,
   Task,
   TaskActionRequest,
   TaskMenu,
@@ -61,6 +62,10 @@ import { Callout } from '@shared/ui/callout/callout';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { reduced } from '@shared/ui/motion/motion';
+import { entrance, rise, sectionDir } from '@shared/ui/motion/page-motion';
+import { SwapText, SymbolGlyph } from '@shared/ui/motion/symbol';
+import { Announcer } from '@shared/ui/notify/announcer';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { PopoverAnchor, popoverAnchor } from '@shared/ui/popover-anchor/popover-anchor';
@@ -70,6 +75,9 @@ import { TaskNoteCard, TaskOverview } from '@widgets/task-overview';
 type View = 'info' | 'environment' | 'logs';
 
 const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[];
+
+/* The in-place tick replaces Apply's toast. */
+const APPLIED_HOLD = 2200;
 
 @Component({
   selector: 'app-task-detail-page',
@@ -98,6 +106,8 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
     PULL_REFRESH,
     RouterLink,
     SkeletonRows,
+    SwapText,
+    SymbolGlyph,
     TaskMenu,
     TaskNoteCard,
     TaskOverview,
@@ -151,27 +161,23 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
               <ion-button
                 class="act"
                 fill="solid"
-                [disabled]="actionDisabled(task)"
+                [attr.aria-description]="pendingLabel()"
                 (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
               >
-                <span
-                  slot="start"
-                  [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
-                  aria-hidden="true"
-                ></span>
-                {{ task.status === 'running' ? 'Stop' : 'Start' }}
+                <app-symbol slot="start" [name]="stateGlyph(task)" />
+                <app-swap-text [text]="heldStatus() === 'running' ? 'Stop' : 'Start'" />
               </ion-button>
               <ion-button
                 class="act"
                 fill="solid"
-                [disabled]="actionDisabled(task)"
+                [attr.aria-description]="pendingLabel()"
                 (click)="changeState('restart')"
               >
-                <span
+                <app-symbol
                   slot="start"
-                  class="icon-[light--arrow-rotate-right]"
-                  aria-hidden="true"
-                ></span>
+                  name="icon-[light--arrow-rotate-right]"
+                  [spin]="busy() === 'restart'"
+                />
                 Restart
               </ion-button>
             }
@@ -196,15 +202,11 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
           @if (detail.task(); as task) {
             @if (operate()) {
               <ion-button
-                [disabled]="actionDisabled(task)"
-                [attr.aria-label]="task.status === 'running' ? 'Stop task' : 'Start task'"
+                [attr.aria-label]="heldStatus() === 'running' ? 'Stop task' : 'Start task'"
+                [attr.aria-description]="pendingLabel()"
                 (click)="changeState(task.status === 'running' ? 'stop' : 'start')"
               >
-                <span
-                  slot="icon-only"
-                  [class]="task.status === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]'"
-                  aria-hidden="true"
-                ></span>
+                <app-symbol slot="icon-only" [name]="stateGlyph(task)" />
               </ion-button>
             }
           }
@@ -262,7 +264,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                   class="mt-2"
                   size="small"
                   fill="outline"
-                  [disabled]="actionDisabled(task)"
+                  [attr.aria-description]="pendingLabel()"
                   (click)="changeState('restart')"
                 >
                   Restart now
@@ -301,9 +303,14 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
           />
         } @else {
           <!-- Hidden, never destroyed: the console keeps its scroll, the editor its draft. -->
-          <div class="body">
+          <div
+            class="body"
+            [attr.data-dir]="sections.dir()"
+            (transitionend)="sections.landed($event)"
+            (transitioncancel)="sections.landed($event)"
+          >
             <div class="main">
-              <div class="console" [class.hidden]="mainView() !== 'logs'">
+              <div class="console fx fx-section" [class.hidden]="mainView() !== 'logs'">
                 <app-log-console
                   [entries]="logs.entries()"
                   [connected]="logs.connected()"
@@ -317,7 +324,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
               </div>
 
               @if (detail.task()) {
-                <div [class.hidden]="mainView() !== 'environment'">
+                <div class="fx fx-section" [class.hidden]="mainView() !== 'environment'">
                   <!-- Labelled like Container logs, so both tabs start level with Overview. -->
                   <app-inset-group [label]="wide() ? 'Environment variables' : ''">
                     <app-environment-editor
@@ -327,14 +334,34 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                       [environment]="detail.environment()"
                       [resetKey]="environmentResetKey()"
                       (environmentChange)="draftEnvironment.set($event); environmentDirty.set(true)"
-                      (errorsChange)="environmentErrors.set($event)"
+                      (errorsChange)="
+                        environmentErrors.set($event);
+                        environmentDirty.set(environmentDirty() || $event.length > 0)
+                      "
                     />
                   </app-inset-group>
                   @if (edit()) {
                     <div class="apply">
                       <p class="apply__note">
                         <!-- The disabled Apply says why. -->
-                        @if (environmentErrors().length > 0) {
+                        @if (applied() && !environmentDirty()) {
+                          <span class="apply__change okmark">
+                            <svg viewBox="0 0 52 52" aria-hidden="true">
+                              <path
+                                animate.enter="fx fx-draw"
+                                pathLength="1"
+                                d="M26 3a23 23 0 1 1 0 46a23 23 0 1 1 0-46"
+                              />
+                              <path
+                                class="tick"
+                                animate.enter="fx fx-tick"
+                                pathLength="1"
+                                d="M15 27l8 8 15-16"
+                              />
+                            </svg>
+                            <span [animate.enter]="fxIn()">Environment applied</span>
+                          </span>
+                        } @else if (environmentErrors().length > 0) {
                           <span class="apply__change text-danger!">
                             Fix {{ environmentErrors().length === 1 ? 'the line' : 'the lines' }}
                             marked above to apply.
@@ -357,7 +384,8 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
                         (click)="applyEnvironment()"
                       >
                         @if (detail.savingEnvironment()) {
-                          <ion-spinner name="lines-small" />
+                          <ion-spinner name="lines-small" [paused]="still" aria-hidden="true" />
+                          <span class="sr-only">Apply and restart</span>
                         } @else {
                           Apply and restart
                         }
@@ -368,10 +396,10 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
               }
             </div>
 
-            <div class="aside" [class.hidden]="!desktop() && view() !== 'info'">
+            <div class="aside fx fx-section" [class.hidden]="!desktop() && view() !== 'info'">
               @if (detail.task(); as task) {
                 <!-- DOM order is the reading order; iPad splits it into two columns. -->
-                <div class="info">
+                <div class="info" [animate.enter]="rise()">
                   <div class="info__col">
                     <app-task-overview
                       [task]="task"
@@ -494,12 +522,10 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
             <span class="truncate">
               {{ devLabel[task.devStatus] }}
               <!-- Without it "Ready" reads as testable. -->
-              @if (task.status !== 'running') {
+              @if (stateNote()) {
                 ·
-                <span class="down" [attr.data-state]="task.status"
-                  >container {{ task.status }}</span
-                >
               }
+              <app-swap-text class="note" [text]="stateNote()" />
               @if (task.description) {
                 · {{ task.description }}
               }
@@ -557,12 +583,12 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
       white-space: normal;
     }
 
-    .down {
+    .note[data-text^='container'] {
       font-weight: 600;
       color: var(--app-text-primary);
     }
 
-    .down[data-state='error'] {
+    .note[data-text='container error'] {
       color: var(--ion-color-danger);
     }
 
@@ -590,6 +616,29 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
       font-weight: 600;
       color: var(--app-text-secondary);
       overflow-wrap: anywhere;
+    }
+
+    .okmark {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--app-text-primary);
+    }
+
+    .okmark svg {
+      flex: none;
+      inline-size: 2.125rem;
+      block-size: 2.125rem;
+      fill: none;
+      stroke: var(--app-status-positive);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 1;
+    }
+
+    .okmark .tick {
+      stroke-width: 3.5;
     }
 
     .unsaved {
@@ -700,6 +749,7 @@ const VIEWS: readonly string[] = ['info', 'environment', 'logs'] satisfies View[
   `,
 })
 export class TaskDetailPage {
+  protected readonly rise = rise();
   protected readonly grants = inject(ManageGrantsStore);
   protected readonly grantableRoles = GRANTABLE_ROLES;
   protected readonly detail = inject(ViewTaskStore);
@@ -707,6 +757,7 @@ export class TaskDetailPage {
   private readonly commands = inject(ControlTaskStore);
   private readonly confirmations = inject(ConfirmActionService);
   protected readonly notifications = inject(NotifyService);
+  private readonly announcer = inject(Announcer);
   private readonly router = inject(Router);
   private readonly navCtrl = inject(NavController);
   private readonly fleet = inject(ListProjectsStore);
@@ -721,6 +772,29 @@ export class TaskDetailPage {
 
   protected readonly devLabel = DEV_STATUS_LABEL;
   protected readonly devDot = DEV_STATUS_DOT;
+  protected readonly fxIn = entrance('fx-in');
+  protected readonly still = reduced();
+  /* Held until the container has settled, so each glyph flips once. */
+  protected readonly busy = signal<TaskStateAction | null>(null);
+  /* A restart keeps the Start/Stop it began with. */
+  private readonly busyFrom = signal('');
+  protected readonly heldStatus = computed(() =>
+    this.busy() === 'restart' ? this.busyFrom() : this.detail.task()?.status,
+  );
+  protected readonly pendingLabel = computed(() => {
+    const busy = this.busy();
+    const task = this.detail.task();
+    if (busy) return PENDING_LABEL[busy];
+    return task && isTransitioningTask(task) ? `${task.status}…` : null;
+  });
+  protected readonly stateNote = computed(() => {
+    const busy = this.busy();
+    const status = this.detail.task()?.status;
+    if (busy) return PENDING_LABEL[busy];
+    return status && status !== 'running' ? `container ${status}` : '';
+  });
+  protected readonly applied = signal(false);
+  private appliedTimer?: ReturnType<typeof setTimeout>;
 
   protected readonly editLink = computed(() => [
     '/projects',
@@ -744,7 +818,7 @@ export class TaskDetailPage {
   protected readonly edit = computed(() => atLeastRole(this.role(), 'member'));
   protected readonly logsCanStart = computed(() => {
     const task = this.detail.task();
-    return !!task && this.operate() && !this.actionDisabled(task);
+    return !!task && this.operate() && !isTransitioningTask(task);
   });
   /* Below operator the phone menu only holds Open, which needs a running task. */
   protected readonly narrowMenu = computed(() => {
@@ -766,6 +840,7 @@ export class TaskDetailPage {
   });
   protected readonly age = age;
 
+  protected readonly sections = sectionDir();
   /* Untracked: a resize must never reset the section someone picked. */
   protected readonly view = linkedSignal<View>(() => {
     const section = this.section();
@@ -832,6 +907,16 @@ export class TaskDetailPage {
     );
 
     effect(() => {
+      const task = this.detail.task();
+      this.detail.error();
+      untracked(() => {
+        const settled =
+          !this.commands.isPending(this.name()) && !(task && isTransitioningTask(task));
+        if (this.busy() && settled) this.busy.set(null);
+      });
+    });
+
+    effect(() => {
       if (!this.environmentDirty() && this.detail.hasLoaded()) {
         this.draftEnvironment.set({ ...this.detail.environment() });
         this.environmentResetKey.update((value) => value + 1);
@@ -847,6 +932,7 @@ export class TaskDetailPage {
 
   protected setView(value: unknown): void {
     if (!VIEWS.includes(value as View)) return;
+    this.sections.go(VIEWS.indexOf(this.mainView()), VIEWS.indexOf(value as View));
     this.view.set(value as View);
     /* Replaced, not pushed, like the project tabs: a reload or a shared link keeps the tab. */
     void this.router.navigate([], {
@@ -867,12 +953,14 @@ export class TaskDetailPage {
     });
   }
 
-  protected actionDisabled(task: Task): boolean {
-    return isTransitioningTask(task) || this.commands.isPending(task.name);
-  }
-
   protected isPending(task: Task): boolean {
     return this.commands.isPending(task.name);
+  }
+
+  protected stateGlyph(task: Task): string | null {
+    const busy = this.busy();
+    if (busy === 'start' || busy === 'stop' || (!busy && isTransitioningTask(task))) return null;
+    return this.heldStatus() === 'running' ? 'icon-[solid--stop]' : 'icon-[solid--play]';
   }
 
   protected onMenuAction({ action, task }: TaskActionRequest): void {
@@ -905,14 +993,17 @@ export class TaskDetailPage {
     });
   }
 
-  /* No confirm: lifecycle actions are reversible. */
+  /* No confirm: lifecycle actions are reversible. Never disabled while busy, so focus stays put. */
   protected changeState(action: TaskStateAction): void {
     const task = this.detail.task();
-    if (!task) return;
+    if (!task || this.busy() || isTransitioningTask(task)) return;
+    this.busy.set(action);
+    this.busyFrom.set(task.status);
     this.commands.changeState(this.slug(), task, action).subscribe((result) => {
       this.notifications.result(result);
 
       if (result.success) this.reload();
+      else this.busy.set(null);
     });
   }
 
@@ -941,8 +1032,16 @@ export class TaskDetailPage {
   /* Only a success drops the draft: a refusal must never cost the unapplied edits. */
   protected applyEnvironment(): void {
     this.detail.updateEnvironment(this.draftEnvironment()).subscribe((result) => {
-      this.notifications.result(result);
-      if (result.success) this.environmentDirty.set(false);
+      if (!result.success) {
+        this.notifications.result(result);
+        return;
+      }
+      this.environmentDirty.set(false);
+      this.notifications.haptic(true);
+      this.announcer.say('Environment applied');
+      this.applied.set(true);
+      clearTimeout(this.appliedTimer);
+      this.appliedTimer = setTimeout(() => this.applied.set(false), APPLIED_HOLD);
     });
   }
 

@@ -2,7 +2,7 @@
 
 Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-theme-ios27` Liquid Glass theme, Tailwind v4, Capacitor 8 for iOS and Android. It manages a Boreas server: projects, their tasks (containers), live metrics, logs and activity.
 
-- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, the SSE splitter check, build). jscpd's `minTokens` is 60 so the per-page Ionic import runs (kept apart for per-route chunks) never count; DTOs and mappers are ignored. The initial bundle warns past 1.15 MB (now ~1.11 MB, 28 kB of it the theme's inert Vertical Bars CSS): a new warning means real growth.
+- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, `scripts/check-motion.ts`, build). jscpd's `minTokens` is 60 so the per-page Ionic import runs (kept apart for per-route chunks) never count; DTOs and mappers are ignored. The initial bundle (budget 2 MB) is ~1.18 MB raw, ~252 kB transfer, 28 kB of it the theme's inert Vertical Bars CSS; check growth against it.
 - Commits: `<type>(scope): <emoji> subject`, checked by `scripts/validate-commit-msg.sh`.
 - Hard requirements: every screen passes AXE and WCAG AA (focus, contrast, ARIA).
 
@@ -14,7 +14,7 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 - **Declarative, no `async`/`await` or hand-made Promises.** Reads are `rxResource` in stores (read `value()` through `hasValue()`, it throws in the error state). Writes are one-shot Observables that never error: both outcomes come back as a result value that the page routes to a toast. Bridge promise APIs with `from()`/`defer()`. Allowed promise shims: lazy `import().then`, Signal Forms `submit()`, fire-and-forget overlay presentation.
 - Root singletons use `@Service()`; page-provided stores `@Injectable()`; always `inject()`.
 - Comments say WHY in one line; JSDoc only on exported API.
-- Reuse the shared helpers instead of rewriting them: `listView()` (list stores), `describeDevStatus()`/`countByDevStatus()`, `age()`, `motionFlag()`.
+- Reuse the shared helpers instead of rewriting them: `listView()` (list stores), `describeDevStatus()`/`countByDevStatus()`, `age()`, `reduced()`.
 
 ## Forms (Signal Forms)
 
@@ -64,10 +64,29 @@ Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-the
 ### Components
 
 - **Lists**: `app-inset-group`; rows are `ion-item`s (value row, link row with the automatic chevron, action row `button [detail]="false"`, two-line label + note). A footer `ion-note` needs its own control-flow block. Size rows with `--row-min-height` and buttons with `--button-font-size`/`--button-min-height`, never `!important`. Skeleton rows are real `ion-item`s; data tables use `table-layout: fixed`.
-- **Controls**: `ion-toggle` (snap it back when the app refuses the change), `ion-select interface="popover"`, `ion-segment` (header switches; `seg-fill` inside content), `ion-item-sliding` (Start `success`, Stop `warning`: both take dark text, grey read as disabled), `ion-chip`, `ion-spinner name="lines-small"` in busy buttons. On a coarse pointer small clear buttons are 44px tall. Sections that hold a draft or a scroll position are hidden with a class, never destroyed. Data fields take `value-input`, image references `value-tail`.
+- **Controls**: `ion-toggle` (snap it back when the app refuses the change), `ion-select interface="popover"`, `ion-segment` (header switches; `seg-fill` inside content), `ion-item-sliding` (Start `success`, Stop `warning`: both take dark text, grey read as disabled), `ion-chip`, `ion-spinner name="lines-small" aria-hidden="true"` in busy buttons (Ionic 9's spinner is an unnamed progressbar), with the label kept in `sr-only` when the spinner replaces it. On a coarse pointer small clear buttons are 44px tall. Sections that hold a draft or a scroll position are hidden with a class, never destroyed. Data fields take `value-input`, image references `value-tail`.
 - **Overlays**: `ConfirmActionService` (alert, `destructive` role), `NotifyService` (toast, plus a success or error haptic on native), `SheetService` (sheet: only a `SHEET_DONE` dismissal emits, a swipe completes empty; a `detent` above 1 is a pixel height), `ion-popover` for menus (unique trigger ids, since Ionic keeps several pages in the DOM, or `[event]` for row menus, given `popoverAnchor(event)`: a click from inside a shadow root has no target once dispatched, and Ionic then parks the menu off its button). No action sheets: their red fails AA.
 - **Icons**: Font Awesome Classic through `@iconify/tailwind4` (`public/icons/*.json`): `<span class="icon-[light--house]" aria-hidden="true">`. Write every class out whole, maps included: Tailwind only generates literal strings. The weight follows the text: light beside text, regular in discs, the fab, at 16px or less and for chevrons (`angle-*`), solid where iOS uses `.fill` (tab bar, swipe actions, toasts). Masks draw at 85% of the box. `styles.css` paints Ionic's own glyphs, and SVG-URL props read `shared/ui/glyph-urls.ts`. There is no `ionicons` dependency.
 - Dynamic Type: `provideDynamicType()` sets the root size from `-apple-system-body` on iOS (16px at the default 17pt), read again on `visibilitychange` and capped at xxLarge until the Live card reflows on phones; tab bar labels stay fixed, as in iOS.
+- **Motion** lives in `shared/ui/motion`:
+  - `motion.ts`: tokens, springs, `settled()` and the shell's wiggle. It has no imports, so `node` can load it.
+  - `effects.ts`: the lazy WAAPI effects and `replaced()`. A module that `main` imports carries every export any chunk uses.
+  - `page-motion.ts`: `entrance()`, `rise()`, `sectionDir()`.
+  - `numeric-text.ts`.
+  - `symbol.ts` (lazy only): `app-symbol`, `app-swap-text`, `clipboardCopy()`.
+  - `flip.ts`: GSAP, `measure()`/`relayout()`, `shut()` and `nextFrame()`. Lint bans it, and gsap, in eager code.
+- **Motion rules:**
+  - Entrances go only through `animate.enter`, gated by `settled()`/`entrance()`. A static CSS animation replays whenever Ionic shows a cached page, and nothing may move during a page transition.
+  - `fx` marks what Reduce Motion keeps: a 120 ms opacity crossfade. WAAPI reads `reduced()` per call. Reduce Motion also stills Ionic's transitions and overlays (`app/reduced-motion.ts`).
+  - GSAP stays in lazy chunks: the lists and onboarding.
+  - Lists move with the layout: `relayout()` tweens each parent's height and each row's offset within it, so what follows moves for free. An inset list never collapses margins through itself, so a group opens and closes from `shut()` margins.
+  - Measure new rows two microtasks after Angular's render: Stencil renders a new `ion-item`'s shadow DOM then, and before that it is 0 px tall. A new group's nested parts take longer, so it opens toward its live `scrollHeight`.
+  - Angular removes a leaving element as soon as the same template node renders in another parent or right after it, whatever its `animate.leave` still holds. So a regroup has two beats: ① fades what goes (a row, an emptied group, a column head or footer whose group loses its place) where it stands, with no render; ② swaps each for a plain gap of its size, writes once and closes the gaps. Newer tasks wait for the beat's end: cut short, the rows would jump. A write at once (Reduce Motion, a burst, an unsettled page) holds the list's height with an inert spacer until two frames after it renders: a page shorter for one layout clamps its scroll for good.
+  - The list pages turn off scroll anchoring for their whole content (Chrome and Firefox; WebKit has none): it would shift rows the lists already move.
+  - GSAP rounds px tweens to whole pixels unless `autoRound: false` sits on both ends (from-vars too): against fractional row offsets the rows wobble a pixel or two.
+  - `settled()` and `rendered()` read `checkVisibility()`, a style read (WebKit before 17.4 falls back to a layout read); `pageSettled()` reads none. Read before you write, and never right after a render: with this many `:has()` rules every forced style update restyles the whole document (hence Activity's next-frame measure).
+  - Start tweens with `nextFrame()`, or the render before them eats their first tens of ms.
+  - An outcome without a toast is said through `Announcer`, never from inside a list.
 - Keyboard focus rings on Ionic's `ion-focused` class (`:focus-visible` never reaches shadow DOM). Reduce Transparency and reduced motion each have one block at the end of `styles.css`, the only places a user setting may use `!important` wholesale.
 
 ### Ionic lifecycle traps

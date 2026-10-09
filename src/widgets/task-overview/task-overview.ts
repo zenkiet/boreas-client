@@ -1,21 +1,10 @@
-import { DOCUMENT } from '@angular/common';
-import {
-  Component,
-  OutputEmitterRef,
-  WritableSignal,
-  computed,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import type { SelectCustomEvent } from '@ionic/angular';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonLabel } from '@ionic/angular/ion-label';
 import { IonSelect } from '@ionic/angular/ion-select';
 import { IonSelectOption } from '@ionic/angular/ion-select-option';
-import { EMPTY, defer, from } from 'rxjs';
 
 import type { Build, DeployOutcome } from '@entities/task';
 import {
@@ -30,8 +19,7 @@ import { toByteSize } from '@shared/lib/format/bytes';
 import { pathParts } from '@shared/lib/format/path';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
-
-const COPIED_RESET_MS = 1600;
+import { SymbolGlyph, clipboardCopy } from '@shared/ui/motion/symbol';
 
 /* Workflow order, not severity order: the order a task moves through. */
 const STATUS_OPTIONS = (
@@ -54,6 +42,7 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
     IonLabel,
     IonSelect,
     IonSelectOption,
+    SymbolGlyph,
     TaskVolumes,
   ],
   template: `
@@ -107,14 +96,13 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
           slot="end"
           fill="clear"
           size="small"
-          [attr.aria-label]="copied() ? 'Copied' : 'Copy app URL'"
-          (click)="copyUrl()"
+          aria-label="Copy app URL"
+          (click)="urlCopy.copy(proxyUrl())"
         >
-          <span
+          <app-symbol
             slot="icon-only"
-            [class]="copied() ? 'icon-[light--check]' : 'icon-[light--copy]'"
-            aria-hidden="true"
-          ></span>
+            [name]="urlCopy.copied() ? 'icon-[light--check] text-ok' : 'icon-[light--copy]'"
+          />
         </ion-button>
       </ion-item>
 
@@ -148,14 +136,13 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
           slot="end"
           fill="clear"
           size="small"
-          [attr.aria-label]="copiedImage() ? 'Copied' : 'Copy full image reference'"
-          (click)="copyImage()"
+          aria-label="Copy full image reference"
+          (click)="imageCopy.copy(task().image)"
         >
-          <span
+          <app-symbol
             slot="icon-only"
-            [class]="copiedImage() ? 'icon-[light--check]' : 'icon-[light--copy]'"
-            aria-hidden="true"
-          ></span>
+            [name]="imageCopy.copied() ? 'icon-[light--check] text-ok' : 'icon-[light--copy]'"
+          />
         </ion-button>
       </ion-item>
 
@@ -298,8 +285,6 @@ const STATUS_MENU = { header: 'Development status', alignment: 'end', cssClass: 
   `,
 })
 export class TaskOverview {
-  private readonly document = inject(DOCUMENT);
-
   readonly task = input.required<Task>();
   readonly proxyUrl = input.required<string>();
   readonly lastDeploy = input<DeployOutcome | null>(null);
@@ -344,8 +329,8 @@ export class TaskOverview {
     pathParts(this.task().image.replace(/@sha256:([0-9a-f]{6})[0-9a-f]+$/, '@$1')),
   );
 
-  protected readonly copied = signal(false);
-  protected readonly copiedImage = signal(false);
+  protected readonly urlCopy = clipboardCopy(() => this.copyFailed.emit());
+  protected readonly imageCopy = clipboardCopy(() => this.imageCopyFailed.emit());
 
   protected deployLabel(deploy: DeployOutcome): string {
     return `${formatDate(deploy.at)} · ${deploy.failed ? 'failed' : 'succeeded'}`;
@@ -356,25 +341,6 @@ export class TaskOverview {
     return `${cpu.toFixed(1)}% CPU · ${value} ${unit}`;
   }
 
-  protected copyUrl(): void {
-    this.copy(this.proxyUrl(), this.copied, this.copyFailed);
-  }
-
-  protected copyImage(): void {
-    this.copy(this.task().image, this.copiedImage, this.imageCopyFailed);
-  }
-
-  private copy(text: string, done: WritableSignal<boolean>, failed: OutputEmitterRef<void>): void {
-    defer(() =>
-      from(this.document.defaultView?.navigator.clipboard.writeText(text) ?? EMPTY),
-    ).subscribe({
-      next: () => {
-        done.set(true);
-        this.document.defaultView?.setTimeout(() => done.set(false), COPIED_RESET_MS);
-      },
-      error: () => failed.emit(),
-    });
-  }
 }
 
 /* "Today 10:12": the row answers "how recent". */

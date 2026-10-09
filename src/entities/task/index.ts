@@ -26,7 +26,7 @@ export type {
   Task,
   TaskSummary,
 } from './model/task';
-export { describeCompletedAction } from './model/task-state-action';
+export { PENDING_LABEL, describeCompletedAction } from './model/task-state-action';
 export type { TaskStateAction } from './model/task-state-action';
 export { BuildStatus } from './ui/build-status/build-status';
 export { TaskMenu } from './ui/task-menu/task-menu';

@@ -19,7 +19,7 @@ import { ChangeServerService } from '@features/connect-server';
 import { OnboardingHero } from '@features/onboarding';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { WelcomeSeenStore } from '@shared/api/welcome-seen.store';
-import { motionFlag } from '@shared/ui/motion/motion-flag';
+import { reduced } from '@shared/ui/motion/motion';
 
 const STEPS = [0, 1, 2] as const;
 const LAST = STEPS.length - 1;
@@ -406,7 +406,6 @@ export class WelcomePage {
     return Number.isInteger(raw) ? Math.min(Math.max(raw, 0), LAST) : 0;
   });
 
-  private readonly motion = motionFlag();
   private ready = false;
   private width = 0;
   private shrunk = false;
@@ -498,7 +497,7 @@ export class WelcomePage {
 
   private settle(step: number): void {
     const x = -step * this.width;
-    if (this.motion.enabled) {
+    if (!reduced()) {
       gsap.to(this.track().nativeElement, {
         x,
         duration: 0.55,
@@ -521,7 +520,7 @@ export class WelcomePage {
     const heroVars = this.heroVars(shrunk);
     const taglineVars = { autoAlpha: shrunk ? 0 : 1 };
 
-    if (this.motion.enabled) {
+    if (!reduced()) {
       gsap.to(hero, { ...heroVars, duration: 0.55, ease: 'power3.inOut', overwrite: 'auto' });
       gsap.to(tagline, {
         ...taglineVars,
@@ -583,7 +582,7 @@ export class WelcomePage {
       x = min + Math.max((x - min) / 3, -48);
     }
 
-    if (this.motion.enabled && this.quickX) {
+    if (!reduced() && this.quickX) {
       this.quickX(x);
     } else {
       gsap.set(this.track().nativeElement, { x });

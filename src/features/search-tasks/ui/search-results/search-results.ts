@@ -5,6 +5,7 @@ import { IonNote } from '@ionic/angular/ion-note';
 
 import { DEV_STATUS_DOT, DEV_STATUS_LABEL } from '@entities/task';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
+import { rise } from '@shared/ui/motion/page-motion';
 import { failureOf } from '../../model/search-query';
 import { FleetTask } from '../../model/search-tasks.store';
 
@@ -13,7 +14,7 @@ import { FleetTask } from '../../model/search-tasks.store';
   imports: [IonItem, IonLabel, IonNote],
   template: `
     @for (entry of entries(); track entry.project.slug + '/' + entry.task.name) {
-      <ion-item button (click)="taskOpened.emit(entry)">
+      <ion-item button [animate.enter]="rise()" (click)="taskOpened.emit(entry)">
         <i slot="start" class="dot" [class]="dot[entry.task.devStatus]" aria-hidden="true"></i>
         <!-- A span, because the theme pins the label's own size. -->
         <ion-label>
@@ -94,6 +95,7 @@ export class SearchResults {
   readonly entries = input.required<readonly FleetTask[]>();
   readonly taskOpened = output<FleetTask>();
 
+  protected readonly rise = rise();
   protected readonly wide = wideScreen();
   protected readonly dot = DEV_STATUS_DOT;
   protected readonly devLabel = DEV_STATUS_LABEL;

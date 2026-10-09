@@ -8,11 +8,6 @@ import {
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideIonicAngular } from '@ionic/angular/provide';
-import {
-  iosTransitionAnimation,
-  popoverEnterAnimation,
-  popoverLeaveAnimation,
-} from '@rdlabo/ionic-theme-ios27';
 
 import { SessionStore } from '@features/auth';
 import { provideAppHttpClient } from '@shared/api/http';
@@ -25,6 +20,7 @@ import { routes } from './app.routes';
 import { provideDynamicType } from './dynamic-type';
 import { AppErrorHandler } from './error-handler';
 import { provideNavigationFailureToast, withNavigationFailures } from './navigation-error';
+import { navAnimation, popoverEnter, popoverLeave, provideStillOverlays } from './reduced-motion';
 import { provideSplash } from './splash';
 
 export const appConfig: ApplicationConfig = {
@@ -71,9 +67,10 @@ export const appConfig: ApplicationConfig = {
       mode: 'ios',
       useSetInputAPI: true,
       backButtonText: '',
-      navAnimation: iosTransitionAnimation,
-      popoverEnter: popoverEnterAnimation,
-      popoverLeave: popoverLeaveAnimation,
+      navAnimation,
+      popoverEnter,
+      popoverLeave,
     }),
+    provideStillOverlays(),
   ],
 };

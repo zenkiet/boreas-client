@@ -52,9 +52,14 @@ import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { ServerConfigStore } from '@shared/config/server-config.store';
 import { whileOnScreen } from '@shared/lib/on-screen/on-screen';
 import { desktopScreen, WIDE_QUERY, wideScreen } from '@shared/ui/breakpoint/wide-screen';
+import { rendered, wiggle } from '@shared/ui/motion/motion';
+import { NumericText } from '@shared/ui/motion/numeric-text';
+import { Announcer } from '@shared/ui/notify/announcer';
 
 import { CommandPaletteLauncher } from './command-palette/palette-launcher';
 import { NAV, TABS, type NavItem } from './nav';
+
+const WIGGLE_GAP = 10_000;
 
 @Component({
   selector: 'app-shell',
@@ -80,6 +85,7 @@ import { NAV, TABS, type NavItem } from './nav';
     IonTabBar,
     IonTabButton,
     IonToolbar,
+    NumericText,
     RouterLink,
     TaskFilterBar,
   ],
@@ -125,7 +131,12 @@ import { NAV, TABS, type NavItem } from './nav';
                       [class.nav-active]="navActive() === item.link"
                       [attr.aria-current]="navActive() === item.link ? 'page' : null"
                     >
-                      <span slot="start" [class]="item.icon" aria-hidden="true"></span>
+                      <span
+                        slot="start"
+                        [class]="item.icon"
+                        [class.bell]="item.link === '/notifications'"
+                        aria-hidden="true"
+                      ></span>
                       <ion-label>
                         {{ item.label }}
                         @if (item.link === '/notifications' && unseen()) {
@@ -136,9 +147,9 @@ import { NAV, TABS, type NavItem } from './nav';
                         <kbd slot="end" class="side__kbd" aria-hidden="true">/</kbd>
                       }
                       @if (item.link === '/notifications' && unseen()) {
-                        <ion-badge slot="end" class="count" aria-hidden="true">{{
-                          unseen()
-                        }}</ion-badge>
+                        <ion-badge slot="end" class="count" aria-hidden="true"
+                          ><app-numeric-text [value]="unseen()"
+                        /></ion-badge>
                       }
                     </ion-item>
                   }
@@ -195,9 +206,12 @@ import { NAV, TABS, type NavItem } from './nav';
         <!-- Always rendered: a status region must exist before its message arrives. -->
         <p class="stale" [class.stale--low]="!tabs()" role="status">
           @if (paused()) {
-            <span>Live updates paused.<span class="stale__hint"> Pull down to refresh.</span></span>
+            <span animate.enter="fx fx-rise" animate.leave="fx fx-out"
+              >Live updates paused.<span class="stale__hint"> Pull down to refresh.</span></span
+            >
           }
         </p>
+        <p class="sr-only" role="status">{{ announcer.message() }}</p>
         <!-- Hidden, never destroyed: the lens and the search morph are bound to these elements. -->
         <ion-tab-bar
           slot="bottom"
@@ -209,7 +223,11 @@ import { NAV, TABS, type NavItem } from './nav';
             <!-- href makes Ionic's <a> focusable; Ionic still prevents the navigation. -->
             <ion-tab-button [tab]="item.link" [href]="item.link" (click)="open(item.link)">
               <!-- ion-icon, not a span: the theme's search morph looks that tag up. -->
-              <ion-icon [class]="item.tab" aria-hidden="true" />
+              <ion-icon
+                [class]="item.tab"
+                [class.bell]="item.link === '/notifications'"
+                aria-hidden="true"
+              />
               <ion-label>
                 {{ item.label }}
                 @if (item.link === '/notifications' && unseen()) {
@@ -218,7 +236,7 @@ import { NAV, TABS, type NavItem } from './nav';
               </ion-label>
               @if (item.link === '/notifications' && unseen()) {
                 <ion-badge class="count" aria-hidden="true">
-                  {{ unseen() > 99 ? '99+' : unseen() }}
+                  <app-numeric-text [value]="unseen() > 99 ? '99+' : unseen()" />
                 </ion-badge>
               }
             </ion-tab-button>
@@ -539,6 +557,8 @@ export class AppShell {
   private readonly fleet = inject(ListProjectsStore);
   private readonly pins = inject(PinnedProjectsStore);
   private readonly document = inject(DOCUMENT);
+  protected readonly announcer = inject(Announcer);
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly wide = wideScreen();
   protected readonly wideQuery = WIDE_QUERY;
   protected readonly desktop = desktopScreen();
@@ -627,6 +647,25 @@ export class AppShell {
     whileOnScreen(this.fleet.changes, () => {
       this.fleet.load();
       this.alerts.load();
+    });
+    /* Keyed on the newest event, not the count: older pages loading raise the count too. */
+    let newest: string | undefined;
+    let rang = 0;
+    effect(() => {
+      if (!this.alerts.hasLoaded()) {
+        newest = undefined;
+        return;
+      }
+      const top = this.alerts.alerts()[0];
+      const fresh = newest !== undefined && !!top && top.id !== newest && !top.seen;
+      const due = fresh && this.unseen() > 0 && Date.now() - rang > WIGGLE_GAP;
+      // Only a bell on screen counts: a hidden tab bar must not use up the next wiggle. Read only when due: it restyles.
+      const bells = due ? [...this.host.querySelectorAll('.bell')].filter(rendered) : [];
+      if (bells.length) {
+        rang = Date.now();
+        bells.forEach(wiggle);
+      }
+      newest = top?.id ?? '';
     });
     effect(() => {
       this.searching();

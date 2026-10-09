@@ -26,13 +26,16 @@ export class NotifyService {
     this.show(message, false);
   }
 
+  /* Native only: the web fallback is navigator.vibrate, refused without a fresh tap. */
+  haptic(success: boolean): void {
+    if (!Capacitor.isNativePlatform()) return;
+    void Haptics.notification({
+      type: success ? NotificationType.Success : NotificationType.Error,
+    });
+  }
+
   private show(message: string, success: boolean): void {
-    /* Native only: the web fallback is navigator.vibrate, refused without a fresh tap. */
-    if (Capacitor.isNativePlatform()) {
-      void Haptics.notification({
-        type: success ? NotificationType.Success : NotificationType.Error,
-      });
-    }
+    this.haptic(success);
     void this.toasts
       .create({
         message,

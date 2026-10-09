@@ -8,13 +8,14 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import type { InfiniteScrollCustomEvent } from '@ionic/angular';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonButtons } from '@ionic/angular/ion-buttons';
 import { IonInfiniteScroll } from '@ionic/angular/ion-infinite-scroll';
 import { IonInfiniteScrollContent } from '@ionic/angular/ion-infinite-scroll-content';
-import { from, switchMap } from 'rxjs';
+import { Subject, buffer, debounceTime, from, switchMap } from 'rxjs';
 
 import { TaskApi } from '@entities/task/api';
 import { taskKey } from '@entities/task/model';
@@ -39,6 +40,8 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { FilterChips } from '@shared/ui/filter-chips/filter-chips';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { entrance } from '@shared/ui/motion/page-motion';
+import { Announcer } from '@shared/ui/notify/announcer';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SheetService } from '@shared/ui/sheet/sheet.service';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
@@ -174,8 +177,10 @@ interface FilterTag {
                 [ciUrls]="ciUrls()"
                 [projectNames]="projectNames()"
                 [tasks]="fleetTasks()"
+                [scope]="[filter(), chip()]"
                 (selected)="selectedId.set($event.id)"
                 (opened)="openTask($event)"
+                (arrived)="arrivals.next($event)"
               />
               <ion-infinite-scroll [disabled]="!alerts.hasMore()" (ionInfinite)="more($event)">
                 <ion-infinite-scroll-content />
@@ -185,15 +190,23 @@ interface FilterTag {
         </div>
 
         @if (twoPane() && selected(); as event) {
-          <section id="activity-detail" class="split__detail" aria-label="Event detail">
-            <app-alert-detail
-              [alert]="event"
-              [projectName]="projectNames().get(event.project) ?? ''"
-              [visitUrl]="visitUrl()"
-              [ciUrl]="ciUrl()"
-              (opened)="openTask($event)"
-            />
-          </section>
+          <!-- Rebuilt per event so it fades in; 'event:' avoids NG0956. -->
+          @for (id of [event.id]; track 'event:' + id) {
+            <section
+              id="activity-detail"
+              class="split__detail"
+              aria-label="Event detail"
+              [animate.enter]="fade()"
+            >
+              <app-alert-detail
+                [alert]="event"
+                [projectName]="projectNames().get(event.project) ?? ''"
+                [visitUrl]="visitUrl()"
+                [ciUrl]="ciUrl()"
+                (opened)="openTask($event)"
+              />
+            </section>
+          }
         }
       </div>
     </ion-content>
@@ -278,7 +291,10 @@ export class AlertsPage {
   private readonly sheets = inject(SheetService);
   private readonly router = inject(Router);
   private readonly tasks = inject(TaskApi);
+  private readonly announcer = inject(Announcer);
+  protected readonly arrivals = new Subject<number>();
   protected readonly twoPane = mediaQuery(TWO_PANE_QUERY);
+  protected readonly fade = entrance('fx-in');
 
   /** `?project=`: opens Activity on one project. */
   readonly project = input<string>();
@@ -309,9 +325,7 @@ export class AlertsPage {
   protected readonly chipOptions = computed(() => {
     const failures = this.scoped().filter((alert) => matchesChip(alert, 'failures')).length;
     return ACTIVITY_CHIPS.map((option) =>
-      option.key === 'failures' && failures > 0
-        ? { ...option, label: `Failures · ${failures}` }
-        : option,
+      option.key === 'failures' ? { ...option, count: failures } : option,
     );
   });
 
@@ -398,6 +412,13 @@ export class AlertsPage {
       this.topUps.update((left) => left - 1);
       untracked(() => this.alerts.loadMore().subscribe());
     });
+    /* One status outside the list per burst, never a row each. */
+    this.arrivals
+      .pipe(buffer(this.arrivals.pipe(debounceTime(1000))), takeUntilDestroyed())
+      .subscribe((batch) => {
+        const count = batch.reduce((sum, rows) => sum + rows, 0);
+        this.announcer.say(`${count} new ${count === 1 ? 'event' : 'events'}`);
+      });
   }
 
   protected more(event: InfiniteScrollCustomEvent): void {

@@ -10,6 +10,7 @@ import { IonSelectOption } from '@ionic/angular/ion-select-option';
 import type { SelectCustomEvent } from '@ionic/angular';
 
 import { GRANTABLE_ROLES, Member, ProjectRole, ROLE_LABEL } from '@entities/project';
+import { rise } from '@shared/ui/motion/page-motion';
 
 /** The raw event rides along so the page can snap the select back when the change is refused. */
 export interface MemberRoleChange {
@@ -22,7 +23,7 @@ export interface MemberRoleChange {
   imports: [DatePipe, IonButton, IonItem, IonLabel, IonNote, IonSelect, IonSelectOption],
   template: `
     @for (member of members(); track member.userId) {
-      <ion-item>
+      <ion-item [animate.enter]="rise()">
         <span slot="start" class="avatar" aria-hidden="true">{{
           member.username.slice(0, 2)
         }}</span>
@@ -151,6 +152,7 @@ export class MemberList {
   readonly removeRequested = output<Member>();
   readonly roleChange = output<MemberRoleChange>();
 
+  protected readonly rise = rise();
   /* Owner is not offered: the grant API rejects it and a second owner is not a row edit. */
   protected readonly roles = GRANTABLE_ROLES;
   protected readonly roleLabel = ROLE_LABEL;

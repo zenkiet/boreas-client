@@ -14,6 +14,8 @@ import {
 import type { MetricPoint } from '@entities/system-stats';
 import { niceTop, plot } from '@shared/lib/chart/chart';
 import { MEGABYTE } from '@shared/lib/format/bytes';
+import { breathe } from '@shared/ui/motion/effects';
+import { settled } from '@shared/ui/motion/motion';
 import { METRICS, METRIC_COLOR, METRIC_LABEL, Metric, formatMetric } from '../live-monitor/metric';
 
 /* Seconds across the chart: 60 one-second points. */
@@ -29,6 +31,8 @@ interface Point {
   readonly age: number;
   readonly point: MetricPoint;
 }
+
+let arrived = false;
 
 @Component({
   selector: 'app-live-chart',
@@ -163,21 +167,11 @@ interface Point {
     }
 
     svg {
-      animation: lv-in 0.7s cubic-bezier(0.33, 1, 0.68, 1);
       transition: opacity 0.2s;
     }
 
     svg.stale {
       opacity: 0.55;
-    }
-
-    @keyframes lv-in {
-      from {
-        clip-path: inset(0 100% 0 0);
-      }
-      to {
-        clip-path: inset(-24px);
-      }
     }
 
     .grid {
@@ -216,13 +210,6 @@ interface Point {
 
     .halo.on {
       opacity: 0.16;
-      animation: lv-breathe 2s ease-in-out infinite;
-    }
-
-    @keyframes lv-breathe {
-      50% {
-        transform: scale(1.3);
-      }
     }
 
     .dot {
@@ -250,7 +237,7 @@ interface Point {
       .area,
       .dot,
       .halo {
-        transition-duration: 0.25s !important;
+        transition-duration: var(--t-quick) !important;
       }
     }
 
@@ -373,6 +360,7 @@ export class LiveChart {
       };
     });
   });
+  private readonly drawn = computed(() => this.size().w > 0);
 
   protected readonly axis = computed(() => {
     const key = this.focus();
@@ -434,6 +422,17 @@ export class LiveChart {
         [{ transform: `translateX(${this.size().w / SPAN}px)` }, { transform: 'none' }],
         { duration: 400, easing: 'cubic-bezier(0.33, 1, 0.68, 1)' },
       );
+    });
+    /* A breath when the session's first chart arrives or the focus moves, never on coming back to Home. */
+    let shown: string | undefined;
+    afterRenderEffect(() => {
+      const key = this.focus();
+      if (!this.drawn()) return;
+      const news = shown === undefined ? !arrived : shown !== key;
+      shown = key;
+      arrived = true;
+      const halo = this.host.querySelector('.halo.on');
+      if (news && halo && settled(this.host)) breathe(halo, { scale: '1.3' });
     });
   }
 

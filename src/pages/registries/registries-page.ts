@@ -25,6 +25,7 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { EYE, EYE_SLASH } from '@shared/ui/glyph-urls';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { rise } from '@shared/ui/motion/page-motion';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
@@ -86,7 +87,7 @@ interface CredentialDraft {
           } @else {
             <app-inset-group label="Credentials" [trailing]="summary()">
               @for (credential of credentials.items(); track credential.id) {
-                <ion-item>
+                <ion-item [animate.enter]="rise()">
                   <ion-label
                     ><span class="name">{{ credential.name }}</span></ion-label
                   >
@@ -184,7 +185,7 @@ interface CredentialDraft {
               <ion-item button [detail]="false" [disabled]="credentials.busy()" (click)="create()">
                 <ion-label color="primary">Add credential</ion-label>
                 @if (credentials.busy()) {
-                  <ion-spinner slot="end" name="lines-small" />
+                  <ion-spinner slot="end" name="lines-small" aria-hidden="true" />
                 }
               </ion-item>
               <ion-note>
@@ -207,6 +208,7 @@ interface CredentialDraft {
   `,
 })
 export class RegistriesPage {
+  protected readonly rise = rise();
   protected readonly eye = EYE;
   protected readonly eyeSlash = EYE_SLASH;
   protected readonly credentials = inject(ManageCredentialsStore);

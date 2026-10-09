@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonBackButton } from '@ionic/angular/ion-back-button';
@@ -7,7 +6,7 @@ import { IonButtons } from '@ionic/angular/ion-buttons';
 import { IonItem } from '@ionic/angular/ion-item';
 import { IonNote } from '@ionic/angular/ion-note';
 import { IonRouterLink } from '@ionic/angular/ion-router-link';
-import { defer, filter, from, switchMap, throwError } from 'rxjs';
+import { filter, switchMap } from 'rxjs';
 
 import { ApiToken, isRevocable } from '@entities/api-token';
 import { ManageTokensStore, TokenList } from '@features/manage-tokens';
@@ -18,6 +17,7 @@ import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { clipboardCopy, SymbolGlyph } from '@shared/ui/motion/symbol';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
@@ -39,6 +39,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
     PULL_REFRESH,
     RouterLink,
     SkeletonRows,
+    SymbolGlyph,
     TokenList,
   ],
   template: `
@@ -124,13 +125,12 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
           <div class="px-4 pt-3.5 pb-2" role="listitem">
             <!-- Focusable: it scrolls sideways, and a keyboard has to reach it to scroll it. -->
             <pre class="example" tabindex="0">{{ example() }}</pre>
-            <ion-button fill="clear" class="copy" (click)="copyExample()">
-              <span
+            <ion-button fill="clear" class="copy" (click)="exampleCopy.copy(example())">
+              <app-symbol
                 slot="start"
-                [class]="copied() ? 'icon-[light--check]' : 'icon-[light--copy]'"
-                aria-hidden="true"
-              ></span>
-              {{ copied() ? 'Copied' : 'Copy example' }}
+                [name]="exampleCopy.copied() ? 'icon-[light--check] text-ok' : 'icon-[light--copy]'"
+              />
+              Copy example
             </ion-button>
           </div>
           <ion-note
@@ -174,9 +174,10 @@ export class TokensPage {
   private readonly confirmations = inject(ConfirmActionService);
   private readonly notifications = inject(NotifyService);
   private readonly config = inject(ServerConfigStore);
-  private readonly document = inject(DOCUMENT);
 
-  protected readonly copied = signal(false);
+  protected readonly exampleCopy = clipboardCopy(() =>
+    this.notifications.failure('The example could not be copied to the clipboard.'),
+  );
 
   /* Built here, not in the template: a template literal would eat the shell's backslashes. */
   protected readonly example = computed(() =>
@@ -208,20 +209,6 @@ export class TokensPage {
   constructor() {
     /* The route-provided store outlives this page: read fresh on every visit. */
     this.tokens.load();
-  }
-
-  protected copyExample(): void {
-    const clipboard = this.document.defaultView?.navigator.clipboard;
-    (clipboard
-      ? defer(() => from(clipboard.writeText(this.example())))
-      : throwError(() => null)
-    ).subscribe({
-      next: () => {
-        this.copied.set(true);
-        this.document.defaultView?.setTimeout(() => this.copied.set(false), 1600);
-      },
-      error: () => this.notifications.failure('The example could not be copied to the clipboard.'),
-    });
   }
 
   protected revoke(token: ApiToken): void {

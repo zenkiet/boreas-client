@@ -11,6 +11,7 @@ import { ViewTaskStore } from '@features/view-task';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { rise } from '@shared/ui/motion/page-motion';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
@@ -53,7 +54,8 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
               [disabled]="edit.saving()"
             >
               @if (edit.saving()) {
-                <ion-spinner name="lines-small" />
+                <ion-spinner name="lines-small" aria-hidden="true" />
+                <span class="sr-only">Save</span>
               } @else if (wide()) {
                 Save
               } @else {
@@ -76,7 +78,9 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
           />
         } @else if (detail.task(); as task) {
           <app-task-edit-form
+            class="block"
             formId="edit-task-form"
+            [animate.enter]="rise()"
             [task]="task"
             [folders]="edit.folders()"
             [saving]="edit.saving()"
@@ -93,6 +97,7 @@ import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
   `,
 })
 export class TaskEditPage {
+  protected readonly rise = rise();
   protected readonly wide = wideScreen();
   protected readonly detail = inject(ViewTaskStore);
   protected readonly edit = inject(EditTaskStore);

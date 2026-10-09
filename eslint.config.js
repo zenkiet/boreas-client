@@ -134,4 +134,26 @@ module.exports = defineConfig([
       ],
     },
   },
+  // Eager code: gsap must stay in lazy chunks.
+  {
+    files: [
+      'src/app/**/*.ts',
+      'src/widgets/app-shell/**/*.ts',
+      'src/shared/ui/notify/**/*.ts',
+      'src/shared/ui/motion/{motion,effects,numeric-text,page-motion}.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['gsap', 'gsap/*', '**/motion/flip', './flip'],
+              message: 'Eager code animates with WAAPI from @shared/ui/motion/motion.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);

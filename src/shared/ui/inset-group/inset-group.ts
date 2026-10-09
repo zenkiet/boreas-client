@@ -5,10 +5,12 @@ import { IonList } from '@ionic/angular/ion-list';
 import { IonListHeader } from '@ionic/angular/ion-list-header';
 import { IonNote } from '@ionic/angular/ion-note';
 
+import { NumericText } from '../motion/numeric-text';
+
 /** A projected `ion-note` becomes the footer; a `[groupMark]` element leads the header label. */
 @Component({
   selector: 'app-inset-group',
-  imports: [IonItemGroup, IonLabel, IonList, IonListHeader, IonNote],
+  imports: [IonItemGroup, IonLabel, IonList, IonListHeader, IonNote, NumericText],
   template: `
     <ion-list [inset]="true">
       @if (label()) {
@@ -16,7 +18,7 @@ import { IonNote } from '@ionic/angular/ion-note';
           <ion-label><ng-content select="[groupMark]" />{{ label() }}</ion-label>
           @if (trailing()) {
             <!-- No aria-live: a live region inside Ionic's role="list" fails AXE. -->
-            <ion-note class="tabular">{{ trailing() }}</ion-note>
+            <ion-note><app-numeric-text [value]="trailing()" /></ion-note>
           }
         </ion-list-header>
       }

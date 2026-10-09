@@ -59,7 +59,7 @@ interface DefaultsDraft {
       >
         <ion-label color="primary">{{ busy() ? 'Saving' : 'Save' }}</ion-label>
         @if (busy()) {
-          <ion-spinner slot="end" name="lines-small" />
+          <ion-spinner slot="end" name="lines-small" aria-hidden="true" />
         }
       </ion-item>
     }

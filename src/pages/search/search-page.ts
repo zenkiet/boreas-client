@@ -30,6 +30,7 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { FilterChips } from '@shared/ui/filter-chips/filter-chips';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { rise } from '@shared/ui/motion/page-motion';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
 
@@ -132,6 +133,7 @@ type Scope = 'all' | 'tasks' | 'projects';
                     [trailing]="'Best match for “' + query().text + '”'"
                   >
                     <app-top-hit
+                      [animate.enter]="rise()"
                       [entry]="hit"
                       [needle]="query().text"
                       [visitUrl]="visitUrl(hit)"
@@ -189,7 +191,7 @@ type Scope = 'all' | 'tasks' | 'projects';
       @if (scope() !== 'tasks' && projects().length > 0) {
         <app-inset-group label="Projects" [trailing]="'' + projects().length">
           @for (match of projects(); track match.project.id) {
-            <ion-item [routerLink]="['/projects', match.project.slug]">
+            <ion-item [routerLink]="['/projects', match.project.slug]" [animate.enter]="rise()">
               <ion-label>{{ match.project.name }}</ion-label>
               <ion-note>{{ match.note }}</ion-note>
             </ion-item>
@@ -267,6 +269,7 @@ type Scope = 'all' | 'tasks' | 'projects';
   `,
 })
 export class SearchPage {
+  protected readonly rise = rise();
   protected readonly overview = inject(ListProjectsStore);
   protected readonly search = inject(SearchTasksStore);
   private readonly tasks = inject(TaskApi);

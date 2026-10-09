@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { AnimationCallbackEvent, Component, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { IonButton } from '@ionic/angular/ion-button';
 import { IonButtons } from '@ionic/angular/ion-buttons';
@@ -10,12 +11,16 @@ import { describeDevStatus } from '@entities/task';
 import { SessionStore } from '@features/auth';
 import { ListProjectsStore, ProjectList, ProjectSummary } from '@features/list-projects';
 import { LiveMetricsStore, LiveMonitor, ProjectSplit } from '@features/track-stats';
+import { onScreen } from '@shared/lib/on-screen/on-screen';
 import { PULL_REFRESH, PullRefreshSource } from '@shared/lib/pull-to-refresh/pull-to-refresh';
 import { desktopScreen, wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { Callout } from '@shared/ui/callout/callout';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { ErrorState } from '@shared/ui/error-state/error-state';
 import { InsetGroup } from '@shared/ui/inset-group/inset-group';
+import { breathe } from '@shared/ui/motion/effects';
+import { settled } from '@shared/ui/motion/motion';
+import { rise } from '@shared/ui/motion/page-motion';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 import { NEW_PROJECT_DIALOG, SheetService } from '@shared/ui/sheet/sheet.service';
 import { SkeletonRows } from '@shared/ui/skeleton-rows/skeleton-rows';
@@ -109,9 +114,15 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
         } @else if (overview.error() && !overview.hasLoaded()) {
           <app-error-state class="m-5" [message]="overview.error()!" (retry)="overview.load()" />
         } @else {
-          <section class="live mx-5" aria-labelledby="live-h">
+          <section class="live mx-5" aria-labelledby="live-h" [animate.enter]="rise()">
             <div class="head">
-              <h2 id="live-h" aria-live="polite">{{ metrics.stale() ? 'Waiting' : 'Live' }}</h2>
+              <h2 id="live-h" aria-live="polite">
+                @if (metrics.stale()) {
+                  <i class="dot" aria-hidden="true"></i>Waiting
+                } @else {
+                  <i class="dot on" aria-hidden="true" (animate.enter)="breatheDot($event)"></i>Live
+                }
+              </h2>
               @if (idle()) {
                 <span class="idle">Nothing is running</span>
               } @else {
@@ -123,6 +134,7 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
                   (click)="toggleLive()"
                 >
                   {{ liveCollapsed() ? 'Show' : 'Hide' }}<span class="sr-only"> chart</span>
+                  <span class="chev icon-[regular--angle-down]" aria-hidden="true"></span>
                 </button>
               }
             </div>
@@ -254,7 +266,24 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
       color: var(--app-text-tertiary);
     }
 
+    .dot {
+      display: inline-block;
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      margin-inline-end: 0.375rem;
+      border-radius: 50%;
+      background: var(--color-label-3);
+      vertical-align: 0.125rem;
+    }
+
+    .dot.on {
+      background: var(--color-ok);
+    }
+
     .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
       min-block-size: 1.5rem;
       padding: 0 0.25rem;
       border: 0;
@@ -266,6 +295,15 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
       cursor: pointer;
     }
 
+    .chev {
+      font-size: 0.75rem;
+      transition: rotate var(--t-base) var(--e-out);
+    }
+
+    .toggle[aria-expanded='true'] .chev {
+      rotate: 180deg;
+    }
+
     @media (min-width: 80rem) {
       .head h2 {
         font-size: 0.9375rem;
@@ -274,6 +312,7 @@ const SHORT_SCREEN = '(max-height: 47.5rem)';
   `,
 })
 export class ProjectsPage {
+  protected readonly rise = rise();
   protected readonly session = inject(SessionStore);
   protected readonly palette = inject(CommandPaletteLauncher);
   protected readonly overview = inject(ListProjectsStore);
@@ -289,6 +328,10 @@ export class ProjectsPage {
   protected readonly metricLabels = ['CPU', 'Memory', 'Network'] as const;
 
   protected readonly liveCollapsed = signal(this.readLiveFolded());
+
+  /* Set by a drop after a steady Live: a restored snapshot, or streams reopening on return, only flicker. */
+  private dropped = false;
+  private liveSince = 0;
 
   protected readonly idle = computed(
     () =>
@@ -329,6 +372,27 @@ export class ProjectsPage {
         })),
       ),
     );
+    effect(() => {
+      if (this.metrics.live()) this.liveSince ||= Date.now();
+      else if (this.metrics.stale()) {
+        if (this.liveSince && Date.now() - this.liveSince > 3000) this.dropped = true;
+        this.liveSince = 0;
+      }
+    });
+    // Leaving Home or the app closes its streams: that is no drop to breathe about.
+    onScreen()
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        this.liveSince = 0;
+        this.dropped = false;
+      });
+  }
+
+  protected breatheDot({ target, animationComplete }: AnimationCallbackEvent): void {
+    if (this.dropped && this.metrics.live() && settled(target as HTMLElement)) {
+      breathe(target, { opacity: 0.35, scale: '0.8' });
+    }
+    animationComplete();
   }
 
   protected toggleLive(): void {
