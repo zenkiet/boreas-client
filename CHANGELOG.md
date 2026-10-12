@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.17.0](https://github.com/zenkiet/boreas-client/compare/8296e43df62bc2be9b46faffa5c01b5ca1a9b119..v0.17.0) - 2026-10-12
+#### 🚀 Features
+- (**bora**) ✨ implement bora assistant AI - ([8296e43](https://github.com/zenkiet/boreas-client/commit/8296e43df62bc2be9b46faffa5c01b5ca1a9b119)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.16.2](https://github.com/zenkiet/boreas-client/compare/e08faa8e48d327b11b0fc8bf142eecaf2b393939..v0.16.2) - 2026-10-09
 #### ♻️ Code Refactoring
 - (**motion**) ♻️ improve all motion and animation - ([e08faa8](https://github.com/zenkiet/boreas-client/commit/e08faa8e48d327b11b0fc8bf142eecaf2b393939)) - [@zenkiet](https://github.com/zenkiet)
