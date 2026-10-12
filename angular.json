@@ -55,7 +55,7 @@
               {
                 "glob": "dotlottie-player.wasm",
                 "input": "node_modules/@lottiefiles/dotlottie-web/dist",
-                "output": "animations"
+                "output": "animations/dotlottie-0.81"
               }
             ],
             "styles": [

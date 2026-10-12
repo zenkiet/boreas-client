@@ -28,6 +28,11 @@ import { InsetGroup } from '@shared/ui/inset-group/inset-group';
 const FOLLOW_THRESHOLD = 24;
 /* Keyword heuristic, not stderr: nginx and most servers log routine notices there. */
 const ERROR_LINE = /(error|exception)\b|\b(err|fatal|panic|crit|critical|emerg|failed|failure)\b/i;
+export interface LogLine {
+  readonly at: string;
+  readonly line: string;
+}
+
 const TONES: Record<LogTone, string> = {
   danger: 'text-danger',
   ok: 'text-ok',
@@ -100,7 +105,7 @@ const TONES: Record<LogTone, string> = {
       </ion-item>
 
       <!-- The group is Ionic's role="list": the log region needs a listitem around it. -->
-      <div role="listitem">
+      <div role="listitem" class="relative" (pointerleave)="hovered.set(null)">
         <div
           #body
           class="logs"
@@ -110,6 +115,7 @@ const TONES: Record<LogTone, string> = {
           aria-label="Task logs"
           tabindex="0"
           (scroll)="onScroll($event)"
+          (pointerover)="hover($event)"
         >
           @if (visibleEntries().length === 0) {
             <!-- Lines exist, so the filter hid them, whatever the stream is doing. -->
@@ -142,7 +148,11 @@ const TONES: Record<LogTone, string> = {
                 <p class="logs__day">{{ day }}</p>
               }
               @let error = isError(entry);
-              <p class="logs__line" [class.logs__line--error]="error">
+              <p
+                class="logs__line"
+                [class.logs__line--error]="error"
+                [attr.data-ask-at]="entry.timestamp"
+              >
                 <span class="logs__time">{{ entry.timestamp | date: 'HH:mm:ss' }}</span>
                 @if (error) {
                   <span class="sr-only">Error:</span>
@@ -160,6 +170,18 @@ const TONES: Record<LogTone, string> = {
             }
           }
         </div>
+        <!-- One button for every line, outside the live log so it is never read as output. -->
+        @if (hovered(); as line) {
+          <button
+            type="button"
+            class="ask"
+            aria-label="Ask Bora about this line"
+            [style.top.px]="line.top"
+            (click)="asked.emit(line)"
+          >
+            Ask Bora
+          </button>
+        }
       </div>
 
       <!-- Not a link: a plain href cannot carry the bearer token. -->
@@ -283,6 +305,33 @@ const TONES: Record<LogTone, string> = {
       text-align: center;
     }
 
+    /* 32 px, on the hovered line's end; a mouse's only: touch asks with Bora itself. */
+    .ask {
+      position: absolute;
+      inset-inline-end: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      block-size: 2rem;
+      margin-block-start: -0.375rem;
+      padding: 0 0.75rem;
+      border: 0;
+      border-radius: 1rem;
+      background: var(--ion-item-background);
+      box-shadow:
+        0 0 0 0.5px var(--app-border-normal),
+        0 4px 12px rgba(15, 23, 42, 0.12);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--app-text-primary);
+      cursor: pointer;
+    }
+
+    @media (pointer: coarse) {
+      .ask {
+        display: none;
+      }
+    }
+
     .logs__empty--connecting,
     .logs__empty--down {
       display: flex;
@@ -306,6 +355,10 @@ export class LogConsole {
   readonly canStart = input(false);
   readonly startRequested = output<void>();
   readonly downloadRequested = output<void>();
+  readonly askable = input(false);
+  readonly asked = output<LogLine>();
+
+  protected readonly hovered = signal<(LogLine & { readonly top: number }) | null>(null);
 
   protected readonly tones = TONES;
   protected readonly query = signal('');
@@ -391,7 +444,23 @@ export class LogConsole {
     return ERROR_LINE.test(entry.message);
   }
 
+  protected hover(event: PointerEvent): void {
+    const line = event.pointerType === 'mouse' ? this.lineAt(event) : null;
+    if (!this.askable() || !line || line.at === this.hovered()?.at) return;
+    const el = (event.target as Element).closest<HTMLElement>('.logs__line')!;
+    const wrapper = el.closest('[role=listitem]')!.getBoundingClientRect();
+    this.hovered.set({ ...line, top: el.getBoundingClientRect().top - wrapper.top });
+  }
+
+  private lineAt(event: Event): LogLine | null {
+    const el = (event.target as Element | null)?.closest<HTMLElement>('.logs__line');
+    const at = el?.dataset['askAt'];
+    if (!el || !at) return null;
+    return { at, line: el.querySelector('.logs__message')?.textContent?.trim() ?? '' };
+  }
+
   protected onScroll(event: Event): void {
+    this.hovered.set(null);
     const element = event.target as HTMLElement;
     const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
 

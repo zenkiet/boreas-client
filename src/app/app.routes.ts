@@ -34,11 +34,6 @@ export const routes: Routes = [
     loadComponent: () => import('@pages/search/search-page').then(({ SearchPage }) => SearchPage),
   },
   {
-    path: 'chats',
-    canActivate: guards,
-    loadChildren: () => import('./routes/chats.routes').then((m) => m.chatsRoutes),
-  },
-  {
     path: 'notifications',
     title: 'Activity | Boreas',
     canActivate: guards,

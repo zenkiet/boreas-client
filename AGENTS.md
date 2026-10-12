@@ -1,162 +1,263 @@
 # Boreas client
 
-Angular 22 (zoneless, signals) + Ionic 9 in iOS mode with the `@rdlabo/ionic-theme-ios27` Liquid Glass theme, Tailwind v4, Capacitor 8 for iOS and Android. It manages a Boreas server: projects, their tasks (containers), live metrics, logs and activity.
+Angular 22 (zoneless, signals) + Ionic 9 (iOS mode, `@rdlabo/ionic-theme-ios27`) + Tailwind v4 + Capacitor 8. It manages a Boreas server: projects, their tasks (containers), live metrics, logs, activity, and Bora, the assistant.
 
-- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, `scripts/check-motion.ts`, build). jscpd's `minTokens` is 60 so the per-page Ionic import runs (kept apart for per-route chunks) never count; DTOs and mappers are ignored. The initial bundle (budget 2 MB) is ~1.18 MB raw, ~252 kB transfer, 28 kB of it the theme's inert Vertical Bars CSS; check growth against it.
-- Commits: `<type>(scope): <emoji> subject`, checked by `scripts/validate-commit-msg.sh`.
-- Hard requirements: every screen passes AXE and WCAG AA (focus, contrast, ARIA).
+- `pnpm start`, `pnpm build`, `pnpm verify` (typecheck, lint, jscpd, build). jscpd counts runs of 60+ tokens and ignores DTOs and mappers.
+- Initial bundle: ~1.20 MB raw, ~257 kB transfer (budget 2 MB). Check growth against it.
+- Commits: `<type>(scope): <emoji> subject` (`scripts/validate-commit-msg.sh`).
+- Every screen passes AXE and WCAG AA (focus, contrast, ARIA).
 
-## Code conventions
+## Code
 
-- Standalone components without `standalone: true`; OnPush is the project default, so never set `changeDetection`. `input()`/`output()`, `host: {}` instead of `@HostBinding`/`@HostListener`, `[class]`/`[style]` instead of `ngClass`/`ngStyle`, `@if`/`@for`/`@switch`, inline templates for small components. Templates cannot reach globals such as `new Date()`.
-- Strict TypeScript, no `any` (use `unknown`). State is signals: `computed()` for derived values, `set`/`update`, never `mutate`.
-- **Zoneless**: never write `NgZone.run`/`runOutsideAngular`; only signal writes schedule change detection, so a plain field set in an Ionic lifecycle hook never renders.
-- **Declarative, no `async`/`await` or hand-made Promises.** Reads are `rxResource` in stores (read `value()` through `hasValue()`, it throws in the error state). Writes are one-shot Observables that never error: both outcomes come back as a result value that the page routes to a toast. Bridge promise APIs with `from()`/`defer()`. Allowed promise shims: lazy `import().then`, Signal Forms `submit()`, fire-and-forget overlay presentation.
-- Root singletons use `@Service()`; page-provided stores `@Injectable()`; always `inject()`.
-- Comments say WHY in one line; JSDoc only on exported API.
-- Reuse the shared helpers instead of rewriting them: `listView()` (list stores), `describeDevStatus()`/`countByDevStatus()`, `age()`, `reduced()`.
+- Standalone components without `standalone: true`; OnPush is the default, so never set `changeDetection`. Use `input()`/`output()`, `host: {}`, `[class]`/`[style]`, `@if`/`@for`/`@switch`. Templates can't reach globals such as `new Date()`.
+- Strict TypeScript, no `any` (use `unknown`). State is signals: `computed()`, `set`/`update`, never `mutate`.
+- Zoneless: no `NgZone`. Only signal writes render, so a plain field set in an Ionic hook never shows.
+- Declarative, no `async`/`await` or hand-made Promises:
+  - reads are `rxResource` in stores; read `value()` through `hasValue()`, since it throws on error;
+  - writes are one-shot Observables that never error and return a result the page toasts;
+  - bridge promises with `from()`/`defer()`. The only allowed promise shims are lazy `import().then`, Signal Forms `submit()`, and fire-and-forget overlay presentation.
+- `@Service()` for root singletons, `@Injectable()` for page stores, always `inject()`.
+- Comment only a non-obvious why, in one line. JSDoc only on exported API.
+- Reuse `listView()`, `describeDevStatus()`/`countByDevStatus()`, `age()`, `reduced()`.
 
-## Forms (Signal Forms)
+## Forms
 
-- `form()` + `[formField]` + schema validators; never `FormControl`/`FormGroup`/`FormBuilder`. Initial values are `''`, `0` or `[]`, never `null`/`undefined`. The schema owns `min`, `max`, `disabled` and `readonly`: never put them on the input.
-- Import `FieldStatus` next to `FormField` in every form: Ionic shows `errorText` only on `.ion-touched.ion-invalid`, which it rebuilds from `ng-*` classes. It also drops the native `pattern` FormField hands Ionic (written out as `""` or `/…/`, it marked valid text invalid for the browser and screen readers). Never declare a `formField` input on another directive, or FormField silently stops wiring the value accessor.
-- Clear after a submit with `draft().reset(value)`, never by writing the model: the fields would stay touched and all show their errors.
-- Numbers are `<ion-input type="number">`. Dates are ISO `YYYY-MM-DD` strings compared as strings; pickers are `ion-datetime-button` + `ion-datetime` in `<ion-modal [keepContentsMounted]="true">`.
+- Signal Forms only: `form()`, `[formField]`, schema validators.
+  - Initial values are `''`, `0` or `[]`.
+  - The schema owns `min`, `max`, `disabled` and `readonly`.
+- Import `FieldStatus` next to `FormField` in every form. Ionic shows `errorText` only through the `ng-*` classes, and it drops the `pattern` that FormField passes.
+- Never declare a `formField` input on another directive: FormField silently stops wiring the value accessor.
+- Clear a form with `draft().reset(value)`, never by writing the model, which leaves every field touched and showing its error.
+- Numbers use `<ion-input type="number">`. Dates are ISO `YYYY-MM-DD` strings; pickers are `ion-datetime-button` + `ion-datetime` in `<ion-modal [keepContentsMounted]="true">`.
 
 ## Architecture (FSD)
 
-- Layers `app > pages > widgets > features > entities > shared`, imported downward only, never sideways within a layer. Aliases `@app` … `@shared`; `eslint-plugin-boundaries` enforces it.
-- Enter a slice only through its public entry: `index.ts`, or `<slice>-page.ts` for a page. Eager code may use a second entry (`model/index.ts`, `api/index.ts`) so that a barrel's UI never lands in the initial bundle: esbuild ships whole files.
-- `entities/*/model` is plain TypeScript. `api/` segments own the DTOs, map them to models, and are the only place `HttpClient` appears (SSE reads with `fetch` in `shared/api/sse.ts`).
-- `ui/` components are dumb (inputs, outputs, no store, no api). The page is the container: it provides the stores, wires the outputs and passes URLs down.
-- Stores (`features/*/model/*.store.ts`) are provided by the page that uses them. Root is reserved for the truly global: server address, theme, session, stateless `*Api` classes, and the cross-route caches `ListProjectsStore`, `ListAlertsStore` and `SearchTasksStore`, plus `ChatsStore` (an answer outlives the page that asked).
-- Cross-route caches are keyed on the auth token (a switched account never sees the old data), load on sign-in and reload on each change event or pull-to-refresh (`load()`); nothing marks them stale, since every successful write already sends an event.
-- The settings stores (tokens, users, credentials) are provided on the settings parent route, so the list, the iPad panes and the pushed pages share one instance; each page calls `load()` on entry.
-- UI used by several features lives in the entity that owns its vocabulary (`entities/task/ui`, `entities/environment/ui`).
+- Layers: `app > pages > widgets > features > entities > shared`, imported downward only (`eslint-plugin-boundaries`). Each `shared/*` segment imports only from itself.
+- Enter a slice through its `index.ts`, or `<slice>-page.ts` for a page. Eager code uses a second entry (`model/index.ts`, `api/index.ts`) so a barrel's UI stays out of the initial bundle.
+- `entities/*/model` is plain TypeScript. `api/` owns the DTOs and mappers and is the only place `HttpClient` appears; SSE uses `fetch` in `shared/api/sse.ts`.
+- `ui/` components are dumb. The page provides the stores and wires the outputs.
+- Stores are page-provided. Root is only for:
+  - the server address, theme and session;
+  - `*Api` classes;
+  - `ListProjectsStore`, `ListAlertsStore`, `SearchTasksStore` and `BoraStore`.
+- Cross-route caches are keyed on the auth token, load on sign-in, and reload on change events or pull-to-refresh.
+- Settings stores sit on the settings parent route; each page calls `load()` on entry.
+- UI shared by several features lives in the entity that owns its vocabulary (`entities/task/ui`).
 - `MIGRATION_PLAN.md` records the v2 API move.
 
-## Ionic and the iOS 27 theme
+## Ionic and the theme
 
-- iOS mode on every platform (`provideIonicAngular({ mode: 'ios', useSetInputAPI: true })`; the latter lets modal `componentProps` reach signal inputs). No second component library.
-- CSS order in `angular.json`: Ionic core, structure and dark palette, the theme, then `src/styles.css`. Ionic's `normalize`/`typography` are not loaded (they override Tailwind). Ionic and the theme stay unlayered: inside a layer they lose to Stencil's runtime styles, which is also why `styles.css` needs its `!important`s. The window never scrolls; each page scrolls inside its `ion-content`, whose scroll part reserves a classic scrollbar on both edges so the centred column stays under the header's (split lists excepted).
-- Import Ionic per component (`@ionic/angular/ion-button`, `@ionic/angular/modal-controller`); the `@ionic/angular` barrel is for `import type` only, or every component lands in one shared chunk.
-- **`patches/` is required and pinned exactly.** `@rdlabo/ionic-theme-utils` imports bare `'@ionic/core'` (the lazy-loader build: a second Ionic runtime, ~1 MB more JS); its patch points it at `@ionic/core/components`. `@rdlabo/ionic-theme-ios27` (1.2.1) imports `@ionic/core/components` itself; its patch only shims `'@stencil/core'` and drops the search dismiss button's undeclared `ionicons/icons` import (`styles.css` paints its xmark). `@ionic/core` is patched for AXE (item-group and list roles, popover role and name). Re-check all three on every bump.
-- AXE under Ionic 9 roles: nothing with `aria-live` inside a list, non-row content in a list carries `role="listitem"`, and every dialog and popover has a name (`SheetService.open` requires `label`).
-- Colours: `--ion-*` on `:root` and `:root.ion-palette-dark` in `styles.css`; templates use the Tailwind tokens (`bg-cell`, `text-label-2`, `text-danger`, `rounded-card` …), not `var(--app-…)`. Dark mode is the `ion-palette-dark` class on `<html>`, owned by `ThemeStore`.
-- **"iPad" means `WIDE_QUERY`** (64rem wide and 31.25rem tall, `shared/ui/breakpoint`), shared by the split pane, `wideScreen()`, the dialogs and `wide-only`/`narrow-only`. Desktop is 80rem (`desktopScreen()`, `desk-only`/`desk-hide`). Tailwind's `md:` is for cosmetic sizes only, never for chrome.
+- iOS mode everywhere: `provideIonicAngular({ mode: 'ios', useSetInputAPI: true })`. No second component library.
+- CSS order (`angular.json`): Ionic core, structure, the dark palette, the theme, then `src/styles.css`.
+  - Ionic's `normalize`/`typography` are not loaded.
+  - Ionic and the theme stay unlayered, which is why `styles.css` needs its `!important`s.
+  - The window never scrolls; each page scrolls inside its `ion-content`.
+- Import Ionic per component (`@ionic/angular/ion-button`). The barrel is for `import type` only, or every component lands in one chunk.
+- `patches/` are required and pinned:
+  - `@rdlabo/ionic-theme-utils` is pointed at `@ionic/core/components`, which avoids a second Ionic runtime (~1 MB);
+  - `@rdlabo/ionic-theme-ios27` shims `@stencil/core` and drops an `ionicons` import;
+  - `@ionic/core` gets the AXE roles and names.
 
-### Shell (`widgets/app-shell`)
+  Re-check all three on every bump.
+- AXE under Ionic 9: no `aria-live` inside a list, non-row content in a list carries `role="listitem"`, and every dialog and popover is named.
+- Colours: tokens are on `:root` and `.ion-palette-dark` in `styles.css`; templates use the Tailwind tokens.
+  - Dark mode is `ion-palette-dark` on `<html>`, owned by `ThemeStore`.
+  - A modal with that class is dark whatever the theme.
+- "iPad" means `WIDE_QUERY`: 64rem wide and 31.25rem tall. It drives the split pane, `wideScreen()`, dialogs and `wide-only`/`narrow-only`. Desktop is 80rem (`desktopScreen()`). Tailwind's `md:` is for cosmetic sizes only.
 
-- iPad: `ion-split-pane` with the `ion-menu` sidebar (sized by `--ios-theme-menu-width`). Below that width: the floating `ion-tab-bar` (Home, Chat, Activity, Settings) and the Search glass fab. One navigation stack: tabs and sidebar rows `navigateRoot`, pushed pages hide the tab bar, `/welcome` and `/login` have no chrome.
-- The tab bar element is never destroyed (the theme's drag lens is bound to it; pushed pages add `.tabs-hidden`). Register `registerTabBarEffect` once the bar carries the `ios` class, never after `componentOnReady()`, which the custom-elements build lacks. Size the bar through the theme. Tab buttons carry `href` (without it Ionic's `<a role="tab">` takes no keyboard focus; Ionic still prevents the navigation).
-- Search is the theme's search tab and the URL owns it: entering or leaving `/search` runs the morph. The fab and footer are `@defer (on idle)` and queried by template ref (a class token in `viewChild` pulls them into main). The morph needs real `ion-icon` elements in the tab buttons, the fab and the footer button.
-- An overlay makes Ionic hide only `ion-router-outlet` from screen readers; the shell watches that `aria-hidden` and makes the tab bar, fab, footer and sidebar `inert` with it.
-- Settings on iPad is a split view (`app/settings-split.ts`, `?pane=`); Chat is one from `TWO_PANE_QUERY` (`app/chat-split.ts`, `?chat=` an id or `new`), where `/chats/:id` and `/chats/new` redirect. Both share the global `.split-view` styles. A pane page never sees Ionic's lifecycle events, so the split host runs `onReturn`, and `@for` over a one-item key array rebuilds the pane per chat.
+### Shell
+
+- On iPad: `ion-split-pane` with an `ion-menu` sidebar. On phones: a floating `ion-tab-bar` (Home, Activity, Settings) plus the Search fab.
+- One navigation stack: tabs and sidebar rows use `navigateRoot`, pushed pages hide the tab bar, and `/welcome` and `/login` have no chrome.
+- Never destroy the tab bar: the theme's drag lens is bound to it.
+  - Register `registerTabBarEffect` once the bar has the `ios` class.
+  - Tab buttons carry `href` so they take keyboard focus.
+- Search is the theme's search tab and the URL (`/search`) owns it. The fab and footer are `@defer (on idle)`, queried by template ref, and need real `ion-icon`s for the morph.
+- An overlay hides only `ion-router-outlet` from screen readers. The shell watches that `aria-hidden` and makes the tab bar, fab, footer and sidebar `inert`.
+- Settings on iPad is a split view (`app/settings-split.ts`, `?pane=`). A pane never sees Ionic's lifecycle, so the host runs `onReturn`.
 
 ### Pages
 
-- The routed template is `ion-header` + `ion-content` as direct children (the theme's push/pop transition queries them); import `PAGE_CHROME`. Its `PageTitle` makes every page's `ion-title` the h1 (Ionic `aria-hidden`s the inactive condense twin); a page whose h1 sits in its content marks the bar title `aria-hidden`.
-- Root pages: translucent header, fullscreen content, a `max-w-(--app-column)` column that opens with a `collapse="condense"` large title. `styles.css` floats the bar so the title shares its row; never pull the title up with a margin, or Ionic's collapse observer never sees it. On desktop the condensed title stays left, where the large one stood.
-- Pushed pages: `ion-back-button [defaultHref]`. Project and task keep their title block and section switch in `ng-template`s: in the header's second toolbar on iPad, at the top of the content on phones. Their tabs are deep-linked by `?section=`, and a switch writes it with `replaceUrl`. The phones' sticky switch carries `appPhoneSwitch`, which brings a newly picked section to its top instead of the last one's scroll depth. A tab's own action lives in its content (desktop New task sits in the task list's toolbar), so the switch never moves; an action shown on one tab only leads its header group. Never change a fullscreen header's height on scroll: the content jumps; on iPad its glass is near-opaque (82%) so scrolled text never shows behind the title.
-- Header actions: icon discs on phones (`ion-buttons > ion-button > <span slot="icon-only" class="icon-[regular--…]">`), labelled capsules on iPad (`fill="solid" class="act"`, since clear buttons merge into one capsule). A form's Save is a toolbar `type="submit"` with `[form]`, plus a `.cta` pill under the form; creation forms close with ✕ (`navigateBack`, no discard confirm), and as iPad dialogs name both buttons (Cancel, Create).
-- On iPad, New project and New task open as dialogs through `NEW_PROJECT_DIALOG`/`NEW_TASK_DIALOG` (a page may not import a page).
+- The template is `ion-header` + `ion-content` as direct children; import `PAGE_CHROME`. Its `PageTitle` makes `ion-title` the h1, so a page whose h1 sits in its content marks the bar title `aria-hidden`.
+- Root pages: translucent header, fullscreen content, and a `max-w-(--app-column)` column with a `collapse="condense"` large title. Never pull the title up with a margin: Ionic's collapse observer would miss it.
+- Pushed pages use `ion-back-button [defaultHref]`. On project and task pages:
+  - the title block and section switch live in `ng-template`s (the header on iPad, the content top on phones);
+  - `?section=` is written with `replaceUrl`;
+  - the phone switch carries `appPhoneSwitch`;
+  - a tab's own action lives in its content.
+- Never change a fullscreen header's height on scroll.
+- Header actions are icon discs on phones and `fill="solid" class="act"` capsules on iPad.
+- A form's Save is a toolbar `type="submit"` with `[form]`, plus a `.cta` pill. Creation forms close with ✕ (`navigateBack`).
+- On iPad, New project and New task are dialogs (`NEW_PROJECT_DIALOG`/`NEW_TASK_DIALOG`) that name both buttons.
 
 ### Components
 
-- **Lists**: `app-inset-group`; rows are `ion-item`s (value row, link row with the automatic chevron, action row `button [detail]="false"`, two-line label + note). A footer `ion-note` needs its own control-flow block. Size rows with `--row-min-height` and buttons with `--button-font-size`/`--button-min-height`, never `!important`. Skeleton rows are real `ion-item`s; data tables use `table-layout: fixed`.
-- **Controls**: `ion-toggle` (snap it back when the app refuses the change), `ion-select interface="popover"`, `ion-segment` (header switches; `seg-fill` inside content), `ion-item-sliding` (Start `success`, Stop `warning`: both take dark text, grey read as disabled), `ion-chip`, `ion-spinner name="lines-small" aria-hidden="true"` in busy buttons (Ionic 9's spinner is an unnamed progressbar), with the label kept in `sr-only` when the spinner replaces it. On a coarse pointer small clear buttons are 44px tall. Sections that hold a draft or a scroll position are hidden with a class, never destroyed. Data fields take `value-input`, image references `value-tail`.
-- **Overlays**: `ConfirmActionService` (alert, `destructive` role), `NotifyService` (toast, plus a success or error haptic on native), `SheetService` (sheet: only a `SHEET_DONE` dismissal emits, a swipe completes empty; a `detent` above 1 is a pixel height), `ion-popover` for menus (unique trigger ids, since Ionic keeps several pages in the DOM, or `[event]` for row menus, given `popoverAnchor(event)`: a click from inside a shadow root has no target once dispatched, and Ionic then parks the menu off its button). No action sheets: their red fails AA.
-- **Icons**: Font Awesome Classic through `@iconify/tailwind4` (`public/icons/*.json`): `<span class="icon-[light--house]" aria-hidden="true">`. Write every class out whole, maps included: Tailwind only generates literal strings. The weight follows the text: light beside text, regular in discs, the fab, at 16px or less and for chevrons (`angle-*`), solid where iOS uses `.fill` (tab bar, swipe actions, toasts). Masks draw at 85% of the box. `styles.css` paints Ionic's own glyphs, and SVG-URL props read `shared/ui/glyph-urls.ts`. There is no `ionicons` dependency.
-- Dynamic Type: `provideDynamicType()` sets the root size from `-apple-system-body` on iOS (16px at the default 17pt), read again on `visibilitychange` and capped at xxLarge until the Live card reflows on phones; tab bar labels stay fixed, as in iOS.
+- **Lists:** `app-inset-group` with `ion-item` rows.
+  - A footer `ion-note` needs its own control-flow block.
+  - Size rows and buttons with `--row-min-height` and `--button-*`, never `!important`.
+  - Skeletons are real `ion-item`s; tables use `table-layout: fixed`.
+- **Controls:**
+  - `ion-toggle` snaps back when the app refuses the change;
+  - `ion-select interface="popover"`, `ion-segment`;
+  - `ion-item-sliding` with Start `success` and Stop `warning`;
+  - a busy button holds `ion-spinner name="lines-small" aria-hidden="true"` and keeps its label in `sr-only`;
+  - small buttons are 44px tall on a coarse pointer;
+  - a section holding a draft or a scroll position is hidden, never destroyed;
+  - data fields use `value-input`, image references `value-tail`.
+- **Overlays:**
+  - `ConfirmActionService`;
+  - `NotifyService`: a toast plus a haptic;
+  - `SheetService`: `open()` emits only on `SHEET_DONE`, and a `detent` above 1 is in px;
+  - menus are `ion-popover`s with unique trigger ids, or `popoverAnchor(event)` for row menus;
+  - no action sheets, since their red fails AA.
+- **Icons:** Font Awesome through `@iconify/tailwind4` (`public/icons/*.json`).
+  - Write whole literal classes. Never name a class after a Tailwind utility (`ring`, `grow`) unless you mean it.
+  - `boreas.json` is the app's own set, drawn on Light's 512 grid in 32-unit round strokes. Restart `ng serve` after editing it.
+  - Light beside text; regular in discs, the fab, at 16px or less and for chevrons; solid where iOS uses `.fill`.
+  - `styles.css` paints Ionic's own glyphs, and SVG-URL props read `shared/ui/glyph-urls.ts`. There is no `ionicons`.
+- **Dynamic Type:** `provideDynamicType()` follows iOS's body size, capped at xxLarge.
 - **Motion** lives in `shared/ui/motion`:
-  - `motion.ts`: tokens, springs, `settled()` and the shell's wiggle. It has no imports, so `node` can load it.
-  - `effects.ts`: the lazy WAAPI effects and `replaced()`. A module that `main` imports carries every export any chunk uses.
-  - `page-motion.ts`: `entrance()`, `rise()`, `sectionDir()`.
-  - `numeric-text.ts`.
-  - `symbol.ts` (lazy only): `app-symbol`, `app-swap-text`, `clipboardCopy()`.
-  - `flip.ts`: GSAP, `measure()`/`relayout()`, `shut()` and `nextFrame()`. Lint bans it, and gsap, in eager code.
+  - `motion.ts`: tokens, springs and `settled()`;
+  - `effects.ts`: lazy WAAPI;
+  - `page-motion.ts`, `numeric-text.ts`;
+  - `symbol.ts`: lazy only;
+  - `flip.ts`: GSAP; lint keeps it and GSAP out of eager code.
 - **Motion rules:**
-  - Entrances go only through `animate.enter`, gated by `settled()`/`entrance()`. A static CSS animation replays whenever Ionic shows a cached page, and nothing may move during a page transition.
-  - `fx` marks what Reduce Motion keeps: a 120 ms opacity crossfade. WAAPI reads `reduced()` per call. Reduce Motion also stills Ionic's transitions and overlays (`app/reduced-motion.ts`).
-  - GSAP stays in lazy chunks: the lists and onboarding.
-  - Lists move with the layout: `relayout()` tweens each parent's height and each row's offset within it, so what follows moves for free. An inset list never collapses margins through itself, so a group opens and closes from `shut()` margins.
-  - Measure new rows two microtasks after Angular's render: Stencil renders a new `ion-item`'s shadow DOM then, and before that it is 0 px tall. A new group's nested parts take longer, so it opens toward its live `scrollHeight`.
-  - Angular removes a leaving element as soon as the same template node renders in another parent or right after it, whatever its `animate.leave` still holds. So a regroup has two beats: ① fades what goes (a row, an emptied group, a column head or footer whose group loses its place) where it stands, with no render; ② swaps each for a plain gap of its size, writes once and closes the gaps. Newer tasks wait for the beat's end: cut short, the rows would jump. A write at once (Reduce Motion, a burst, an unsettled page) holds the list's height with an inert spacer until two frames after it renders: a page shorter for one layout clamps its scroll for good.
-  - The list pages turn off scroll anchoring for their whole content (Chrome and Firefox; WebKit has none): it would shift rows the lists already move.
-  - GSAP rounds px tweens to whole pixels unless `autoRound: false` sits on both ends (from-vars too): against fractional row offsets the rows wobble a pixel or two.
-  - `settled()` and `rendered()` read `checkVisibility()`, a style read (WebKit before 17.4 falls back to a layout read); `pageSettled()` reads none. Read before you write, and never right after a render: with this many `:has()` rules every forced style update restyles the whole document (hence Activity's next-frame measure).
-  - Start tweens with `nextFrame()`, or the render before them eats their first tens of ms.
-  - An outcome without a toast is said through `Announcer`, never from inside a list.
-- Keyboard focus rings on Ionic's `ion-focused` class (`:focus-visible` never reaches shadow DOM). Reduce Transparency and reduced motion each have one block at the end of `styles.css`, the only places a user setting may use `!important` wholesale.
+  - Entrances go only through `animate.enter`, gated by `settled()`/`entrance()`: a CSS animation replays whenever Ionic shows a cached page. Nothing moves during a page transition.
+  - `fx` marks what Reduce Motion keeps: a 120 ms crossfade. WAAPI reads `reduced()` per call. Reduce Motion also stills Ionic's transitions and overlays (`app/reduced-motion.ts`).
+  - Lists move with `relayout()`. Measure new rows two microtasks after the render: a new `ion-item` is 0 px tall until Stencil renders it.
+  - A regroup takes two beats: fade what goes, then close the gaps. Angular removes a leaving node as soon as its template node renders elsewhere. A write at once holds the height with an inert spacer.
+  - List pages turn off scroll anchoring.
+  - GSAP needs `autoRound: false` on both ends.
+  - Start tweens with `nextFrame()`.
+  - `settled()`/`rendered()` are style reads: read before you write, never right after a render. `:has()` makes forced styles expensive.
+  - A large blurred surface moves on transform and opacity only, since clip-path repaints.
+  - An outcome without a toast goes through `Announcer`, never from inside a list.
+- **Focus and settings:** focus rings use Ionic's `ion-focused`. Reduce Transparency and Reduce Motion each have one `!important` block at the end of `styles.css`.
 
 ### Ionic lifecycle traps
 
-- Ionic caches pages: going back does not rebuild them. Re-read on return with `onReturn(fn)` or `ionViewWillEnter()`; long-lived streams follow `onScreen()`, which ends them on `ionViewDidLeave` (HTTP/1.1 allows six connections per host).
-- A covered page's change detection is detached, so its `effect()`s, `toObservable` and `rxResource` loaders freeze. Work that must run while covered uses `onScreen()`, an Observable of the page's DOM events. Never pause a stream by making `rxResource` params `undefined`: the last stream stays subscribed.
-- Pull-to-refresh: `<ion-refresher [appRefresh]="pull">` with `PULL_REFRESH` and `pull = { busy, trigger }`.
-- "Up" after an action is `navigateBack`; sign-in, sign-out, a server change and the 401 handler use `navigateRoot`.
-- Android back lives in `app/android-back-button.ts`. A lazy chunk that fails online reloads at its target (a deploy renamed it); offline, a toast says so (`app/navigation-error.ts`).
-- The theme's Native UI Shell plugin is built in but not enabled; test on an iOS 26+ device before calling `enableNativeUIShell()`.
+- Pages are cached. Re-read on return with `onReturn(fn)`/`ionViewWillEnter()`. Long streams follow `onScreen()`, since HTTP/1.1 allows six connections per host.
+- A covered page's change detection is detached, so its effects and `rxResource` loaders freeze; use `onScreen()`. Never pause a stream by making its params `undefined`.
+- Pull-to-refresh: `<ion-refresher [appRefresh]="pull">`.
+- "Up" is `navigateBack`. Sign-in, sign-out, a server change and a 401 use `navigateRoot`.
+- Android back is handled in `app/android-back-button.ts`. A failed lazy chunk reloads at its target online and toasts offline (`app/navigation-error.ts`).
+- The theme's Native UI Shell is off. Test on iOS 26+ before calling `enableNativeUIShell()`.
 
-## Interaction rules
+## Interaction
 
-- Confirm only what cannot be undone (delete). Start, stop and restart do not confirm; the toast reports the outcome. What the state forbids is disabled, with the reason shown; what the caller's role forbids is hidden.
-- Whole rows are targets. Task rows open on tap and swipe to Start|Stop, Restart, Delete; on iPad and desktop the same actions appear on hover or focus, and `R` restarts the focused row. No page-wide single-key shortcuts (WCAG 2.1.4).
-- No buttons inside an `ion-item button` (nested interactive content fails AXE). Disclosure rows are native `button.disclose`, because `aria-expanded` needs a real button.
-- `/` goes to Search outside fields. `⌘K`/`Ctrl+K` opens the command palette from iPad width and Search on phones. Keep shortcuts on the component that owns the target.
-- The command palette is lazy: `CommandPaletteLauncher` holds only the `import()`, so nothing eager may import `ModalController`, `SheetService` or the palette. It opens with `animated: false`, is an APG combobox (`aria-activedescendant`), and only starts, stops or restarts, optimistically, the tasks the caller operates. Actions need the whole verb ("sta" is a task name being typed); a verb with no task preselects nothing, and the open project's tasks come first.
-- A disabled user's row dims to 55%: the one accepted AA exception, not a pattern to copy.
+- Confirm only what can't be undone. Start, stop and restart don't confirm; a toast reports them.
+- What the state forbids is disabled, with the reason shown. What the role forbids is hidden.
+- Whole rows are targets. Task rows open on tap and swipe to Start|Stop, Restart and Delete. On iPad and desktop the same actions show on hover or focus, and `R` restarts. No page-wide single-key shortcuts.
+- No buttons inside an `ion-item button`. Disclosures are native `button.disclose`.
+- `/` opens Search. `⌘K`/`Ctrl+K` opens the command palette (Search on phones).
+- The palette is lazy (`CommandPaletteLauncher`): nothing eager imports `ModalController`, `SheetService` or the palette.
+- A disabled user's row dims to 55%. It is the one AA exception.
 
 ## Domain and API
 
-### Auth, projects, roles
-
-- Bearer token (`POST /auth/login`, 30 days) kept by `AuthTokenStore`; `authInterceptor` attaches it to `/api/v1/` requests and routes to `/login` on a 401. `SessionStore` derives the user from `/auth/me`. Routes chain `serverConfiguredGuard` then `authenticatedGuard`; `/login` adds `welcomeSeenGuard`.
-- Everything is project-scoped: `/projects/:slug`, `/projects/:slug/tasks/:name`, served at `/{project}/{task}/`. Task names are unique per project only, so key tasks by project + name.
-- `GET /projects` is the fleet: every project the caller reaches, with `my_role` and its tasks (status, dev status, role, last deploy). Home, Search, the palette, the pins and every "last deploy" read it through `ListProjectsStore`; only the metrics streams go per project.
-- Roles rank `viewer < operator < member < owner`; compare with `atLeastRole`. 404 means invisible (names never leak), 403 means the rank is too low.
-- Every project and task carries `my_role` (a grant raises a task's; admins are owner everywhere); `IS_ADMIN` (`shared/api/role.ts`) is `undefined` until `/auth/me` answers. Below the role an action is hidden: operator starts, stops and restarts; member edits, deletes, sets the status and note and applies the environment (read-only below); owner gets members, grants and project settings. Owner-only lists load only for owners and admin-only ones while `IS_ADMIN() !== false`, so nobody collects a 403. The server still decides, and counts describe what the caller can see, never totals.
-- Picker stores collapse an admin list they may not read to `null`. `/projects/new` and `tasks/new` redirect once the role is known to be too low. Changing a user's password, role or disabled flag revokes their tokens; the UI says so first.
+- **Auth:** a bearer token (`POST /auth/login`, 30 days) kept in `AuthTokenStore`. `authInterceptor` adds it to `/api/v1/` requests and sends a 401 to `/login`. Guards: `serverConfiguredGuard`, `authenticatedGuard`, `welcomeSeenGuard`.
+- **Scope:** everything is project-scoped (`/projects/:slug/tasks/:name`), so key tasks by project + name. `GET /projects` is the fleet: projects, roles, tasks, the last deploy and `bora`. Read it through `ListProjectsStore`.
+- **Roles:**
+  - `viewer < operator < member < owner` (`atLeastRole`); admins are owner everywhere. `IS_ADMIN` is `undefined` until `/auth/me` answers.
+  - 404 means invisible; 403 means the rank is too low.
+  - Hide what the role can't do. Owner-only lists load only for owners and admin-only ones while `IS_ADMIN() !== false`, so nobody collects a 403. Counts describe what the caller can see.
+- Changing a user's password, role or disabled flag revokes their tokens; say so first.
 
 ### Streams
 
-- Logs, metrics and change events are SSE read with `fetch` (`SseClient`), since EventSource cannot send the auth header; a 401 runs the interceptor's `expireSession()`. `sseData()` splits the frames (`scripts/check-sse.ts` checks it), 45 s without a frame or heartbeat counts as a dead connection, and `reconnect()` retries after 3 s except on 401, 403 and 404. Downloads fetch a blob through the interceptor.
-- Nothing polls. `GET /events/stream` sends `{}` on connect, after every successful authenticated write, during a deploy and per notification, never what changed. `ListProjectsStore.changes` shares one connection while signed in; `whileOnScreen(fleet.changes, …)` refetches the fleet and Activity from the app shell and a page's own store from that page, and a hidden tab drops the stream. A covered page misses events, so it still re-reads with `onReturn`; pull-to-refresh on a pushed page also reloads the fleet, the one refresh left when the stream cannot open. `fleet.live` turns false after 5 s without a frame and the shell shows a `role="status"` pill until one arrives. Stores load by bumping a param (`rev`, or a new task ref): `rxResource.reload()` is ignored while a load is in flight, which would strand a change.
-- Logs resume with `since` = the newest line's timestamp: the store keeps its lines for the same task, across leaving and returning, and starts over for another. `parseAnsi` keeps SGR foreground colours (folded onto the AA tokens) and bold, and strips every other escape; `message` stays plain for filters and screen readers. Rows track by entry, so the 2,000-line cap only swaps one row per line.
-- `LiveMetricsStore` is page-provided: `onScreen()` drives the connections and the 1 s clock (an RxJS `scan`). A project stream carries only the tasks running when it opens and ends at once on none, so the store opens one only for a project with running tasks and reopens it when that set changes. The folding rules are pure functions in `entities/system-stats/model/live-metrics.ts`. Never gate a stream on `document.hidden` at call time. The task page's usage reads that task's own stream (`TaskUsageStore`).
-- The chart (`app-live-chart`) is `@defer (on idle)` and the only importer of `shared/lib/chart` (d3); nothing may import a value from `live-chart.ts`.
+- SSE uses `fetch` (`SseClient`, `sseEvents()`).
+  - 45 s of silence means the connection is dead.
+  - `reconnect()` retries after 3 s, except on 401, 403 and 404.
+  - A 401 runs `expireSession()`.
+- Nothing polls:
+  - `/events/stream` signals every write;
+  - `ListProjectsStore.changes` shares one connection, and pages refetch with `whileOnScreen(…)` and still `onReturn`;
+  - `fleet.live` turns false after 5 s of silence, which shows the status pill.
+- Stores load by bumping a param, not with `reload()`, which is ignored while a load runs.
+- Logs resume with `since`. `parseAnsi` keeps SGR colours and bold. Rows track by entry under the 2,000-line cap.
+- `LiveMetricsStore` is page-provided and driven by `onScreen()`.
+  - A project's stream carries only the tasks running when it opens, so the store reopens it when that set changes.
+  - The folding rules are in `entities/system-stats/model/live-metrics.ts`.
+  - Never gate a stream on `document.hidden`.
+- The chart is `@defer (on idle)` and is the only importer of `shared/lib/chart` (d3).
 
 ### Tasks
 
-- `dev_status` (`blocked`, `in_progress`, `ready`) tracks the code, not the container. List dots mean dev status, blockers first (`sortByDevStatus`); the container is named in words only when it is not running.
-- The task page has Overview | Environment | Logs, hidden rather than destroyed, deep-linked by `?section=`. A down log stream says why (from the container status) and offers Start; lines that exist but match no filter always say so. Logs wrap by default on phones, label each day's first line (pinned while its lines scroll) and catch up to the newest line when the hidden tab shows. The title's subtitle names the container when it is not running ("Ready · container stopped"). The UI calls the proxy URL the App URL, and the project's prefix the URL prefix; under a container that is not running the App URL says it won't answer. Call `ViewTaskStore.track()` from the page constructor so its effect dies with the page.
-- The env editor is raw `.env` text: a textarea over a coloured mirror whose metrics must match exactly or the caret drifts (`MIRROR = false` is the kill switch). Secrets are masked while unfocused, and `environmentChange` fires only for a clean buffer. Applying recreates the container (`auto_restart: true`); only a success drops the draft. Apply names the keys it adds, changes and removes (`describeEnvChange`, never a value) and is disabled while the map equals the server's.
-- Editing sends only the changed fields; the name is immutable (it is the proxy URL). `POST /tasks/{name}/deploy` is for pipelines and has no UI.
-- Project defaults (`default_image`, `default_port`, `default_env`) only prefill the new-task form; the server never applies them. `""` clears the image and `{}` the env; the port cannot be unset (80 means untouched).
-- Volumes are `{ containerPath: folder }`, read-only mounts of the project's shared folders (`GET /projects/{p}/folders`, made by an admin on the host). The fleet omits them; a PATCH replaces the whole map and recreates the container, like the image. `mountPathError()` mirrors the server's 400 (its only reply is "invalid request"), checked by `scripts/check-volumes.ts`.
-- `build` is the CI pipeline's latest report (`PUT …/build` is the pipeline's, never the app's), read from the fleet only, like `lastDeploy`. A running build quiet for 60 min is no longer live (`isQuietBuild`). Lists show only running, quiet and failed builds (`isActiveBuild`), the task page every state; a failure never changes the container's words.
-- Notes are markdown stored verbatim, so stored XSS is real. The preview (`noteToPreviewHtml`, its own `Marked` instance) escapes raw HTML, keeps only http/https/mailto links and binds through plain `[innerHTML]`, never `bypassSecurityTrustHtml`; `app-markdown` (`shared/lib/markdown/markdown-view.ts`) renders it for notes and chat answers; its `codespan` puts `<wbr>` after slashes so a path wraps between folders (`pathParts()` does the same in templates). The tiptap schema is the allowlist: removing an extension silently deletes stored content. `Link` keeps `openOnClick: false` (a tap would navigate the WebView and lose all state), and swipe-back is off on the editor.
+- `dev_status` tracks the code, not the container. The list dots show it (`sortByDevStatus`).
+- The task page has Overview | Environment | Logs, hidden rather than destroyed, with `?section=`.
+  - A log stream that is down says why and offers Start.
+  - Call `ViewTaskStore.track()` from the constructor.
+  - The proxy URL is the "App URL".
+- The env editor is a textarea over a coloured mirror.
+  - Their font metrics must match exactly or the caret drifts (`MIRROR = false` turns the mirror off).
+  - Secrets are masked while unfocused.
+  - Apply recreates the container and names the changed keys (`describeEnvChange`, never the values).
+- Edits send only the changed fields; the name is immutable. `POST /tasks/{name}/deploy` is the pipelines'.
+- Project defaults only prefill the new-task form. `""` clears the image and `{}` the env; the port can't be unset (80 means untouched).
+- Volumes are read-only mounts (`{ containerPath: folder }`), and a PATCH replaces the whole map. `mountPathError()` mirrors the server's 400.
+- `build` is the pipeline's report (`PUT …/build`) and is read from the fleet only. A build quiet for 60 min stops being live (`isQuietBuild`); lists show active builds only (`isActiveBuild`).
+- Notes are markdown stored verbatim, so stored XSS is real.
+  - The preview escapes HTML, keeps http/https/mailto links, and binds plain `[innerHTML]`.
+  - `app-markdown` renders notes and Bora's answers.
+  - The tiptap schema is the allowlist: removing an extension deletes stored content.
+  - `Link` keeps `openOnClick: false`, since a tap would navigate the WebView away. Swipe-back is off on the editor.
 
-### Chat and code
+### Code and voice
 
-- Chat answers business questions from a project's Sourcebot repositories: members (viewer up) and admins ask, a grantee gets 403, and every chat is private to its asker (404 for anyone else, admins included). The app speaks English; answers follow the question's language.
-- `ChatsStore` is root and subscribes to `start`/`ask` itself: cancelling the request cancels the question (the server saves nothing), and an answer takes up to 55 s, so `ChatApi` sets no timeout. `turns` holds each conversation's draft, the question in flight, `landed` answers and the refusal (`''` is New chat, one at a time); a failure puts the question back in an empty field. A late answer for a previous token is dropped.
-- Chat writes send no change event: each response reloads the list. Messages carry no id, so the thread shows its own read plus the `landed` messages newer than the read's last `at`. New chat opens its thread on `started` (phones `navigateForward` with `replaceUrl`, so Back skips the form); a New chat page that opens after its answer landed settles it instead.
-- Errors map by status: 403 and 409 turn the composer off with a callout, 404 toasts and leaves, anything else offers Try again. Questions count code points after trimming (`questionLength`, 2,000 max); Return sends only on desktop and never while `isComposing` (Telex commits with Enter).
-- `repositories` are admin-only to set (`PATCH` replaces the list, a generic 400) and searched in Sourcebot (`GET /code/repositories`, 20 max, 409 without Sourcebot). Opening About probes the search once for admins (not every project visit), so a 409 disables Choose repositories with its reason; members read the list, and viewers without repositories (grantees look the same) see no Code section. The picker sheet provides `RepositorySearchStore` and saves itself.
+- `repositories` are set by admins and searched in Sourcebot (`GET /code/repositories`, which returns 409 without Sourcebot).
+- Dictation (`shared/ui/dictation`) runs one take app-wide, in Bora's language (Settings › Bora, English by default).
+  - It uses the device's recognizer (`@capgo/capacitor-speech-recognition`) or Web Speech. Boreas only gets text.
+  - Natively it passes `preferLegacyRecognizer`, since iOS 26's SpeechAnalyzer may never send partials, and task names as `contextualStrings`.
+  - The field's mic never sends. Bora's world sends on a pause (`hear()` + `endpoint()`).
+- iOS needs the microphone and speech-recognition usage strings. Android 11+ needs the `RecognitionService` and `TTS_SERVICE` `<queries>`.
+
+### Bora
+
+- Bora is the only assistant. It answers from the running system and, where a project has repositories, from its code (`sources`). It asks back (`choices`) and proposes `actions`. The fleet's `bora` gates it per project.
+- Conversations are saved on the server.
+  - A turn streams over `SseClient.events`: `conversation`, `step`, `say`, `delta`, `reset`, `done`, `error`, `stopped`.
+  - The client sends only the question.
+  - A dropped stream re-attaches; only Stop cancels.
+  - `ran` is posted at the tap.
+- `BoraStore` is root and eager: the open conversation, the prefs (`boreas-bora`) and the shell state. `BoraHistory` is Recent: the newest 50, search, delete. The chip picks the scope, and a new scope starts a new conversation.
+- Questions are counted in code points (`questionLength`, at most 2,000). Return sends only on desktop and never while `isComposing` (Telex).
+- 403 and 409 turn the composer off; 404 toasts and closes.
+- Closing keeps a question in flight; an answer that lands while closed shows `unread`.
+- The subject is the screen (`screenAbout`). Failures and log lines carry Ask Bora buttons; `logSubject()` cuts a line to 1,000.
+- Phones get Bora's world (`BoraWorld`), a full-screen modal that is always dark and preloaded on idle.
+  - Tap Bora to talk; a pause sends.
+  - Bora reads `say` aloud (`shared/ui/speech`) with a karaoke caption. After a spoken question it listens 5 s more.
+  - Typed questions stay silent, with Read aloud.
+  - Its speaker button mutes it, chimes included (`aloud`, which Settings doesn't show). VoiceOver silences the voice.
+  - `worldAnimation` flies Bora from its spot to the centre and lands it, on transform and opacity only.
+    - Its keyframes also reset the wrapper that iOS parks below the screen.
+    - The landing keeps no end state, since typing scales Bora and the voice drives the halo.
+- iPad and desktop get the corner panel (`BoraPanel`), toggled by Bora and closed with Esc.
+  - It grows out of Bora and shrinks back into it.
+  - Bora stays while its panel is open, even where it otherwise hides.
+- Actions run only on their tap, through the app's routes (`BoraRunner`).
+  - Labels come from the op and the target, never from the answer.
+  - Deletes confirm; start↔stop and a dev status offer Undo.
+- `public/animations/bora.json` comes from `scripts/bora-lottie.ts`. Never hand-edit it, and bump the `?v=` the figure loads it with when a marker changes.
 
 ### Activity, tokens, search
 
-- Activity is the UI name; the route stays `/notifications`. `?project=` opens it filtered to one project, from the project header's Activity action (a disc on phones, the More menu on iPad) or its subtitle's last deploy; filters and rows show project names. A row without buttons of its own opens its task while the task exists, and a failure keeps its whole message. It is one feed across projects, 100 rows a page (`before` = the last id) behind an infinite scroll; a filter that leaves the list short tops up at most 3 pages. Rows carry `type` (the `kind`; unknown types are `other`) and the project slug, and names come from the fleet. `matchesChip(alert, 'failures')` is the one failure test: `build_failed` links its run only while that task's build is still failing. Unseen comes from the server's `seen` and the badge counts the loaded pages; opening the page POSTs `/notifications/seen` in batches of up to 200 ids, so automation against the live server must stub that POST.
-- API tokens are per-user (Settings › General) and need a login session (an API token gets 403). The plaintext exists only in the create response: never put the reveal behind a dismissible sheet or an animation. Revoke is a resident button; revoked rows stay forever. A range starting today sends `new Date()` (local today can still be yesterday in UTC), and the end is `validFrom + days`, within the 90-day cap.
-- The search grammar (`parseQuery`): `is:blocked|progress|ready|running|stopped|error|unknown|down|failed`, `project:<slug>`, free text; an unknown `is:x` stays text. `is:down` (`isDown`) is any container not running and not on its way: stopped, error or unknown. Quick filters count from the fleet and hide at zero; "Ready to test" is `is:ready is:running`, since a ready build with no container cannot be tested. A query that names a project lists it first. `is:failed` (`isFailing`) means the newest deploy failed today or the latest build failed. A bare status word ("ready") only searches text, so the empty state offers its `is:` filter; a polite status line announces the counts, and the field's name is set on Ionic's input (it hard-codes "search text").
+- Activity (route `/notifications`) is one feed: 100 rows a page, `?project=` filters, and `matchesChip(alert, 'failures')` is the failure test. Opening it POSTs `/notifications/seen`; stub that when automating against a live server.
+- API tokens need a login session. The plaintext shows once, never behind a dismissible sheet or an animation. A range that starts today sends `new Date()`, since local today can be yesterday in UTC.
+- The search grammar (`parseQuery`) is `is:…`, `project:<slug>` and free text; `is:down` is `isDown`, `is:failed` is `isFailing`. The field's name is set on Ionic's input.
 
-## Server, onboarding, release
+## Server and release
 
-- There is no dev proxy. The API origin lives in `ServerConfigStore` (default `https://boreas.zenkiet.dev`) and is read per request; never hardcode a URL. Changing servers health-checks for `{"status":"healthy"}` first, and the token is cleared when the address changed.
-- Welcome shows once per device (`welcomeSeenGuard`, `boreas-welcomed`) and is one route whose `?step=` is the source of truth. Never import the onboarding barrel eagerly: it pulls in dotlottie. Its Lottie JSON is edited by hand (the generator is not in the repo).
-- About is store-compliance surface and deliberately thin: do not bring back diagnostics or clear-data actions. The problem-report mailto must never carry the token.
-- Legal docs are Markdown in `public/legal/`, rendered through plain `[innerHTML]`; `/legal/:doc` stays unguarded (store review needs the privacy URL). A new `boreas-*` storage key gets a row in `privacy.md`, a new bundled dependency a line in `open-source.md` (edited by hand).
-- The version is a named JSON import from `package.json` (`shared/config/app-info.ts`), which plain `node` scripts cannot import. JetBrains Mono is self-hosted: nothing loads from a third party.
+- There is no dev proxy. The API origin is `ServerConfigStore` (default `https://boreas.zenkiet.dev`); never hardcode a URL. A server change health-checks first and clears the token.
+- Welcome shows once (`welcomeSeenGuard`, `?step=`). Never import the onboarding barrel eagerly: it pulls in dotlottie. Its Lottie JSON is hand-edited.
+- About stays thin: no diagnostics or clear-data actions. The problem-report mailto never carries the token.
+- Legal docs are Markdown in `public/legal/`.
+  - `/legal/:doc` stays unguarded, since store review needs the privacy URL.
+  - A new `boreas-*` key gets a `privacy.md` row; a new dependency gets an `open-source.md` line.
+- The version comes from `shared/config/app-info.ts`. JetBrains Mono is self-hosted.
 - Boreas first shipped under Apache-2.0; the proprietary `LICENSE` binds later releases only.
-- Brand: `public/icon.svg` is the source and every raster is hand-made, with the mark optically centred; never run `capacitor-assets generate`. The native launch screen is flat `#0088FF`, the splash is inline in `index.html` and lifted by `provideSplash()` (never `whenStable()`: the streams keep the app busy). Android notifications use `ic_stat_boreas`. A push tap opens Activity (`pushNotificationActionPerformed` natively; on the web the service worker opens `/notifications` or posts `boreas:open-activity` to an open tab): the payload carries only title, body and type.
+- Brand:
+  - `public/icon.svg` is the source, and the rasters are hand-made; never run `capacitor-assets generate`.
+  - `provideSplash()` lifts the splash, never `whenStable()`, since the streams keep the app busy.
+  - A push tap opens Activity, and the payload carries only the title, body and type.

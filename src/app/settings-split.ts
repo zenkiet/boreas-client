@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 
 import { AboutPage } from '@pages/about/about-page';
 import { AccountPage } from '@pages/account/account-page';
+import { BoraSettingsPage } from '@pages/bora-settings/bora-settings-page';
 import { RegistriesPage } from '@pages/registries/registries-page';
 import { SettingsPage } from '@pages/settings/settings-page';
 import { TokensPage } from '@pages/tokens/tokens-page';
@@ -17,6 +18,7 @@ const SETTINGS_PANES: Readonly<Record<string, Type<unknown>>> = {
   about: AboutPage,
   users: UsersPage,
   registries: RegistriesPage,
+  bora: BoraSettingsPage,
 };
 
 /** iPad settings split. Lives in `app` because it composes pages. */

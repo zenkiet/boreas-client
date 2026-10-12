@@ -3,12 +3,14 @@
 @import 'tailwindcss/utilities.css' layer(utilities) source('.');
 @import '@fontsource-variable/jetbrains-mono';
 
-/* Write icon-[weight--name] classes out whole: Tailwind only generates what it finds verbatim. */
+/* Write icon-[weight--name] classes out whole: Tailwind only generates what it finds verbatim.
+   boreas is the app's own glyphs, drawn on Light's grid. */
 @plugin '@iconify/tailwind4' {
   square: true;
   icon-sets:
     from-json(regular, 'public/icons/regular.json'), from-json(solid, 'public/icons/solid.json'),
-    from-json(thin, 'public/icons/thin.json'), from-json(light, 'public/icons/light.json');
+    from-json(thin, 'public/icons/thin.json'), from-json(light, 'public/icons/light.json'),
+    from-json(boreas, 'public/icons/boreas.json');
 }
 
 /* inline: utilities read these variables where used, so scoped palette overrides reach them. */
@@ -122,8 +124,9 @@
     'cv11' 1;
 }
 
-/* Two classes to outrank Ionic's .ion-palette-dark.ios; its #000 cells vanish on a black page. */
-:root.ion-palette-dark {
+/* Two classes to outrank Ionic's .ion-palette-dark.ios; its #000 cells vanish on a black page.
+   A modal carrying the class (Bora's world) is dark whatever the app's theme. */
+.ion-palette-dark:is(:root, ion-modal) {
   --ion-text-color: #ffffff;
   --ion-text-color-rgb: 255, 255, 255;
   --ion-color-primary: #818cf8;
@@ -457,7 +460,7 @@ ion-input.value-input .native-input {
 }
 
 /* The theme draws separators with Ionic's dark step colours, which assume #000 cells. */
-:root.ion-palette-dark ion-list {
+.ion-palette-dark:is(:root, ion-modal) ion-list {
   --ion-border-color: var(--app-border-normal);
 }
 
@@ -1095,7 +1098,8 @@ ion-modal.app-sheet {
   --app-sheet: rgba(242, 242, 247, 0.94);
 }
 
-.ion-palette-dark ion-modal.app-sheet {
+.ion-palette-dark ion-modal.app-sheet,
+ion-modal.app-sheet.ion-palette-dark {
   --app-sheet: rgba(28, 28, 30, 0.95);
   --ion-item-background: #2c2c2e;
 }
@@ -1113,7 +1117,7 @@ ion-toast.toast-negative::part(icon) {
   color: var(--ion-color-danger);
 }
 
-/* Settings and chat splits: unlayered so .ion-page loses; scoped for Activity's .split__list. */
+/* The Settings split: unlayered so .ion-page loses; scoped for Activity's .split__list. */
 .split-view {
   display: grid !important;
   grid-template-columns: var(--split-list, 23.75rem) minmax(0, 1fr);
@@ -1510,6 +1514,18 @@ ion-item-sliding.fx-glow::after {
   inset: 0;
 }
 
+/* Bora rests above Search on a root page: lists clear it as they clear the tab bar. */
+.bora-resting ion-content.ios.content-fullscreen:not(:has(.ion-content-scroll-host)) {
+  --padding-bottom: calc(
+    132px + var(--ios-theme-floating-safe-area-bottom, var(--ios26-floating-safe-area-bottom))
+  );
+}
+
+/* iPad and desktop: Bora takes the corner, so a page's end scrolls clear of it. */
+.bora-resting .split-pane-visible ion-content.content-fullscreen {
+  --padding-bottom: 84px !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --appear-scale: 1;
@@ -1561,7 +1577,7 @@ ion-item-sliding.fx-glow::after {
     --background: var(--ion-background-color) !important;
   }
 
-  :root.ion-palette-dark {
+  .ion-palette-dark:is(:root, ion-modal) {
     --app-sheet: #1c1c1e;
   }
 
@@ -1569,7 +1585,8 @@ ion-item-sliding.fx-glow::after {
     --app-sheet: #f2f2f7;
   }
 
-  .ion-palette-dark ion-modal.app-sheet {
+  .ion-palette-dark ion-modal.app-sheet,
+  ion-modal.app-sheet.ion-palette-dark {
     --app-sheet: #1c1c1e;
   }
 

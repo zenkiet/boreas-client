@@ -38,6 +38,7 @@ import { ViewTaskStore } from '@features/view-task';
 import { noteToHtml, noteToMarkdown } from '@shared/lib/markdown/note-markdown';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
 import { ConfirmActionService } from '@shared/ui/confirm-action/confirm-action';
+import { trackKeyboard } from '@shared/ui/keyboard/keyboard';
 import { NotifyService } from '@shared/ui/notify/notify';
 import { PAGE_CHROME } from '@shared/ui/page-chrome/page-chrome';
 
@@ -486,19 +487,9 @@ export class TaskNotePage {
         onTransaction: ({ editor }) => this.syncTools(editor),
       });
 
-      const view = this.host().nativeElement.ownerDocument.defaultView;
-      const viewport = view?.visualViewport;
-      const track = () => {
-        const gap = viewport ? view!.innerHeight - viewport.height - viewport.offsetTop : 0;
-        root.style.setProperty('--app-keyboard', `${Math.max(gap, 0)}px`);
-      };
-      viewport?.addEventListener('resize', track);
-      viewport?.addEventListener('scroll', track);
-      track();
-
+      const untrack = trackKeyboard(root);
       destroyRef.onDestroy(() => {
-        viewport?.removeEventListener('resize', track);
-        viewport?.removeEventListener('scroll', track);
+        untrack();
         this.editor?.destroy();
       });
     });

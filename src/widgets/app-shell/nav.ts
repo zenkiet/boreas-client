@@ -1,7 +1,6 @@
 /** `icon` is the sidebar's light glyph, `tab` the tab bar's filled one (Search's: the fab's). */
 export const NAV = [
   { label: 'Home', link: '/projects', icon: 'icon-[light--house]', tab: 'icon-[solid--house]' },
-  { label: 'Chat', link: '/chats', icon: 'icon-[light--message]', tab: 'icon-[solid--message]' },
   {
     label: 'Search',
     link: '/search',

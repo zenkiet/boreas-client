@@ -9,6 +9,8 @@ import {
 } from '@angular/core';
 import { DotLottie } from '@lottiefiles/dotlottie-web';
 
+import { LOTTIE_WASM, lottieConfig } from '@shared/ui/lottie/lottie';
+
 const DRIFT_IN_FRAME = 42;
 const LAST_FRAME = 221;
 
@@ -78,20 +80,14 @@ export class OnboardingHero {
       if (!view) return;
 
       const reducedMotion = view.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      DotLottie.setWasmUrl('/animations/dotlottie-player.wasm');
+      DotLottie.setWasmUrl(LOTTIE_WASM);
 
       const player = new DotLottie({
         canvas: this.canvas().nativeElement,
         src: '/animations/boreas-welcome.json',
         autoplay: !reducedMotion,
         loop: false,
-        layout: { fit: 'contain', align: [0.5, 0.5] },
-        renderConfig: {
-          autoResize: true,
-          devicePixelRatio: Math.min(view.devicePixelRatio, 1.5),
-          freezeOnOffscreen: true,
-          quality: 90,
-        },
+        ...lottieConfig(view),
       });
 
       if (reducedMotion) {

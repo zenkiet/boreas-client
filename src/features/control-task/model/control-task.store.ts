@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, defer, finalize, of } from 'rxjs';
+import { Observable, defer, finalize, of, switchMap } from 'rxjs';
 
+import { ProjectApi } from '@entities/project';
 import type { TaskAction } from '@entities/task';
 import { TaskApi } from '@entities/task/api';
 import {
@@ -16,6 +17,7 @@ import { CommandResult, toCommandResult } from '@shared/api/command';
 @Injectable()
 export class ControlTaskStore {
   private readonly api = inject(TaskApi);
+  private readonly projects = inject(ProjectApi);
   private readonly pendingState = signal<ReadonlyMap<string, TaskAction>>(new Map());
 
   readonly pending = this.pendingState.asReadonly();
@@ -37,7 +39,11 @@ export class ControlTaskStore {
     );
   }
 
-  setDevStatus(project: string, task: Task, status: DevStatus): Observable<CommandResult> {
+  setDevStatus(
+    project: string,
+    task: Pick<Task, 'name'>,
+    status: DevStatus,
+  ): Observable<CommandResult> {
     return this.execute(
       task.name,
       'edit',
@@ -55,7 +61,31 @@ export class ControlTaskStore {
     );
   }
 
-  delete(project: string, task: Task): Observable<CommandResult> {
+  create(
+    project: string,
+    name: string,
+    given: { image?: string; port?: number; description?: string } = {},
+  ): Observable<CommandResult> {
+    // Its pending entry only blocks a second tap: no row shows a create.
+    return this.execute(
+      name,
+      'edit',
+      this.projects.get(project).pipe(
+        switchMap(({ defaults }) =>
+          this.api.create(project, {
+            name,
+            image: given.image ?? defaults.image,
+            port: given.port ?? defaults.port,
+            description: given.description,
+            environment: defaults.env,
+          }),
+        ),
+      ),
+      `Task ${name} created.`,
+    );
+  }
+
+  delete(project: string, task: Pick<Task, 'name'>): Observable<CommandResult> {
     return this.execute(
       task.name,
       'delete',

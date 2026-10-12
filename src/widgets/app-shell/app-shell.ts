@@ -44,6 +44,7 @@ import {
 import { filter, map } from 'rxjs';
 
 import { SessionStore } from '@features/auth';
+import { BoraStore } from '@features/bora/model';
 import { ListAlertsStore } from '@features/list-alerts/model';
 import { ListProjectsStore, type ProjectSummary } from '@features/list-projects/model';
 import { PinnedProjectsStore } from '@features/pin-project';
@@ -56,6 +57,7 @@ import { rendered, wiggle } from '@shared/ui/motion/motion';
 import { NumericText } from '@shared/ui/motion/numeric-text';
 import { Announcer } from '@shared/ui/notify/announcer';
 
+import { BoraLayer } from './bora/bora-layer';
 import { CommandPaletteLauncher } from './command-palette/palette-launcher';
 import { NAV, TABS, type NavItem } from './nav';
 
@@ -65,6 +67,7 @@ const WIGGLE_GAP = 10_000;
   selector: 'app-shell',
   host: { '(document:keydown)': 'onShortcut($event)' },
   imports: [
+    BoraLayer,
     IonBadge,
     IonButton,
     IonButtons,
@@ -283,6 +286,10 @@ const WIGGLE_GAP = 10_000;
         }
       </div>
     </ion-split-pane>
+    <!-- Outside the split pane, whose containment would clip it; an Ask before idle loads it at once. -->
+    @defer (on idle; when bora.wanted()) {
+      <app-bora-layer [url]="url()" [tabs]="tabs()" [covered]="covered()" />
+    }
   `,
   styles: `
     /* One red in both schemes: the dark palette's pink danger would need black text. */
@@ -555,6 +562,7 @@ export class AppShell {
   protected readonly search = inject(SearchTasksStore);
   protected readonly palette = inject(CommandPaletteLauncher);
   private readonly fleet = inject(ListProjectsStore);
+  protected readonly bora = inject(BoraStore);
   private readonly pins = inject(PinnedProjectsStore);
   private readonly document = inject(DOCUMENT);
   protected readonly announcer = inject(Announcer);
@@ -588,7 +596,7 @@ export class AppShell {
   protected readonly chromeless = computed(() => /^\/(welcome|login)/.test(this.url()));
 
   protected readonly tabs = computed(
-    () => !this.chromeless() && !/^\/(projects|settings|chats)\/.|^\/legal\//.test(this.url()),
+    () => !this.chromeless() && !/^\/(projects|settings)\/.|^\/legal\//.test(this.url()),
   );
 
   /* A pushed page keeps its root, so search stays open under a task opened from it. */
@@ -634,10 +642,7 @@ export class AppShell {
 
   protected readonly unseen = this.alerts.unseenCount;
   protected readonly live = this.fleet.live;
-  /* Not on Chat: it reads no stream, and the pill would cover its composer. */
-  protected readonly paused = computed(
-    () => !this.live() && !this.chromeless() && !this.url().startsWith('/chats'),
-  );
+  protected readonly paused = computed(() => !this.live() && !this.chromeless());
 
   private searchable?: TabBarSearchableFunction;
   private searchOpen = false;

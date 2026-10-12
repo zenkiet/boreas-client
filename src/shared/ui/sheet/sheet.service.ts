@@ -28,6 +28,21 @@ export class SheetService {
     props: Record<string, unknown> = {},
     detent = 0.6,
   ): Observable<T> {
+    return this.present(component, label, props, detent).pipe(
+      switchMap((modal) => from(modal.onWillDismiss<T>())),
+      filter((result) => result.role === SHEET_DONE),
+      map((result) => result.data as T),
+    );
+  }
+
+  /** The sheet itself, for a caller that dismisses it. */
+  present(
+    component: Type<unknown>,
+    label: string,
+    props: Record<string, unknown> = {},
+    detent = 0.6,
+    cssClass = '',
+  ): Observable<HTMLIonModalElement> {
     const wide = this.window?.matchMedia(WIDE_QUERY).matches;
     const share = detent > 1 ? Math.min(1, detent / (this.window?.innerHeight || detent)) : detent;
 
@@ -37,19 +52,15 @@ export class SheetService {
         componentProps: props,
         htmlAttributes: { 'aria-label': label },
         ...(wide
-          ? { cssClass: 'app-sheet app-dialog' }
+          ? { cssClass: `app-sheet app-dialog ${cssClass}` }
           : {
               breakpoints: share < 1 ? [0, share, 1] : [0, 1],
               initialBreakpoint: share,
-              cssClass: 'app-sheet',
+              cssClass: `app-sheet ${cssClass}`,
               /* Keeps a sheet's footer (its primary action) on screen at every detent. */
               expandToScroll: false,
             }),
       }),
-    ).pipe(
-      switchMap((modal) => from(modal.present().then(() => modal.onWillDismiss<T>()))),
-      filter((result) => result.role === SHEET_DONE),
-      map((result) => result.data as T),
-    );
+    ).pipe(switchMap((modal) => from(modal.present().then(() => modal))));
   }
 }

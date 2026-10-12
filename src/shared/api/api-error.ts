@@ -6,6 +6,7 @@ export type ApiErrorKind =
   | 'forbidden'
   | 'not-found'
   | 'conflict'
+  | 'rate-limited'
   | 'server'
   | 'network'
   | 'unknown';
@@ -38,6 +39,12 @@ export function mapApiError(error: unknown): ApiError {
         kind: 'conflict',
         message:
           'The request conflicts with the current state. Wait for it to settle and try again.',
+      };
+    case 429:
+      /* The answer gate: a few questions in flight per user, refused at once rather than queued. */
+      return {
+        kind: 'rate-limited',
+        message: 'Too many questions at once. Try again when one has an answer.',
       };
     default:
       return {

@@ -53,6 +53,9 @@ import { AlertOpen } from '../alert-list/alert-list';
             Open in CI
           </a>
         }
+        @if (ask()) {
+          <button type="button" class="act" (click)="asked.emit(event)">Ask Bora</button>
+        }
         <button
           type="button"
           class="act"
@@ -116,6 +119,7 @@ import { AlertOpen } from '../alert-list/alert-list';
     .act {
       display: inline-flex;
       align-items: center;
+      gap: 0.375rem;
       block-size: 2.5rem;
       padding: 0 1.125rem;
       border: 0;
@@ -141,11 +145,14 @@ export class AlertDetail {
   readonly visitUrl = input('');
   /** Only while the task's build is still failing: a later run replaces it. */
   readonly ciUrl = input('');
+  readonly askable = input(false);
   readonly opened = output<AlertOpen>();
+  readonly asked = output<ProjectAlert>();
 
   protected readonly about = computed(() => describeAlert(this.alert()));
   protected readonly when = computed(() => whenLabel(this.alert().createdAt));
   protected readonly failed = computed(() => matchesChip(this.alert(), 'failures'));
+  protected readonly ask = computed(() => this.failed() && this.askable());
   protected readonly taskLeads = computed(() => {
     const { kind } = this.alert();
     return (

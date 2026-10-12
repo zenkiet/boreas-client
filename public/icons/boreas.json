@@ -1,0 +1,10 @@
+{
+  "prefix": "boreas",
+  "width": 512,
+  "height": 512,
+  "icons": {
+    "bora": {
+      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"32\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M256 152C381.2 152 472 241.1 472 354.7C472 446.9 393.7 496 256 496S40 446.9 40 354.7C40 241.1 130.8 152 256 152Z\"/><path d=\"M248 152C234 108 244 46 296 30C341 16 378 50 366 86C357 113 322 112 306 94\"/><path d=\"M228 406Q256 428 284 406\"/></g><ellipse cx=\"192\" cy=\"322\" rx=\"30\" ry=\"38\" fill=\"currentColor\"/><ellipse cx=\"320\" cy=\"322\" rx=\"30\" ry=\"38\" fill=\"currentColor\"/>"
+    }
+  }
+}

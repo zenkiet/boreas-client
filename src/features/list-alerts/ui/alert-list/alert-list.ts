@@ -33,6 +33,7 @@ interface AlertRow {
   readonly failed: boolean;
   readonly opens: boolean;
   readonly ci?: string;
+  readonly ask: boolean;
 }
 
 const ROWS = 'ion-item.event, .pane__day, button.entry';
@@ -130,6 +131,11 @@ export interface AlertOpen {
                         [href]="row.ci"
                         >Open in CI</a
                       >
+                    }
+                    @if (row.ask) {
+                      <button type="button" class="event__act" (click)="asked.emit(row.alert)">
+                        Ask Bora
+                      </button>
                     }
                     <button
                       type="button"
@@ -235,8 +241,10 @@ export interface AlertOpen {
       white-space: nowrap;
     }
 
+    /* Three on a failure (its run, Ask Bora, its task): a phone wraps them, never their words. */
     .event__acts {
       display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem;
       margin-block-start: 0.5rem;
     }
@@ -244,6 +252,8 @@ export interface AlertOpen {
     .event__act {
       display: inline-flex;
       align-items: center;
+      gap: 0.375rem;
+      white-space: nowrap;
       block-size: 2rem;
       padding: 0 0.75rem;
       border: 0;
@@ -324,10 +334,12 @@ export class AlertList {
   readonly projectNames = input<ReadonlyMap<string, string>>(new Map());
   /** Task keys still in the fleet: a deleted task's row stays plain. */
   readonly tasks = input<ReadonlySet<string>>(new Set());
+  readonly askable = input<ReadonlySet<string>>(new Set());
   /** A new value marks the next rows as another view (filter, chip), never as arrivals. */
   readonly scope = input<unknown>();
   readonly selected = output<ProjectAlert>();
   readonly opened = output<AlertOpen>();
+  readonly asked = output<ProjectAlert>();
   /** Rows a refetch put on top. */
   readonly arrived = output<number>();
 
@@ -361,6 +373,7 @@ export class AlertList {
         failed,
         opens: !failed && this.tasks().has(key),
         ci: this.ciUrls().get(key),
+        ask: failed && this.askable().has(alert.project),
       });
     }
 

@@ -29,6 +29,7 @@ export function toFleetProject(dto: FleetProjectDto): FleetProject {
       myRole: dto.my_role,
       registryCredentialId: dto.registry_credential_id,
       repositories: dto.repositories ?? [],
+      bora: dto.bora === true,
     },
     tasks: (dto.tasks ?? []).map((task) => ({
       name: task.name,

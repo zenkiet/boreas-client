@@ -103,6 +103,15 @@ const ADMIN_LINKS = [
           </ion-item>
           <ion-item
             button
+            [class.selected]="selected() === 'bora'"
+            [attr.aria-current]="selected() === 'bora' ? 'page' : null"
+            (click)="open('bora')"
+          >
+            <span slot="start" class="icon-[boreas--bora]" aria-hidden="true"></span>
+            <ion-label>Bora</ion-label>
+          </ion-item>
+          <ion-item
+            button
             [class.selected]="selected() === 'about'"
             [attr.aria-current]="selected() === 'about' ? 'page' : null"
             (click)="open('about')"

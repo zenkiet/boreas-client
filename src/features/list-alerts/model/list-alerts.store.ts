@@ -5,6 +5,7 @@ import { EMPTY, Observable, catchError, defer, finalize, map, tap } from 'rxjs';
 import { Notification, NotificationApi } from '@entities/notification';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { listView } from '@shared/api/resource-cache';
+import { matchesChip } from './activity';
 
 export type ProjectAlert = Notification;
 
@@ -65,6 +66,12 @@ export class ListAlertsStore {
 
   readonly unseenCount = computed(
     () => this.alerts().filter((alert) => !alert.seen && !this.posted().has(alert.id)).length,
+  );
+
+  readonly unseenFailures = computed(() =>
+    this.alerts().filter(
+      (alert) => !alert.seen && !this.posted().has(alert.id) && matchesChip(alert, 'failures'),
+    ),
   );
 
   load(): void {

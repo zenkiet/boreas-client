@@ -17,8 +17,10 @@ import { IonInfiniteScroll } from '@ionic/angular/ion-infinite-scroll';
 import { IonInfiniteScrollContent } from '@ionic/angular/ion-infinite-scroll-content';
 import { Subject, buffer, debounceTime, from, switchMap } from 'rxjs';
 
+import type { Notification } from '@entities/notification';
 import { TaskApi } from '@entities/task/api';
 import { taskKey } from '@entities/task/model';
+import { BoraStore } from '@features/bora/model';
 import {
   ACTIVITY_CHIPS,
   ActivityChip,
@@ -177,9 +179,11 @@ interface FilterTag {
                 [ciUrls]="ciUrls()"
                 [projectNames]="projectNames()"
                 [tasks]="fleetTasks()"
+                [askable]="boraProjects()"
                 [scope]="[filter(), chip()]"
                 (selected)="selectedId.set($event.id)"
                 (opened)="openTask($event)"
+                (asked)="askBora($event)"
                 (arrived)="arrivals.next($event)"
               />
               <ion-infinite-scroll [disabled]="!alerts.hasMore()" (ionInfinite)="more($event)">
@@ -203,7 +207,9 @@ interface FilterTag {
                 [projectName]="projectNames().get(event.project) ?? ''"
                 [visitUrl]="visitUrl()"
                 [ciUrl]="ciUrl()"
+                [askable]="boraProjects().has(event.project)"
                 (opened)="openTask($event)"
+                (asked)="askBora($event)"
               />
             </section>
           }
@@ -346,6 +352,14 @@ export class AlertsPage {
       ),
   );
 
+  private readonly bora = inject(BoraStore);
+  protected readonly boraProjects = computed(
+    () =>
+      new Set(
+        this.fleet.summaries().flatMap(({ project }) => (project.bora ? [project.slug] : [])),
+      ),
+  );
+
   /* The feed carries slugs; names and the picker's list come from the fleet. */
   protected readonly projectNames = computed(
     () => new Map(this.fleet.summaries().map(({ project }) => [project.slug, project.name])),
@@ -443,6 +457,10 @@ export class AlertsPage {
         ),
       )
       .subscribe((filter) => this.applyFilter(filter));
+  }
+
+  protected askBora({ id, project }: Notification): void {
+    this.bora.ask({ kind: 'alert', id, project });
   }
 
   protected openTask({ alert, section }: AlertOpen): void {

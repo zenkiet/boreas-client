@@ -131,11 +131,6 @@ type View = (typeof VIEWS)[number];
               <span slot="icon-only" class="icon-[regular--plus]" aria-hidden="true"></span>
             </ion-button>
           }
-          @if (canAsk()) {
-            <ion-button aria-label="Ask about this project" (click)="ask()">
-              <span slot="icon-only" class="icon-[regular--message]" aria-hidden="true"></span>
-            </ion-button>
-          }
           <ion-button aria-label="Activity for this project" (click)="openActivity()">
             <span
               slot="icon-only"
@@ -154,12 +149,6 @@ type View = (typeof VIEWS)[number];
             >
               <span slot="start" class="icon-[regular--plus]" aria-hidden="true"></span>
               New task
-            </ion-button>
-          }
-          @if (canAsk()) {
-            <ion-button fill="solid" class="act" (click)="ask()">
-              <span slot="start" class="icon-[light--message]" aria-hidden="true"></span>
-              Ask
             </ion-button>
           }
           <ion-button fill="solid" class="act" [id]="moreId()" aria-label="More actions">
@@ -383,8 +372,8 @@ type View = (typeof VIEWS)[number];
                       <ion-item>
                         <ion-label class="ion-text-wrap muted">{{
                           isAdmin()
-                            ? 'No repositories yet. Chat can’t answer about this project until you choose some.'
-                            : 'No code connected yet. Chat can’t answer about this project until an administrator adds repositories.'
+                            ? 'No repositories yet. Bora can’t read this project’s code until you choose some.'
+                            : 'No code connected yet. Bora can’t read this project’s code until an administrator adds repositories.'
                         }}</ion-label>
                       </ion-item>
                     }
@@ -408,12 +397,12 @@ type View = (typeof VIEWS)[number];
                     }
                     @if (isAdmin()) {
                       <ion-note>
-                        Chat reads the default branch of each one to answer questions about this
+                        Bora reads the default branch of each one to answer questions about this
                         project. Only administrators can choose them.
                       </ion-note>
                     } @else {
                       <ion-note>
-                        Chat reads the default branch of each one to answer questions about this
+                        Bora reads the default branch of each one to answer questions about this
                         project. An administrator chooses them.
                       </ion-note>
                     }
@@ -664,10 +653,6 @@ export class ProjectDetailPage {
     const count = this.repos().length;
     return count === 0 ? '' : `${count} ${count === 1 ? 'repository' : 'repositories'}`;
   });
-  protected readonly canAsk = computed(
-    () =>
-      (this.detail.project()?.repositories ?? this.listed()?.project.repositories ?? []).length > 0,
-  );
   /* Unknown shows it: the server still decides. */
   protected readonly canCreate = computed(() => {
     const role = this.detail.project()?.myRole ?? this.listed()?.project.myRole;
@@ -789,10 +774,6 @@ export class ProjectDetailPage {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
-  }
-
-  protected ask(): void {
-    void this.navCtrl.navigateForward(['/chats/new'], { queryParams: { project: this.slug() } });
   }
 
   /* A tab, so the stack resets as it does from the tab bar. */

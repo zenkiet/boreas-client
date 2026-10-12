@@ -9,14 +9,14 @@ allowBuilds:
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - '@lottiefiles/dotlottie-web@0.80.0 || 0.81.0'
-  - '@angular-eslint/builder@22.2.0'
-  - '@angular-eslint/bundled-angular-compiler@22.2.0'
-  - '@angular-eslint/eslint-plugin-template@22.2.0'
-  - '@angular-eslint/eslint-plugin@22.2.0'
-  - '@angular-eslint/schematics@22.2.0'
-  - '@angular-eslint/template-parser@22.2.0'
-  - '@angular-eslint/utils@22.2.0'
-  - angular-eslint@22.2.0
+  - '@angular-eslint/builder@22.2.0 || 22.6.0'
+  - '@angular-eslint/bundled-angular-compiler@22.2.0 || 22.6.0'
+  - '@angular-eslint/eslint-plugin-template@22.2.0 || 22.6.0'
+  - '@angular-eslint/eslint-plugin@22.2.0 || 22.6.0'
+  - '@angular-eslint/schematics@22.2.0 || 22.6.0'
+  - '@angular-eslint/template-parser@22.2.0 || 22.6.0'
+  - '@angular-eslint/utils@22.2.0 || 22.6.0'
+  - angular-eslint@22.2.0 || 22.6.0
   - jscpd@5.1.0 || 5.3.3 || 5.4.1
   - '@capacitor/android@8.5.1 || 8.5.3'
   - '@capacitor/cli@8.5.1 || 8.5.3'
@@ -36,17 +36,17 @@ minimumReleaseAgeExclude:
   - '@tiptap/extension-text@3.31.0'
   - '@tiptap/extensions@3.31.0'
   - '@tiptap/pm@3.31.0'
-  - '@typescript-eslint/eslint-plugin@8.69.0 || 8.71.1'
-  - '@typescript-eslint/parser@8.69.0 || 8.71.1'
-  - '@typescript-eslint/project-service@8.69.0 || 8.71.1'
-  - '@typescript-eslint/scope-manager@8.69.0 || 8.71.1'
-  - '@typescript-eslint/tsconfig-utils@8.69.0 || 8.71.1'
-  - '@typescript-eslint/type-utils@8.69.0 || 8.71.1'
-  - '@typescript-eslint/types@8.69.0 || 8.71.1'
-  - '@typescript-eslint/typescript-estree@8.69.0 || 8.71.1'
-  - '@typescript-eslint/utils@8.69.0 || 8.71.1'
-  - '@typescript-eslint/visitor-keys@8.69.0 || 8.71.1'
-  - typescript-eslint@8.69.0 || 8.71.1
+  - '@typescript-eslint/eslint-plugin@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/parser@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/project-service@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/scope-manager@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/tsconfig-utils@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/type-utils@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/types@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/typescript-estree@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/utils@8.69.0 || 8.71.1 || 8.71.2'
+  - '@typescript-eslint/visitor-keys@8.69.0 || 8.71.1 || 8.71.2'
+  - typescript-eslint@8.69.0 || 8.71.1 || 8.71.2
   - '@angular-devkit/architect@0.2201.8 || 0.2202.1 || 0.2202.2'
   - '@angular-devkit/core@22.1.8 || 22.2.1 || 22.2.2'
   - '@angular-devkit/schematics@22.1.8 || 22.2.1 || 22.2.2'
@@ -74,10 +74,11 @@ minimumReleaseAgeExclude:
   - '@capacitor/app@8.1.2'
   - '@capacitor/push-notifications@8.1.3'
   - eslint@10.12.0
-  - marked@18.1.0
+  - marked@18.1.0 || 18.1.1
   - postcss@8.5.29
   - '@ionic/angular@9.0.7'
   - '@ionic/core@9.0.7'
+  - '@capgo/capacitor-speech-recognition@8.4.1'
 patchedDependencies:
   '@ionic/core@9.0.7': patches/@ionic__core@9.0.7.patch
   '@rdlabo/ionic-theme-ios27@1.2.1': patches/@rdlabo__ionic-theme-ios27@1.2.1.patch

@@ -92,6 +92,8 @@ export interface FleetProject {
     readonly myRole: ProjectRole;
     readonly registryCredentialId?: string;
     readonly repositories: readonly string[];
+    /** An assistant on the server, and the caller a member. */
+    readonly bora: boolean;
   };
   readonly tasks: readonly TaskSummary[];
 }

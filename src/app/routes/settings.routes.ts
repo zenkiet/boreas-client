@@ -9,7 +9,7 @@ import { WIDE_QUERY } from '@shared/ui/breakpoint/wide-screen';
 
 /* Decided per navigation: a rotation after landing keeps the layout it landed in. */
 const wide = () => inject(DOCUMENT).defaultView?.matchMedia(WIDE_QUERY).matches ?? false;
-const PANES = ['account', 'tokens', 'about', 'users', 'registries'];
+const PANES = ['account', 'tokens', 'about', 'users', 'registries', 'bora'];
 
 /* Route-level stores: the list's counts and the panes beside it must share one instance. */
 export const settingsRoutes: Routes = [
@@ -51,6 +51,14 @@ export const settingsRoutes: Routes = [
         path: 'about',
         title: 'About | Boreas',
         loadComponent: () => import('@pages/about/about-page').then(({ AboutPage }) => AboutPage),
+      },
+      {
+        path: 'bora',
+        title: 'Bora | Boreas',
+        loadComponent: () =>
+          import('@pages/bora-settings/bora-settings-page').then(
+            ({ BoraSettingsPage }) => BoraSettingsPage,
+          ),
       },
       {
         path: 'users',

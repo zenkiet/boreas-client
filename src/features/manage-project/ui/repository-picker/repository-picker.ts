@@ -128,7 +128,7 @@ const LIMIT = 20;
         <p class="foot">A project can have {{ limit }} repositories. Uncheck one to add another.</p>
       }
       <p class="foot">
-        Chat reads the default branch of each one. Save replaces the whole list; closing the sheet
+        Bora reads the default branch of each one. Save replaces the whole list; closing the sheet
         keeps the old one.
       </p>
     </ion-content>

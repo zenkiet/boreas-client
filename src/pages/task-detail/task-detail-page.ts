@@ -25,6 +25,7 @@ import { IonSpinner } from '@ionic/angular/ion-spinner';
 import { NavController } from '@ionic/angular/nav-controller';
 import { filter, map, switchMap } from 'rxjs';
 
+import { logSubject } from '@entities/bora';
 import { EnvironmentEditor, describeEnvChange } from '@entities/environment';
 import { AddMemberInput, GRANTABLE_ROLES, Member } from '@entities/project';
 import {
@@ -38,6 +39,7 @@ import {
   TaskStateAction,
   isTransitioningTask,
 } from '@entities/task';
+import { BoraStore } from '@features/bora/model';
 import { ControlTaskStore } from '@features/control-task';
 import { ListProjectsStore } from '@features/list-projects/model';
 import {
@@ -46,7 +48,7 @@ import {
   MemberList,
   MemberRoleChange,
 } from '@features/manage-project';
-import { LogConsole, LogStreamStore } from '@features/stream-task-logs';
+import { LogConsole, LogLine, LogStreamStore } from '@features/stream-task-logs';
 import { TaskUsage, TaskUsageStore } from '@features/track-stats';
 import { ViewTaskStore } from '@features/view-task';
 import { atLeastRole } from '@shared/api/role';
@@ -290,6 +292,11 @@ const APPLIED_HOLD = 2200;
                   Open in CI
                 </ion-button>
               }
+              @if (boraHere()) {
+                <ion-button class="mt-2" size="small" fill="outline" (click)="askBora()">
+                  Ask Bora
+                </ion-button>
+              }
             </app-callout>
           }
         }
@@ -312,6 +319,8 @@ const APPLIED_HOLD = 2200;
             <div class="main">
               <div class="console fx fx-section" [class.hidden]="mainView() !== 'logs'">
                 <app-log-console
+                  [askable]="boraHere()"
+                  (asked)="askLine($event)"
                   [entries]="logs.entries()"
                   [connected]="logs.connected()"
                   [connecting]="!detail.task() || logs.connecting()"
@@ -838,6 +847,8 @@ export class TaskDetailPage {
     const build = this.summary()?.build;
     return build?.state === 'failure' ? build : null;
   });
+  private readonly bora = inject(BoraStore);
+  protected readonly boraHere = computed(() => !!this.listed()?.project.bora);
   protected readonly age = age;
 
   protected readonly sections = sectionDir();
@@ -945,6 +956,14 @@ export class TaskDetailPage {
   protected openMenu(event: Event): void {
     this.menuEvent.set(popoverAnchor(event));
     this.menuOpen.set(true);
+  }
+
+  protected askBora(): void {
+    this.bora.ask({ kind: 'build', project: this.slug(), task: this.name() });
+  }
+
+  protected askLine({ at, line }: LogLine): void {
+    this.bora.ask(logSubject(this.slug(), this.name(), at, line));
   }
 
   protected downloadLogs(): void {
