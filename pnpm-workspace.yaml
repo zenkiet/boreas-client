@@ -79,6 +79,7 @@ minimumReleaseAgeExclude:
   - '@ionic/angular@9.0.7'
   - '@ionic/core@9.0.7'
   - '@capgo/capacitor-speech-recognition@8.4.1 || 8.4.2'
+  - '@capgo/capacitor-speech-synthesis@8.0.26'
 patchedDependencies:
   '@capgo/capacitor-speech-recognition@8.4.2': patches/@capgo__capacitor-speech-recognition@8.4.2.patch
   '@ionic/core@9.0.7': patches/@ionic__core@9.0.7.patch
