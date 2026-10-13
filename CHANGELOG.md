@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.17.1](https://github.com/zenkiet/boreas-client/compare/51ccda21fdf8926261d307a5224d32ad9256eedb..v0.17.1) - 2026-10-13
+#### 🐛 Bug Fixes
+- 🐛 update crash app when tap to talk - ([4eeee1a](https://github.com/zenkiet/boreas-client/commit/4eeee1a4810733e91fee8a360f062caf7383e17b)) - [@zenkiet](https://github.com/zenkiet)
+- 🐛 update crash app when tap to talk - ([51ccda2](https://github.com/zenkiet/boreas-client/commit/51ccda21fdf8926261d307a5224d32ad9256eedb)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.17.0](https://github.com/zenkiet/boreas-client/compare/8296e43df62bc2be9b46faffa5c01b5ca1a9b119..v0.17.0) - 2026-10-12
 #### 🚀 Features
 - (**bora**) ✨ implement bora assistant AI - ([8296e43](https://github.com/zenkiet/boreas-client/commit/8296e43df62bc2be9b46faffa5c01b5ca1a9b119)) - [@zenkiet](https://github.com/zenkiet)
