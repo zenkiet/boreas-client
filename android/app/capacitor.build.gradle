@@ -13,6 +13,7 @@ dependencies {
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-push-notifications')
     implementation project(':capacitor-screen-reader')
+    implementation project(':capgo-capacitor-native-biometric')
     implementation project(':capgo-capacitor-speech-recognition')
     implementation project(':capgo-capacitor-speech-synthesis')
 

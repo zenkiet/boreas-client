@@ -16,6 +16,7 @@ let package = Package(
         .package(name: "CapacitorHaptics", path: "../../../node_modules/.pnpm/@capacitor+haptics@8.0.2_@capacitor+core@8.5.3/node_modules/@capacitor/haptics"),
         .package(name: "CapacitorPushNotifications", path: "../../../node_modules/.pnpm/@capacitor+push-notifications@8.1.3_@capacitor+core@8.5.3/node_modules/@capacitor/push-notifications"),
         .package(name: "CapacitorScreenReader", path: "../../../node_modules/.pnpm/@capacitor+screen-reader@8.0.1_@capacitor+core@8.5.3/node_modules/@capacitor/screen-reader"),
+        .package(name: "CapgoCapacitorNativeBiometric", path: "../../../node_modules/.pnpm/@capgo+capacitor-native-biometric@8.8.2_@capacitor+core@8.5.3/node_modules/@capgo/capacitor-native-biometric"),
         .package(name: "CapgoCapacitorSpeechRecognition", path: "../../../node_modules/.pnpm/@capgo+capacitor-speech-recognition@8.4.2_patch_hash=db6a4890cd00fd12170d5130dfbe03216d_a9b1d004de0172002d24b9599f05b4fa/node_modules/@capgo/capacitor-speech-recognition"),
         .package(name: "CapgoCapacitorSpeechSynthesis", path: "../../../node_modules/.pnpm/@capgo+capacitor-speech-synthesis@8.0.26_@capacitor+core@8.5.3/node_modules/@capgo/capacitor-speech-synthesis"),
         .package(name: "RdlaboIonicThemeIos27", path: "../../../node_modules/@rdlabo/ionic-theme-ios27")
@@ -30,6 +31,7 @@ let package = Package(
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
                 .product(name: "CapacitorScreenReader", package: "CapacitorScreenReader"),
+                .product(name: "CapgoCapacitorNativeBiometric", package: "CapgoCapacitorNativeBiometric"),
                 .product(name: "CapgoCapacitorSpeechRecognition", package: "CapgoCapacitorSpeechRecognition"),
                 .product(name: "CapgoCapacitorSpeechSynthesis", package: "CapgoCapacitorSpeechSynthesis"),
                 .product(name: "RdlaboIonicThemeIos27", package: "RdlaboIonicThemeIos27")

@@ -16,6 +16,7 @@ import { ManageUsersStore } from '@features/manage-users';
 import { AuthTokenStore } from '@shared/api/auth-token.store';
 import { APP_VERSION } from '@shared/config/app-info';
 import { ServerConfigStore } from '@shared/config/server-config.store';
+import { AppLockStore } from '@shared/lib/app-lock/app-lock.store';
 import { PushStore } from '@shared/lib/push';
 import { Theme, ThemeStore } from '@shared/lib/theme/theme.store';
 import { wideScreen } from '@shared/ui/breakpoint/wide-screen';
@@ -147,6 +148,26 @@ const ADMIN_LINKS = [
             <ion-item>
               <ion-label class="ion-text-wrap" role="status">{{ hint }}</ion-label>
             </ion-item>
+          </app-inset-group>
+        }
+
+        @if (lock.support(); as support) {
+          <app-inset-group label="Security">
+            <ion-item>
+              <span slot="start" class="icon-[light--lock-keyhole]" aria-hidden="true"></span>
+              <ion-toggle
+                [checked]="lock.enabled()"
+                [disabled]="!support.deviceIsSecure"
+                (ionChange)="toggleLock($event)"
+              >
+                Require {{ lock.name() }}
+              </ion-toggle>
+            </ion-item>
+            @if (support.deviceIsSecure) {
+              <ion-note>Boreas locks whenever you leave it.</ion-note>
+            } @else {
+              <ion-note>Set a screen lock or passcode on this device first.</ion-note>
+            }
           </app-inset-group>
         }
 
@@ -445,6 +466,7 @@ export class SettingsPage {
   private readonly authTokens = inject(AuthTokenStore);
   protected readonly session = inject(SessionStore);
   protected readonly push = inject(PushStore);
+  protected readonly lock = inject(AppLockStore);
   /* Route-provided, shared with the panes, so the counts stay live. */
   protected readonly apiTokens = inject(ManageTokensStore);
   private readonly users = inject(ManageUsersStore);
@@ -487,6 +509,13 @@ export class SettingsPage {
   protected togglePush(event: ToggleCustomEvent): void {
     (event.detail.checked ? this.push.enable() : this.push.disable()).subscribe({
       complete: () => (event.target.checked = this.push.enabled()),
+    });
+  }
+
+  /* Off verifies too, or whoever holds the open app could turn it off. */
+  protected toggleLock(event: ToggleCustomEvent): void {
+    this.lock.setEnabled(event.detail.checked).subscribe({
+      complete: () => (event.target.checked = this.lock.enabled()),
     });
   }
 

@@ -14,6 +14,9 @@ project(':capacitor-push-notifications').projectDir = new File('../node_modules/
 include ':capacitor-screen-reader'
 project(':capacitor-screen-reader').projectDir = new File('../node_modules/.pnpm/@capacitor+screen-reader@8.0.1_@capacitor+core@8.5.3/node_modules/@capacitor/screen-reader/android')
 
+include ':capgo-capacitor-native-biometric'
+project(':capgo-capacitor-native-biometric').projectDir = new File('../node_modules/.pnpm/@capgo+capacitor-native-biometric@8.8.2_@capacitor+core@8.5.3/node_modules/@capgo/capacitor-native-biometric/android')
+
 include ':capgo-capacitor-speech-recognition'
 project(':capgo-capacitor-speech-recognition').projectDir = new File('../node_modules/.pnpm/@capgo+capacitor-speech-recognition@8.4.2_patch_hash=db6a4890cd00fd12170d5130dfbe03216d_a9b1d004de0172002d24b9599f05b4fa/node_modules/@capgo/capacitor-speech-recognition/android')
 

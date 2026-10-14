@@ -189,6 +189,10 @@
     0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
+ion-tab-bar {
+  --ios27-tab-bar-scale: 1 !important;
+}
+
 /* No preflight: without this, light-DOM buttons fall back to Arial. */
 button {
   font-family: inherit;

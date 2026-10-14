@@ -1,11 +1,20 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { IonApp } from '@ionic/angular/ion-app';
 
+import { AppLockStore } from '@shared/lib/app-lock/app-lock.store';
 import { AppShell } from '@widgets/app-shell';
 
+/* Ionic mounts its overlays inside ion-app, so hiding it while locked hides them all. */
 @Component({
   selector: 'app-root',
   imports: [AppShell, IonApp],
-  template: `<ion-app><app-shell /></ion-app>`,
+  host: { '(document:click)': 'lock.locked() && lock.unlock()' },
+  template: `
+    <ion-app [inert]="lock.locked()" [style.opacity]="lock.locked() ? 0 : null">
+      <app-shell />
+    </ion-app>
+  `,
 })
-export class App {}
+export class App {
+  protected readonly lock = inject(AppLockStore);
+}
