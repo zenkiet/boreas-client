@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 - - -
+## [v0.18.0](https://github.com/zenkiet/boreas-client/compare/26623a6c2dce35d3b7175e649a729544ee4fe4cb..v0.18.0) - 2026-10-14
+#### 🚀 Features
+- (**security**) ✨ lock the app with Face ID, Touch ID or fingerprint - ([26623a6](https://github.com/zenkiet/boreas-client/commit/26623a6c2dce35d3b7175e649a729544ee4fe4cb)) - [@zenkiet](https://github.com/zenkiet)
+
+- - -
+
 ## [v0.17.1](https://github.com/zenkiet/boreas-client/compare/51ccda21fdf8926261d307a5224d32ad9256eedb..v0.17.1) - 2026-10-13
 #### 🐛 Bug Fixes
 - 🐛 update crash app when tap to talk - ([4eeee1a](https://github.com/zenkiet/boreas-client/commit/4eeee1a4810733e91fee8a360f062caf7383e17b)) - [@zenkiet](https://github.com/zenkiet)
