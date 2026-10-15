@@ -91,7 +91,7 @@ export interface AlertOpen {
               [class.failure]="row.failed"
               [button]="row.opens"
               [detail]="false"
-              (click)="row.opens && opened.emit({ alert: row.alert })"
+              (click)="row.opens ? opened.emit({ alert: row.alert }) : null"
             >
               <app-activity-glyph slot="start" class="event__glyph" [kind]="row.alert.kind" />
               <ion-label class="event__body">

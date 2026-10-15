@@ -8,7 +8,7 @@ import { AppShell } from '@widgets/app-shell';
 @Component({
   selector: 'app-root',
   imports: [AppShell, IonApp],
-  host: { '(document:click)': 'lock.locked() && lock.unlock()' },
+  host: { '(document:click)': 'retry()' },
   template: `
     <ion-app [inert]="lock.locked()" [style.opacity]="lock.locked() ? 0 : null">
       <app-shell />
@@ -17,4 +17,9 @@ import { AppShell } from '@widgets/app-shell';
 })
 export class App {
   protected readonly lock = inject(AppLockStore);
+
+  /* Void on purpose: Angular cancels any click whose listener returns false. */
+  protected retry(): void {
+    if (this.lock.locked()) this.lock.unlock();
+  }
 }
