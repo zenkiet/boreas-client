@@ -1,0 +1,16 @@
+{
+  "name": "@boreas/capacitor-voice",
+  "version": "0.1.0",
+  "private": true,
+  "description": "On-device speech for Bora: sherpa-onnx STT and TTS",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+diff --git a/android/src/main/java/app/capgo/speechrecognition/SpeechRecognitionPlugin.java b/android/src/main/java/app/capgo/speechrecognition/SpeechRecognitionPlugin.java
+index 9d17849..5544e13 100644
+--- a/android/src/main/java/app/capgo/speechrecognition/SpeechRecognitionPlugin.java
++++ b/android/src/main/java/app/capgo/speechrecognition/SpeechRecognitionPlugin.java
+@@ -143,10 +143,8 @@ public class SpeechRecognitionPlugin extends Plugin implements Constants {
+                 new RecognitionSupportCallback() {
+                     @Override
+                     public void onSupportResult(RecognitionSupport support) {
+-                        boolean available =
+-                            isLanguageSupported(language, support.getInstalledOnDeviceLanguages()) ||
+-                            isLanguageSupported(language, support.getSupportedOnDeviceLanguages()) ||
+-                            isLanguageSupported(language, support.getPendingOnDeviceLanguages());
++                        // Only an installed pack: otherwise start() asks the user to download one mid-take.
++                        boolean available = isLanguageSupported(language, support.getInstalledOnDeviceLanguages());
+                         finishOnDeviceAvailabilityCheck(supportChecker, call, finished, available);
+                     }
+ 

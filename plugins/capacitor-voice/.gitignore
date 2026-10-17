@@ -1,0 +1,7 @@
+# SwiftPM and the editor's Swift index; the app's own Package.resolved pins the versions.
+.build/
+.swiftpm/
+Package.resolved
+
+# Gradle output when Android Studio builds the module in place.
+android/build/

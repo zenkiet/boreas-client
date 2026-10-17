@@ -1,0 +1,27 @@
+apply plugin: 'com.android.library'
+
+android {
+    namespace = 'dev.zenkiet.boreas.voice'
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+}
+
+// sherpa-onnx publishes its AAR only as a GitHub release asset, and the app resolves it too.
+rootProject.allprojects {
+    repositories {
+        ivy {
+            url = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/'
+            patternLayout { artifact 'v[revision]/[module]-[revision].[ext]' }
+            metadataSources { artifact() }
+            content { includeModule 'k2-fsa', 'sherpa-onnx' }
+        }
+    }
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation 'k2-fsa:sherpa-onnx:1.13.8@aar'
+}

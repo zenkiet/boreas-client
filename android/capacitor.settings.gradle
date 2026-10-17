@@ -2,6 +2,9 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/.pnpm/@capacitor+android@8.5.3_@capacitor+core@8.5.3/node_modules/@capacitor/android/capacitor')
 
+include ':boreas-capacitor-voice'
+project(':boreas-capacitor-voice').projectDir = new File('../plugins/capacitor-voice/android')
+
 include ':capacitor-app'
 project(':capacitor-app').projectDir = new File('../node_modules/.pnpm/@capacitor+app@8.1.2_@capacitor+core@8.5.3/node_modules/@capacitor/app/android')
 
